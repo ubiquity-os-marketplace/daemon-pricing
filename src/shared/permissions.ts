@@ -10,13 +10,8 @@ export async function labelAccessPermissionsCheck(context: Context) {
     return;
   }
   const { logger, payload } = context;
-  const { publicAccessControl } = context.config;
   if (!payload.label?.name) return;
 
-  if (publicAccessControl.setLabel) {
-    logger.info("Public access control is enabled for setting labels");
-    return true;
-  }
   if (payload.sender.type === UserType.Bot) {
     logger.info("Bot has full control over all labels");
     return true;

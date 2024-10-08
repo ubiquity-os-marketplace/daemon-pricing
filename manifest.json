@@ -49,17 +49,12 @@
         "default": {},
         "type": "object",
         "properties": {
-          "setLabel": {
-            "default": false,
-            "type": "boolean"
-          },
           "fundExternalClosedIssue": {
             "default": false,
             "type": "boolean"
           }
         },
         "required": [
-          "setLabel",
           "fundExternalClosedIssue"
         ]
       }

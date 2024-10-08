@@ -23,7 +23,6 @@ Example of valid configuration:
          - "Priority: 5 (Emergency)"
      basePriceMultiplier: 1
      publicAccessControl:
-       setLabel: true
        fundExternalClosedIssue: false
 ```
 

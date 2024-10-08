@@ -24,7 +24,6 @@ export const pluginSettingsSchema = T.Object(
     basePriceMultiplier: T.Number({ default: 1 }),
     publicAccessControl: T.Object(
       {
-        setLabel: T.Boolean({ default: false }),
         fundExternalClosedIssue: T.Boolean({ default: false }),
       },
       { default: {} }
