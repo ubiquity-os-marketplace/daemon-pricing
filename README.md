@@ -22,8 +22,7 @@ Example of valid configuration:
          - "Priority: 4 (Urgent)"
          - "Priority: 5 (Emergency)"
      basePriceMultiplier: 1
-     publicAccessControl:
-       fundExternalClosedIssue: false
+     fundExternalClosedIssue: false
 ```
 
 ## Running locally
