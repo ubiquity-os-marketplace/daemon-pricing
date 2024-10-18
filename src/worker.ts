@@ -1,8 +1,8 @@
 import { Value } from "@sinclair/typebox/value";
+import manifest from "../manifest.json";
 import { run } from "./run";
 import { Env, envConfigValidator } from "./types/env";
 import { assistivePricingSettingsSchema } from "./types/plugin-input";
-import manifest from "../manifest.json";
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -39,15 +39,6 @@ export default {
         });
       }
       const webhookPayload = await request.json();
-      // TODO: temporarily disabled, should be added back with the proper key in the configuration.
-      // const signature = webhookPayload.signature;
-      // delete webhookPayload.signature;
-      // if (!(await verifySignature(env.UBIQUIBOT_PUBLIC_KEY, webhookPayload, signature))) {
-      //   return new Response(JSON.stringify({ error: `Forbidden: Signature verification failed` }), {
-      //     status: 403,
-      //     headers: { "content-type": "application/json" },
-      //   });
-      // }
       webhookPayload.settings = Value.Decode(assistivePricingSettingsSchema, Value.Default(assistivePricingSettingsSchema, webhookPayload.settings));
       await run(webhookPayload, env);
       return new Response(JSON.stringify("OK"), { status: 200, headers: { "content-type": "application/json" } });
@@ -62,24 +53,3 @@ function handleUncaughtError(error: unknown) {
   const status = 500;
   return new Response(JSON.stringify({ error }), { status: status, headers: { "content-type": "application/json" } });
 }
-
-// async function verifySignature(publicKeyPem: string, payload: unknown, signature: string) {
-//   const pemContents = publicKeyPem.replace("-----BEGIN PUBLIC KEY-----", "").replace("-----END PUBLIC KEY-----", "").trim();
-//   const binaryDer = Uint8Array.from(atob(pemContents), (c) => c.charCodeAt(0));
-
-//   const publicKey = await crypto.subtle.importKey(
-//     "spki",
-//     binaryDer.buffer,
-//     {
-//       name: "RSASSA-PKCS1-v1_5",
-//       hash: "SHA-256",
-//     },
-//     true,
-//     ["verify"]
-//   );
-
-//   const signatureArray = Uint8Array.from(atob(signature), (c) => c.charCodeAt(0));
-//   const dataArray = new TextEncoder().encode(JSON.stringify(payload));
-
-//   return await crypto.subtle.verify("RSASSA-PKCS1-v1_5", publicKey, signatureArray, dataArray);
-// }
