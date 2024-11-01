@@ -1,14 +1,14 @@
-import { Context } from "../types/context";
-import { Label } from "../types/github";
 import { Decimal } from "decimal.js";
+import { Label } from "../types/github";
+import { ContextPlugin } from "../types/plugin-input";
 
-export function calculateTaskPrice(context: Context, timeValue: number, priorityValue: number, baseValue?: number): string {
+export function calculateTaskPrice(context: ContextPlugin, timeValue: number, priorityValue: number, baseValue?: number): string {
   const base = baseValue ?? context.config.basePriceMultiplier;
   const priority = new Decimal(priorityValue).div(10); // floats cause bad math
   return new Decimal(base).mul(1000).mul(timeValue).mul(priority).toDecimalPlaces(2).toString();
 }
 
-export function setPrice(context: Context, timeLabel: Label, priorityLabel: Label) {
+export function getPrice(context: ContextPlugin, timeLabel: Label, priorityLabel: Label) {
   const logger = context.logger;
   const { labels } = context.config;
 

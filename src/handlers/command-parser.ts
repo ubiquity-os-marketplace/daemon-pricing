@@ -54,7 +54,7 @@ const commandParser = new Command()
   .name(" ")
   .usage("/<command> @<username> [labels...]")
   .argument("<command>", "The command to execute, e.g. /allow", parseCommand)
-  .argument("<username>", "User name to allow rights to, e.g @ubiquibot", parseUser)
+  .argument("<username>", "User name to allow rights to, e.g @UbiquityOS", parseUser)
   .argument("[labels...]", "Labels to allow, e.g time priority")
   .exitOverride()
   .version(packageJson.version);

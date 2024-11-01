@@ -1,9 +1,9 @@
 ### POST a successful request to the Worker
 # Variables as follows:
-# org_name: the organization you want to post to, e.g. "ubiquibot"
-# repo_name: the target repository, e.g "assistive-pricing"
+# org_name: the organization you want to post to, e.g. "ubiquity-os"
+# repo_name: the target repository, e.g "daemon-pricing"
 # issue_number: the number of the issue, same as the one you would see in the url to that issue, e.g. "1"
-# command: the command you want to test, e.g. "/allow @ubiquibot"
+# command: the command you want to test, e.g. "/allow @UbiquityOS"
 # token: a valid GitHub token for auth, e.g. "ghs_xxxxx"
 POST http://localhost:4000/
 Content-Type: application/json
@@ -25,22 +25,22 @@ Content-Type: application/json
         "number": 5,
         "title": "New issue",
         "user": {
-            "login": "ubiquibot",
+            "login": "ubiquity-os",
             "id": 1,
             "node_id": "MDQ6VXNlcjk4MDcwMDg=",
             "avatar_url": "https://avatars.githubusercontent.com/u/1?v=4",
             "gravatar_id": "",
-            "url": "https://api.github.com/users/ubiquibot",
-            "html_url": "https://github.com/ubiquibot",
-            "followers_url": "https://api.github.com/users/ubiquibot/followers",
-            "following_url": "https://api.github.com/users/ubiquibot/following{/other_user}",
-            "gists_url": "https://api.github.com/users/ubiquibot/gists{/gist_id}",
-            "starred_url": "https://api.github.com/users/ubiquibot/starred{/owner}{/repo}",
-            "subscriptions_url": "https://api.github.com/users/ubiquibot/subscriptions",
-            "organizations_url": "https://api.github.com/users/ubiquibot/orgs",
-            "repos_url": "https://api.github.com/users/ubiquibot/repos",
-            "events_url": "https://api.github.com/users/ubiquibot/events{/privacy}",
-            "received_events_url": "https://api.github.com/users/ubiquibot/received_events",
+            "url": "https://api.github.com/users/ubiquity-os",
+            "html_url": "https://github.com/ubiquity-os",
+            "followers_url": "https://api.github.com/users/ubiquity-os/followers",
+            "following_url": "https://api.github.com/users/ubiquity-os/following{/other_user}",
+            "gists_url": "https://api.github.com/users/ubiquity-os/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/ubiquity-os/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/ubiquity-os/subscriptions",
+            "organizations_url": "https://api.github.com/users/ubiquity-os/orgs",
+            "repos_url": "https://api.github.com/users/ubiquity-os/repos",
+            "events_url": "https://api.github.com/users/ubiquity-os/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/ubiquity-os/received_events",
             "type": "User",
             "site_admin": false
         },
@@ -80,22 +80,22 @@ Content-Type: application/json
         "id": 1,
         "node_id": "IC_kwDOLy-Pv85-UI-X",
         "user": {
-            "login": "ubiquibot",
+            "login": "ubiquity-os",
             "id": 1,
             "node_id": "MDQ6VXNlcjk4MDcwMDg=",
             "avatar_url": "https://avatars.githubusercontent.com/u/1?v=4",
             "gravatar_id": "",
-            "url": "https://api.github.com/users/ubiquibot",
-            "html_url": "https://github.com/ubiquibot",
-            "followers_url": "https://api.github.com/users/ubiquibot/followers",
-            "following_url": "https://api.github.com/users/ubiquibot/following{/other_user}",
-            "gists_url": "https://api.github.com/users/ubiquibot/gists{/gist_id}",
-            "starred_url": "https://api.github.com/users/ubiquibot/starred{/owner}{/repo}",
-            "subscriptions_url": "https://api.github.com/users/ubiquibot/subscriptions",
-            "organizations_url": "https://api.github.com/users/ubiquibot/orgs",
-            "repos_url": "https://api.github.com/users/ubiquibot/repos",
-            "events_url": "https://api.github.com/users/ubiquibot/events{/privacy}",
-            "received_events_url": "https://api.github.com/users/ubiquibot/received_events",
+            "url": "https://api.github.com/users/ubiquity-os",
+            "html_url": "https://github.com/ubiquity-os",
+            "followers_url": "https://api.github.com/users/ubiquity-os/followers",
+            "following_url": "https://api.github.com/users/ubiquity-os/following{/other_user}",
+            "gists_url": "https://api.github.com/users/ubiquity-os/gists{/gist_id}",
+            "starred_url": "https://api.github.com/users/ubiquity-os/starred{/owner}{/repo}",
+            "subscriptions_url": "https://api.github.com/users/ubiquity-os/subscriptions",
+            "organizations_url": "https://api.github.com/users/ubiquity-os/orgs",
+            "repos_url": "https://api.github.com/users/ubiquity-os/repos",
+            "events_url": "https://api.github.com/users/ubiquity-os/events{/privacy}",
+            "received_events_url": "https://api.github.com/users/ubiquity-os/received_events",
             "type": "User",
             "site_admin": false
         },
@@ -233,22 +233,22 @@ Content-Type: application/json
         "description": null
     },
     "sender": {
-        "login": "ubiquibot",
+        "login": "ubiquity-os",
         "id": 1,
         "node_id": "MDQ6VXNlcjk4MDcwMDg=",
         "avatar_url": "https://avatars.githubusercontent.com/u/1?v=4",
         "gravatar_id": "",
-        "url": "https://api.github.com/users/ubiquibot",
-        "html_url": "https://github.com/ubiquibot",
-        "followers_url": "https://api.github.com/users/ubiquibot/followers",
-        "following_url": "https://api.github.com/users/ubiquibot/following{/other_user}",
-        "gists_url": "https://api.github.com/users/ubiquibot/gists{/gist_id}",
-        "starred_url": "https://api.github.com/users/ubiquibot/starred{/owner}{/repo}",
-        "subscriptions_url": "https://api.github.com/users/ubiquibot/subscriptions",
-        "organizations_url": "https://api.github.com/users/ubiquibot/orgs",
-        "repos_url": "https://api.github.com/users/ubiquibot/repos",
-        "events_url": "https://api.github.com/users/ubiquibot/events{/privacy}",
-        "received_events_url": "https://api.github.com/users/ubiquibot/received_events",
+        "url": "https://api.github.com/users/ubiquity-os",
+        "html_url": "https://github.com/ubiquity-os",
+        "followers_url": "https://api.github.com/users/ubiquity-os/followers",
+        "following_url": "https://api.github.com/users/ubiquity-os/following{/other_user}",
+        "gists_url": "https://api.github.com/users/ubiquity-os/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/ubiquity-os/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/ubiquity-os/subscriptions",
+        "organizations_url": "https://api.github.com/users/ubiquity-os/orgs",
+        "repos_url": "https://api.github.com/users/ubiquity-os/repos",
+        "events_url": "https://api.github.com/users/ubiquity-os/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/ubiquity-os/received_events",
         "type": "User",
         "site_admin": false
     },

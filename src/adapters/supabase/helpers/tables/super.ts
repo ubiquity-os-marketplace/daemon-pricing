@@ -1,5 +1,5 @@
 import { SupabaseClient } from "@supabase/supabase-js";
-import { Context } from "../../../../types/context";
+import { Context } from "@ubiquity-os/ubiquity-os-kernel";
 import { Database } from "../../types/database";
 
 export class Super {

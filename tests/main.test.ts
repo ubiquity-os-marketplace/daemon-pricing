@@ -1,17 +1,19 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "@jest/globals";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { drop } from "@mswjs/data";
 import commandParser, { CommandArguments } from "../src/handlers/command-parser";
 import { Env } from "../src/types/env";
+import { ContextPlugin } from "../src/types/plugin-input";
 import workerFetch from "../src/worker";
 import { db } from "./__mocks__/db";
 import { server } from "./__mocks__/node";
 import issueCommented from "./__mocks__/requests/issue-comment-post.json";
 import usersGet from "./__mocks__/users-get.json";
-import * as crypto from "crypto";
+import * as crypto from "node:crypto";
+import { AssistivePricingSettings, pluginSettingsSchema } from "../src/types/plugin-input";
+import { Value } from "@sinclair/typebox/value";
 import { calculateLabelValue, calculateTaskPrice } from "../src/shared/pricing";
-import { Context } from "../src/types/context";
 
-const { publicKey, privateKey } = crypto.generateKeyPairSync("rsa", {
+const { privateKey, publicKey } = crypto.generateKeyPairSync("rsa", {
   modulusLength: 2048,
   publicKeyEncoding: {
     type: "spki",
@@ -23,7 +25,7 @@ const { publicKey, privateKey } = crypto.generateKeyPairSync("rsa", {
   },
 });
 
-const url = "http://localhost:4000";
+const url = "/";
 
 beforeAll(() => server.listen());
 afterEach(() => server.resetHandlers());
@@ -41,6 +43,12 @@ describe("User tests", () => {
     for (const item of usersGet) {
       db.users.create(item);
     }
+  });
+
+  it("Should not include globalConfigUpdate in defaults if omitted", () => {
+    const settings = Value.Default(pluginSettingsSchema, {}) as AssistivePricingSettings;
+    const decodedSettings = Value.Decode(pluginSettingsSchema, settings);
+    expect(decodedSettings.globalConfigUpdate).toBeUndefined();
   });
 
   it("Should parse the /allow command", () => {
@@ -123,16 +131,13 @@ describe("User tests", () => {
       },
     ];
     for (const testCase of testCases) {
-      const price = calculateTaskPrice(context as unknown as Context, testCase.timeValue, testCase.priorityValue);
+      const price = calculateTaskPrice(context as unknown as ContextPlugin, testCase.timeValue, testCase.priorityValue);
       expect(price).toEqual(testCase.expectedPrice);
     }
   });
 
   it("Should handle the comment", async () => {
-    const data = {
-      ...issueCommented,
-      authToken: process.env.GITHUB_TOKEN,
-    };
+    const data = issueCommented;
     const sign = crypto.createSign("SHA256");
     sign.update(JSON.stringify(data));
     sign.end();
@@ -151,9 +156,9 @@ describe("User tests", () => {
         url,
       } as unknown as Request,
       {
-        SUPABASE_URL: "url",
+        SUPABASE_URL: "http://localhost:65432",
         SUPABASE_KEY: "key",
-        UBIQUIBOT_PUBLIC_KEY: publicKey,
+        KERNEL_PUBLIC_KEY: publicKey,
       }
     );
     expect(result.ok).toEqual(true);
@@ -168,14 +173,19 @@ describe("User tests", () => {
       {
         SUPABASE_URL: "url",
         SUPABASE_KEY: "key",
-        UBIQUIBOT_PUBLIC_KEY: "key",
+        KERNEL_PUBLIC_KEY: "key",
       }
     );
     expect(result.ok).toEqual(false);
-    expect(result.status).toEqual(405);
+    expect(result.status).toEqual(404);
   });
 
   it("Should reject an invalid environment", async () => {
+    const data = issueCommented;
+    const sign = crypto.createSign("SHA256");
+    sign.update(JSON.stringify(data));
+    sign.end();
+    const signature = sign.sign(privateKey, "base64");
     const result = await workerFetch.fetch(
       {
         method: "POST",
@@ -183,36 +193,18 @@ describe("User tests", () => {
           get: () => "application/json",
         },
         url,
-        json() {
-          return { settings: {} };
-        },
+        json: () => ({
+          ...data,
+          signature,
+        }),
       } as unknown as Request,
       {
-        SUPABASE_URL: "url",
-        SUPABASE_KEY: "key",
+        SUPABASE_URL: "http://localhost:65432",
+        KERNEL_PUBLIC_KEY: publicKey,
       } as unknown as Env
     );
     expect(result.ok).toEqual(false);
     expect(result.status).toEqual(500);
-    expect(await result.json()).toEqual({
-      errors: [
-        {
-          message: "Required property",
-          path: "/UBIQUIBOT_PUBLIC_KEY",
-          schema: {
-            type: "string",
-          },
-          type: 45,
-        },
-        {
-          message: "Expected string",
-          path: "/UBIQUIBOT_PUBLIC_KEY",
-          schema: {
-            type: "string",
-          },
-          type: 54,
-        },
-      ],
-    });
+    expect(await result.text()).toEqual("Internal Server Error");
   });
 });

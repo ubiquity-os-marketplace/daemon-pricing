@@ -1,5 +1,5 @@
 name: "Delegate Compute"
-description: "UbiquiBot Delegated Compute Action"
+description: "UbiquityOS Delegated Compute Action"
 outputs:
   result: # id of output
     description: "The result of a event handler"

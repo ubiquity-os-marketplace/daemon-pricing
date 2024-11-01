@@ -1,10 +1,36 @@
 {
   "$schema": "https://raw.githubusercontent.com/streetsidesoftware/cspell/main/cspell.schema.json",
   "version": "0.2",
-  "ignorePaths": ["**/*.json", "**/*.css", "node_modules", "**/*.log", "**/*.toml", "**/*.http", "src/adapters/supabase/types/database.ts"],
+  "ignorePaths": [
+    "**/*.json",
+    "**/*.css",
+    "node_modules",
+    "**/*.log",
+    "**/*.toml",
+    "**/*.http",
+    "src/adapters/supabase/types/database.ts",
+    "bun.lockb",
+    "dist"
+  ],
   "useGitignore": true,
   "language": "en",
-  "words": ["dataurl", "devpool", "outdir", "servedir", "supabase", "typebox", "typeguards", "mswjs", "ubiquibot"],
+  "words": [
+    "gentlementlegen",
+    "AUTHED",
+    "UNAUTHED",
+    "Authed",
+    "Tand",
+    "dataurl",
+    "devpool",
+    "outdir",
+    "servedir",
+    "supabase",
+    "typebox",
+    "typeguards",
+    "mswjs",
+    "ubiquity-os",
+    "hono"
+  ],
   "dictionaries": ["typescript", "node", "software-terms"],
   "import": ["@cspell/dict-typescript/cspell-ext.json", "@cspell/dict-node/cspell-ext.json", "@cspell/dict-software-terms"],
   "ignoreRegExpList": ["[0-9a-fA-F]{6}"]

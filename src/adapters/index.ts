@@ -1,9 +1,9 @@
 import { SupabaseClient } from "@supabase/supabase-js";
-import { Context } from "../types/context";
+import { Context } from "@ubiquity-os/ubiquity-os-kernel";
 import { Access } from "./supabase/helpers/tables/access";
-import { User } from "./supabase/helpers/tables/user";
 import { Label } from "./supabase/helpers/tables/label";
 import { Super } from "./supabase/helpers/tables/super";
+import { User } from "./supabase/helpers/tables/user";
 
 export function createAdapters(supabaseClient: SupabaseClient, context: Context) {
   return {

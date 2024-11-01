@@ -1,8 +1,8 @@
 import { isUserAdminOrBillingManager } from "../shared/issue";
-import { Context } from "../types/context";
+import { ContextPlugin } from "../types/plugin-input";
 import { isLabelEditedEvent } from "../types/typeguards";
 
-export async function watchLabelChange(context: Context) {
+export async function watchLabelChange(context: ContextPlugin) {
   const logger = context.logger;
   if (!isLabelEditedEvent(context)) {
     logger.debug("Not a label event");
@@ -19,10 +19,15 @@ export async function watchLabelChange(context: Context) {
     throw new Error(errorMessage);
   }
   const currentLabel = label?.name;
-  const triggerUser = sender.login;
+  const triggerUser = sender?.login;
+  const triggerUserId = sender?.id;
 
   if (!previousLabel || !currentLabel) {
     return logger.debug("No label name change.. skipping");
+  }
+
+  if (!triggerUser || !triggerUserId) {
+    return logger.debug("No user found.. skipping");
   }
 
   // check if user is authorized to make the change
@@ -33,12 +38,13 @@ export async function watchLabelChange(context: Context) {
     currentLabel,
     authorized: hasAccess,
     repositoryId: payload.repository.id,
-    userId: sender.id,
+    userId: triggerUserId,
   });
+
   return logger.debug("label name change saved to db");
 }
 
-async function hasLabelEditPermission(context: Context, label: string, caller: string) {
+async function hasLabelEditPermission(context: ContextPlugin, label: string, caller: string) {
   const sufficientPrivileges = await isUserAdminOrBillingManager(context, caller);
 
   // get text before :
