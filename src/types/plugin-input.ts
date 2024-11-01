@@ -22,7 +22,7 @@ export const pluginSettingsSchema = T.Object(
       { default: {} }
     ),
     basePriceMultiplier: T.Number({ default: 1 }),
-    fundExternalClosedIssue: T.Boolean({ default: false }),
+    fundContributorClosedIssue: T.Boolean({ default: false }),
   },
   { default: {} }
 );
