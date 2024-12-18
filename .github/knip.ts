@@ -8,11 +8,7 @@ const config: KnipConfig = {
   ignoreDependencies: [
     "ts-node",
     "@types/jest",
-    "@eslint/js",
-    "typescript-eslint",
-    "eslint-plugin-sonarjs",
     "eslint-plugin-prettier",
-    "eslint-plugin-check-file",
     "eslint-config-prettier",
     "@typescript-eslint/parser",
     "@typescript-eslint/eslint-plugin",

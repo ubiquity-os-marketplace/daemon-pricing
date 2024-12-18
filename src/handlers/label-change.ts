@@ -50,15 +50,6 @@ async function hasLabelEditPermission(context: Context, label: string, caller: s
   // get text before :
   const match = label.split(":");
   if (match.length == 0) return false;
-  const labelType = match[0].toLowerCase();
 
-  if (sufficientPrivileges) {
-    // check permission
-    const { access, user } = context.adapters.supabase;
-    const userId = await user.getUserId(context, caller);
-    const accessible = await access.getAccess(userId, context.payload.repository.id);
-    return accessible !== null && accessible.labels?.includes(labelType) === true;
-  }
-
-  return true;
+  return sufficientPrivileges !== false;
 }

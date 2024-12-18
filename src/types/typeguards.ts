@@ -1,11 +1,5 @@
 import { Context } from "./context";
 
-export function isCommentEvent(context: Context): context is Context & {
-  payload: { issue: Context<"issue_comment.created">["payload"]["issue"]; comment: Context<"issue_comment.created">["payload"]["comment"] };
-} {
-  return context.eventName.startsWith("issue_comment.");
-}
-
 export function isIssueLabelEvent(context: Context): context is Context & {
   payload: {
     issue: Context<"issues.labeled" | "issues.unlabeled">["payload"]["issue"];

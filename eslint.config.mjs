@@ -74,6 +74,7 @@ export default tsEslint.config({
     "sonarjs/function-return-type": "off",
     "sonarjs/no-misleading-array-reverse": "off",
     "sonarjs/slow-regex": "off",
+    "sonarjs/no-nested-template-literals": "off",
     "@typescript-eslint/naming-convention": [
       "error",
       {

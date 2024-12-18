@@ -1,17 +1,17 @@
-import { UserType } from "../types/github";
+import { postComment } from "@ubiquity-os/plugin-sdk";
 import { Context } from "../types/context";
+import { UserType } from "../types/github";
 import { isIssueLabelEvent } from "../types/typeguards";
-import { addCommentToIssue, isUserAdminOrBillingManager } from "./issue";
-import { addLabelToIssue, removeLabelFromIssue } from "./label";
+import { isUserAdminOrBillingManager } from "./issue";
 
 export async function labelAccessPermissionsCheck(context: Context) {
   if (!isIssueLabelEvent(context)) {
     context.logger.debug("Not an issue event");
-    return;
+    return false;
   }
   const { logger, payload } = context;
   const { publicAccessControl } = context.config;
-  if (!payload.label?.name) return;
+  if (!payload.label?.name) return false;
 
   if (publicAccessControl.setLabel) {
     logger.info("Public access control is enabled for setting labels");
@@ -29,19 +29,13 @@ export async function labelAccessPermissionsCheck(context: Context) {
 
   const repo = payload.repository;
   const sufficientPrivileges = await isUserAdminOrBillingManager(context, sender);
-  // event in plain english
-  let action;
-  if ("action" in payload) {
-    action = payload.action;
-  } else {
-    throw new Error("No action found in payload");
-  }
-  const eventName = action === "labeled" ? "add" : "remove";
+
   const labelName = payload.label.name;
 
   // get text before :
   const match = payload.label?.name?.split(":");
-  if (match.length == 0) return;
+  // We can ignore custom labels which are not like Label: <value>
+  if (match.length <= 1) return false;
   const labelType = match[0].toLowerCase();
 
   if (sufficientPrivileges) {
@@ -52,39 +46,24 @@ export async function labelAccessPermissionsCheck(context: Context) {
     });
     return true;
   } else {
-    return handleInsufficientPrivileges(context, labelType, sender, repo, action, labelName, eventName);
+    return handleInsufficientPrivileges(context, labelType, sender, repo, labelName);
   }
 }
 
-async function handleInsufficientPrivileges(
-  context: Context,
-  labelType: string,
-  sender: string,
-  repo: Context["payload"]["repository"],
-  action: string,
-  labelName: string,
-  eventName: string
-) {
-  const { logger, payload } = context;
+async function handleInsufficientPrivileges(context: Context, labelType: string, sender: string, repo: Context["payload"]["repository"], labelName: string) {
+  const { logger, config } = context;
   logger.info("Checking access for labels", { repo: repo.full_name, user: sender, labelType });
-  // check permission
-  const { access, user } = context.adapters.supabase;
-  const userId = await user.getUserId(context, sender);
-  const accessible = await access.getAccess(userId, repo.id);
-  if (accessible && accessible.labels?.includes(labelType)) {
-    return true;
+
+  if (config.publicAccessControl.protectLabels.some((protectedLabel) => protectedLabel.toLowerCase() === labelType.toLowerCase())) {
+    await postComment(
+      context,
+      logger.error(
+        `@${sender}, you do not have permissions to adjust ${config.publicAccessControl.protectLabels.map((label) => `\`${label}\``).join(", ")} labels.`,
+        { sender, label: labelName }
+      )
+    );
+    return false;
   }
 
-  if (action === "labeled") {
-    await removeLabelFromIssue(context, labelName);
-  } else if (action === "unlabeled") {
-    await addLabelToIssue(context, labelName);
-  }
-
-  if ("issue" in payload && payload.issue) {
-    await addCommentToIssue(context, `@${sender}, You are not allowed to ${eventName} ${labelName}`, payload.issue.number);
-    logger.info("No access to edit label", { sender, label: labelName });
-  }
-
-  return false;
+  return true;
 }

@@ -36,6 +36,10 @@ Example of valid configuration:
     publicAccessControl:
       setLabel: true
       fundExternalClosedIssue: false
+      protectLabels:
+        - price
+        - time
+        - priority
     globalConfigUpdate:
       excludeRepos: ["devpool-directory", "devpool-directory-private"]
 ```

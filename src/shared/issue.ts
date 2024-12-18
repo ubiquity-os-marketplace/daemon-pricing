@@ -41,23 +41,6 @@ export async function isUserAdminOrBillingManager(context: Context, username?: s
   return false;
 }
 
-export async function addCommentToIssue(context: Context, message: string, issueNumber: number, repoOwner?: string, repo?: string) {
-  const payload = context.payload;
-  const owner = repoOwner || payload.repository.owner?.login;
-  if (!owner) throw context.logger.error("No owner found in the repository!");
-
-  try {
-    await context.octokit.rest.issues.createComment({
-      owner,
-      repo: repo ?? payload.repository.name,
-      issue_number: issueNumber,
-      body: message,
-    });
-  } catch (err: unknown) {
-    context.logger.error("Adding a comment failed!", { err });
-  }
-}
-
 export async function listOrgRepos(context: Context) {
   const org = context.payload.organization?.login;
   if (!org) throw context.logger.error("No organization found in payload!");
