@@ -2,29 +2,6 @@
   "name": "Assistive pricing",
   "description": "Handles assistive pricing, and allows for users to modify labels.",
   "ubiquity:listeners": ["repository.created", "issues.opened", "issues.labeled", "issues.unlabeled", "label.edited", "issue_comment.created", "push"],
-  "commands": {
-    "allow": {
-      "ubiquity:example": "/allow @user1 label",
-      "description": "Allows the user to modify the given label type.",
-      "parameters": {
-        "type": "object",
-        "properties": {
-          "username": {
-            "type": "string",
-            "description": "The user that will be allowed to change the label"
-          },
-          "labelTypes": {
-            "type": "array",
-            "description": "Array of label types that user will be allowed to change, it can be empty to remove access from all labels",
-            "items": {
-              "type": "string",
-              "enum": ["time", "priority"]
-            }
-          }
-        }
-      }
-    }
-  },
   "configuration": {
     "default": {},
     "type": "object",
@@ -98,6 +75,14 @@
           "fundExternalClosedIssue": {
             "default": false,
             "type": "boolean"
+          },
+          "protectLabels": {
+            "default": ["priority", "price", "time"],
+            "uniqueItems": true,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       }

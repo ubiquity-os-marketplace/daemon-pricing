@@ -1,17 +1,16 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "@jest/globals";
 import { drop } from "@mswjs/data";
-import commandParser, { CommandArguments } from "../src/handlers/command-parser";
-import { Env } from "../src/types/env";
+import { Value } from "@sinclair/typebox/value";
+import * as crypto from "node:crypto";
+import { calculateLabelValue, calculateTaskPrice } from "../src/shared/pricing";
 import { Context } from "../src/types/context";
+import { Env } from "../src/types/env";
+import { AssistivePricingSettings, pluginSettingsSchema } from "../src/types/plugin-input";
 import workerFetch from "../src/worker";
 import { db } from "./__mocks__/db";
 import { server } from "./__mocks__/node";
 import issueCommented from "./__mocks__/requests/issue-comment-post.json";
 import usersGet from "./__mocks__/users-get.json";
-import * as crypto from "node:crypto";
-import { AssistivePricingSettings, pluginSettingsSchema } from "../src/types/plugin-input";
-import { calculateLabelValue, calculateTaskPrice } from "../src/shared/pricing";
-import { Value } from "@sinclair/typebox/value";
 
 const { privateKey, publicKey } = crypto.generateKeyPairSync("rsa", {
   modulusLength: 2048,
@@ -31,12 +30,6 @@ beforeAll(() => server.listen());
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
-jest.unstable_mockModule("@supabase/supabase-js", () => {
-  return {
-    createClient: jest.fn(),
-  };
-});
-
 describe("User tests", () => {
   beforeEach(() => {
     drop(db);
@@ -49,44 +42,6 @@ describe("User tests", () => {
     const settings = Value.Default(pluginSettingsSchema, {}) as AssistivePricingSettings;
     const decodedSettings = Value.Decode(pluginSettingsSchema, settings);
     expect(decodedSettings.globalConfigUpdate).toBeUndefined();
-  });
-
-  it("Should parse the /allow command", () => {
-    const command = "/allow @user time priority".split(/\s+/);
-    const invalidCommand = "allow user time priority".split(/\s+/);
-    const unknownCommand = "/foo user time priority".split(/\s+/);
-    const commandForRemoval = "/allow @user".split(/\s+/);
-    const result: CommandArguments = {
-      command: "allow",
-      labels: [],
-      username: "",
-    };
-    commandParser
-      .action((command, username, labels) => {
-        result.command = command;
-        result.username = username;
-        result.labels = labels;
-      })
-      .parse(command, { from: "user" });
-    expect(result).toEqual({
-      command: "allow",
-      labels: ["time", "priority"],
-      username: "user",
-    });
-    expect(() => commandParser.exitOverride().parse(invalidCommand, { from: "user" })).toThrow();
-    expect(() => commandParser.exitOverride().parse(unknownCommand, { from: "user" })).toThrow();
-    commandParser
-      .action((command, username, labels) => {
-        result.command = command;
-        result.username = username;
-        result.labels = labels;
-      })
-      .parse(commandForRemoval, { from: "user" });
-    expect(result).toEqual({
-      command: "allow",
-      labels: [],
-      username: "user",
-    });
   });
 
   it("Should accurately calculates prices", () => {
@@ -136,37 +91,6 @@ describe("User tests", () => {
     }
   });
 
-  it("Should handle the comment", async () => {
-    const data = issueCommented;
-    const sign = crypto.createSign("SHA256");
-    sign.update(JSON.stringify(data));
-    sign.end();
-    const signature = sign.sign(privateKey, "base64");
-
-    process.env = {
-      SUPABASE_URL: "http://localhost:65432",
-      SUPABASE_KEY: "key",
-    };
-
-    const result = await workerFetch.fetch(
-      {
-        headers: {
-          get: () => "application/json",
-        },
-        json: () => ({
-          ...data,
-          signature,
-        }),
-        method: "POST",
-        url,
-      } as unknown as Request,
-      {
-        KERNEL_PUBLIC_KEY: publicKey,
-      } as Env
-    );
-    expect(result.ok).toEqual(true);
-  });
-
   it("Should deny non POST request", async () => {
     const result = await workerFetch.fetch(
       {
@@ -174,8 +98,6 @@ describe("User tests", () => {
         url,
       } as unknown as Request,
       {
-        SUPABASE_URL: "url",
-        SUPABASE_KEY: "key",
         KERNEL_PUBLIC_KEY: "key",
       }
     );
@@ -191,7 +113,7 @@ describe("User tests", () => {
     const signature = sign.sign(privateKey, "base64");
 
     process.env = {
-      SUPABASE_URL: "http://localhost:65432",
+      LOG_LEVEL: "1234",
     };
 
     const result = await workerFetch.fetch(

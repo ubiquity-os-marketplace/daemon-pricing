@@ -31,6 +31,7 @@ export const pluginSettingsSchema = T.Object(
       {
         setLabel: T.Boolean({ default: false }),
         fundExternalClosedIssue: T.Boolean({ default: false }),
+        protectLabels: T.Array(T.String(), { default: ["priority", "price", "time"], uniqueItems: true }),
       },
       { default: {} }
     ),

@@ -620,10 +620,6 @@ function createContext(
       throttle: { enabled: false },
     }),
     eventName: "push",
-    env: {
-      SUPABASE_KEY: "key",
-      SUPABASE_URL: "url",
-    },
     command: null,
   } as unknown as Context<"push">;
 }

@@ -1,24 +1,18 @@
-import { createClient } from "@supabase/supabase-js";
 import { createPlugin } from "@ubiquity-os/plugin-sdk";
+import { Manifest } from "@ubiquity-os/plugin-sdk/manifest";
 import { LogLevel } from "@ubiquity-os/ubiquity-os-logger";
 import type { ExecutionContext } from "hono";
-import { createAdapters } from "./adapters";
+import manifest from "../manifest.json";
 import { run } from "./run";
-import { Context, SupportedEvents } from "./types/context";
+import { SupportedEvents } from "./types/context";
 import { Env, envSchema } from "./types/env";
 import { AssistivePricingSettings, pluginSettingsSchema } from "./types/plugin-input";
-import manifest from "../manifest.json";
-import { Command } from "./types/command";
-import { Manifest } from "@ubiquity-os/plugin-sdk/manifest";
 
 export default {
   async fetch(request: Request, env: Record<string, string>, executionCtx?: ExecutionContext) {
-    return createPlugin<AssistivePricingSettings, Env, Command, SupportedEvents>(
+    return createPlugin<AssistivePricingSettings, Env, null, SupportedEvents>(
       (context) => {
-        return run({
-          ...context,
-          adapters: createAdapters(createClient(context.env.SUPABASE_URL, context.env.SUPABASE_KEY), context as Context),
-        });
+        return run(context);
       },
       manifest as Manifest,
       {

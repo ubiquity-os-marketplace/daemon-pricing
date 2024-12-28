@@ -8,7 +8,7 @@ export default tsEslint.config({
     "@typescript-eslint": tsEslint.plugin,
     "check-file": checkFile,
   },
-  ignores: [".github/knip.ts", "src/adapters/supabase/types/database.ts", ".wrangler/**", "dist/**", "coverage/**"],
+  ignores: [".github/knip.ts", ".wrangler/**", "dist/**", "coverage/**"],
   extends: [eslint.configs.recommended, ...tsEslint.configs.recommended, sonarjs.configs.recommended],
   languageOptions: {
     parser: tsEslint.parser,
@@ -74,6 +74,7 @@ export default tsEslint.config({
     "sonarjs/function-return-type": "off",
     "sonarjs/no-misleading-array-reverse": "off",
     "sonarjs/slow-regex": "off",
+    "sonarjs/no-nested-template-literals": "off",
     "@typescript-eslint/naming-convention": [
       "error",
       {

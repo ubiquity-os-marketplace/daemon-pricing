@@ -1,8 +1,6 @@
 import { Context as PluginContext } from "@ubiquity-os/plugin-sdk";
-import { AssistivePricingSettings } from "./plugin-input";
-import { createAdapters } from "../adapters";
 import { Env } from "./env";
-import { Command } from "./command";
+import { AssistivePricingSettings } from "./plugin-input";
 
 export type SupportedEvents =
   | "repository.created"
@@ -13,6 +11,4 @@ export type SupportedEvents =
   | "issue_comment.created"
   | "push";
 
-export type Context<T extends SupportedEvents = SupportedEvents> = PluginContext<AssistivePricingSettings, Env, Command, T> & {
-  adapters: ReturnType<typeof createAdapters>;
-};
+export type Context<T extends SupportedEvents = SupportedEvents> = PluginContext<AssistivePricingSettings, Env, null, T>;

@@ -5,12 +5,14 @@
 # issue_number: the number of the issue, same as the one you would see in the url to that issue, e.g. "1"
 # command: the command you want to test, e.g. "/allow @UbiquityOS"
 # token: a valid GitHub token for auth, e.g. "ghs_xxxxx"
-POST http://localhost:4000/
+POST http://localhost:4001
 Content-Type: application/json
 
 {
   "stateId": "",
-  "eventName": "issue_comment.created",
+  "command": null,
+  "eventName": "issues.labeled",
+  "signature": "",
   "eventPayload": {
     "action": "created",
     "issue": {

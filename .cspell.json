@@ -8,7 +8,6 @@
     "**/*.log",
     "**/*.toml",
     "**/*.http",
-    "src/adapters/supabase/types/database.ts",
     "bun.lockb",
     "dist/**"
   ],
@@ -24,7 +23,6 @@
     "devpool",
     "outdir",
     "servedir",
-    "supabase",
     "typebox",
     "typeguards",
     "mswjs",
