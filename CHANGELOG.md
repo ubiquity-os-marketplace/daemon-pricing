@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/ubiquity-os-marketplace/daemon-pricing/compare/v1.1.0...v1.1.1) (2024-12-30)
+
+
+### Bug Fixes
+
+* priority 0 is now properly handled and prices at zero ([2a7dfa8](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/2a7dfa843e5050b341900655ad0bce981f230594))
+
 ## [1.1.0](https://github.com/ubiquity-os-marketplace/daemon-pricing/compare/v1.0.2...v1.1.0) (2024-11-29)
 
 
