@@ -20,7 +20,34 @@ export const pluginSettingsSchema = T.Object(
             name: T.String({ examples: ["Time: <2 Hours", "Time: <1 Week"], description: "The display name of the label representing estimated task length" }),
             collaboratorOnly: T.Boolean({ default: false, description: "Whether the task is only available for collaborators to be assigned" }),
           }),
-          { default: [] }
+          {
+            default: [
+              {
+                name: "Time: <15 Minutes",
+                collaboratorOnly: false,
+              },
+              {
+                name: "Time: <1 Hour",
+                collaboratorOnly: false,
+              },
+              {
+                name: "Time: <2 Hours",
+                collaboratorOnly: false,
+              },
+              {
+                name: "Time: <4 Hours",
+                collaboratorOnly: false,
+              },
+              {
+                name: "Time: <1 Day",
+                collaboratorOnly: false,
+              },
+              {
+                name: "Time: <1 Week",
+                collaboratorOnly: false,
+              },
+            ],
+          }
         ),
         priority: T.Array(
           T.Object({
@@ -30,7 +57,34 @@ export const pluginSettingsSchema = T.Object(
             }),
             collaboratorOnly: T.Boolean({ default: false, description: "Whether the task is only available for collaborators to be assigned" }),
           }),
-          { default: [] }
+          {
+            default: [
+              {
+                name: "Priority: 0 (Regression)",
+                collaboratorOnly: false,
+              },
+              {
+                name: "Priority: 1 (Normal)",
+                collaboratorOnly: false,
+              },
+              {
+                name: "Priority: 2 (Medium)",
+                collaboratorOnly: false,
+              },
+              {
+                name: "Priority: 3 (High)",
+                collaboratorOnly: false,
+              },
+              {
+                name: "Priority: 4 (Urgent)",
+                collaboratorOnly: false,
+              },
+              {
+                name: "Priority: 5 (Emergency)",
+                collaboratorOnly: false,
+              },
+            ],
+          }
         ),
       },
       { default: {} }
