@@ -1,5 +1,21 @@
 # Changelog
 
+## [2.0.0](https://github.com/ubiquity-os-marketplace/daemon-pricing/compare/v1.1.0...v2.0.0) (2025-01-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* removed command and Supabase related logic
+* removed command and Supabase related logic
+
+### Bug Fixes
+
+* priority 0 is now properly handled and prices at zero ([2a7dfa8](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/2a7dfa843e5050b341900655ad0bce981f230594))
+* removed `/allow` command ([2d14eac](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/2d14eaca84c50c9808b3d62d96abf59cf35dee07))
+* removed `/allow` command ([7591c53](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/7591c532a1c1b4de8efac32937c20d1fa1fde2a6))
+* removed command and Supabase related logic ([ecfa4fe](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/ecfa4fe220aa208ebb7a79d63d4346564a915f96))
+* removed command and Supabase related logic ([df2d10d](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/df2d10d0492455af8c5f5c130d1b197bebafb21c))
+
 ## [1.1.0](https://github.com/ubiquity-os-marketplace/daemon-pricing/compare/v1.0.2...v1.1.0) (2024-11-29)
 
 
