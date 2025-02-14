@@ -19,7 +19,6 @@ export async function listLabelsForRepo(context: Context): Promise<Label[]> {
     owner,
     repo: payload.repository.name,
     per_page: 100,
-    page: 1,
   });
 
   if (res.length > 0) {
@@ -28,7 +27,7 @@ export async function listLabelsForRepo(context: Context): Promise<Label[]> {
     return res;
   }
 
-  throw context.logger.error("Failed to fetch lists of labels", { status: 500 });
+  return [];
 }
 
 export async function createLabel(context: Context, name: string, labelType = "default" as keyof typeof COLORS, description?: string): Promise<void> {
@@ -41,13 +40,15 @@ export async function createLabel(context: Context, name: string, labelType = "d
   }
 
   try {
-    await context.octokit.rest.issues.createLabel({
+    const createLabelsOptions = {
       owner,
       repo: payload.repository.name,
       name,
       color,
       description,
-    });
+    };
+    context.logger.debug("Trying to create label", { createLabelsOptions });
+    await context.octokit.rest.issues.createLabel(createLabelsOptions);
   } catch (err) {
     throw context.logger.error("Creating a label failed!", { err });
   }

@@ -2,7 +2,7 @@ import { createAppAuth } from "@octokit/auth-app";
 import { Octokit } from "@octokit/rest";
 import { createPlugin } from "@ubiquity-os/plugin-sdk";
 import { Manifest } from "@ubiquity-os/plugin-sdk/manifest";
-import { LogLevel } from "@ubiquity-os/ubiquity-os-logger";
+import { LOG_LEVEL, LogLevel } from "@ubiquity-os/ubiquity-os-logger";
 import type { ExecutionContext } from "hono";
 import manifest from "../manifest.json";
 import { run } from "./run";
@@ -63,18 +63,30 @@ export default {
 
     return createPlugin<AssistivePricingSettings, Env, null, SupportedEvents>(
       async (context) => {
-        if (context.eventName === "push") {
-          const text = (await responseClone.json()) as Record<string, unknown>;
-          return startAction(context, text);
+        switch (context.eventName) {
+          case "issues.opened":
+          case "repository.created":
+          case "push": {
+            const text = (await responseClone.json()) as Record<string, unknown>;
+            return startAction(context, text);
+          }
+          case "issues.labeled":
+          case "issues.unlabeled": {
+            const text = (await responseClone.json()) as Record<string, unknown>;
+            await startAction(context, text);
+            return run(context);
+          }
+          default: {
+            return run(context);
+          }
         }
-        return run(context);
       },
       manifest as Manifest,
       {
         envSchema: envSchema,
         postCommentOnError: true,
         settingsSchema: pluginSettingsSchema,
-        logLevel: (env.LOG_LEVEL as LogLevel) ?? "info",
+        logLevel: (env.LOG_LEVEL as LogLevel) || LOG_LEVEL.INFO,
         kernelPublicKey: env.KERNEL_PUBLIC_KEY,
         bypassSignatureVerification: env.NODE_ENV === "local",
       }
