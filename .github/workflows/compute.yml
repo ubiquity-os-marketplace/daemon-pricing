@@ -34,3 +34,4 @@ jobs:
         env:
           PLUGIN_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           KERNEL_PUBLIC_KEY: ${{ secrets.KERNEL_PUBLIC_KEY }}
+          LOG_LEVEL: ${{ secrets.LOG_LEVEL }}

@@ -10,9 +10,6 @@ describe("Permission tests for labels", () => {
     jest.unstable_mockModule("../src/shared/issue", () => ({
       isUserAdminOrBillingManager: isUserAdminOrBillingManagerMock,
     }));
-    jest.unstable_mockModule("@ubiquity-os/plugin-sdk", () => ({
-      postComment: postCommentMock,
-    }));
     const { labelAccessPermissionsCheck } = await import("../src/shared/permissions");
     const ctx = {
       logger: new Logs("debug"),
@@ -34,6 +31,9 @@ describe("Permission tests for labels", () => {
         publicAccessControl: {
           protectLabels: ["Price"],
         },
+      },
+      commentHandler: {
+        postComment: postCommentMock,
       },
     };
     // should ignore non-standard labels

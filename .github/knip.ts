@@ -5,14 +5,7 @@ const config: KnipConfig = {
   project: ["src/**/*.ts"],
   ignore: ["src/types/config.ts"],
   ignoreExportsUsedInFile: true,
-  ignoreDependencies: [
-    "ts-node",
-    "@types/jest",
-    "eslint-plugin-prettier",
-    "eslint-config-prettier",
-    "@typescript-eslint/parser",
-    "@typescript-eslint/eslint-plugin",
-  ],
+  ignoreDependencies: ["ts-node", "eslint-plugin-prettier", "eslint-config-prettier", "@typescript-eslint/parser", "@typescript-eslint/eslint-plugin"],
 };
 
 export default config;

@@ -1,4 +1,3 @@
-import { postComment } from "@ubiquity-os/plugin-sdk";
 import { Context } from "../types/context";
 import { UserType } from "../types/github";
 import { isIssueLabelEvent } from "../types/typeguards";
@@ -67,11 +66,11 @@ async function handleInsufficientPrivileges(
   action: string,
   labelName: string
 ) {
-  const { logger, config } = context;
+  const { logger, config, commentHandler } = context;
   logger.info("Checking access for labels", { repo: repo.full_name, user: sender, labelType });
 
   if (config.publicAccessControl.protectLabels.some((protectedLabel) => protectedLabel.toLowerCase() === labelType.toLowerCase())) {
-    await postComment(
+    await commentHandler.postComment(
       context,
       logger.error(`You do not have permissions to adjust ${config.publicAccessControl.protectLabels.map((label) => `\`${label}\``).join(", ")} labels.`, {
         sender,
