@@ -1,6 +1,7 @@
 import { createAppAuth } from "@octokit/auth-app";
 import { Octokit } from "@octokit/rest";
 import { createPlugin } from "@ubiquity-os/plugin-sdk";
+import { customOctokit } from "@ubiquity-os/plugin-sdk/octokit";
 import { Manifest } from "@ubiquity-os/plugin-sdk/manifest";
 import { LOG_LEVEL, LogLevel } from "@ubiquity-os/ubiquity-os-logger";
 import type { ExecutionContext } from "hono";
@@ -33,17 +34,29 @@ async function startAction(context: Context, inputs: Record<string, unknown>) {
 
   logger.info(`Will try to dispatch a workflow at ${owner}/${repo}@${ref}`);
 
+  const appOctokit = new customOctokit({
+    authStrategy: createAppAuth,
+    auth: {
+      appId: context.env.APP_ID,
+      privateKey: context.env.APP_PRIVATE_KEY,
+    },
+  });
+
   let authOctokit;
-  if (!env.APP_ID || !env.APP_INSTALLATION_ID || !env.APP_PRIVATE_KEY) {
-    logger.debug("APP_ID, APP_INSTALLATION_ID or APP_PRIVATE_KEY are missing from the env, will use the default Octokit instance.");
+  if (!env.APP_ID || !env.APP_PRIVATE_KEY) {
+    logger.debug("APP_ID or APP_PRIVATE_KEY are missing from the env, will use the default Octokit instance.");
     authOctokit = context.octokit;
   } else {
+    const installation = await appOctokit.rest.apps.getRepoInstallation({
+      owner,
+      repo,
+    });
     authOctokit = new Octokit({
       authStrategy: createAppAuth,
       auth: {
         appId: context.env.APP_ID,
         privateKey: context.env.APP_PRIVATE_KEY,
-        installationId: context.env.APP_INSTALLATION_ID,
+        installationId: installation.data.id,
       },
     });
   }
