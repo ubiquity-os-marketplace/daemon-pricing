@@ -6,7 +6,6 @@ import { handleParentIssue, isParentIssue, sortLabelsByValue } from "./handle-pa
 import { AssistivePricingSettings } from "../types/plugin-input";
 import { isIssueLabelEvent } from "../types/typeguards";
 import { Context } from "../types/context";
-import { COLLABORATOR_ONLY_DESCRIPTION } from "../types/constants";
 
 export async function onLabelChangeSetPricing(context: Context): Promise<void> {
   if (!isIssueLabelEvent(context)) {
@@ -140,7 +139,7 @@ async function handleTargetPriceLabel(context: Context, targetPriceLabel: Pick<L
   } else {
     const allLabels = await listLabelsForRepo(context);
     if (allLabels.filter((i) => i.name.includes(targetPriceLabel.name)).length === 0) {
-      await createLabel(context, targetPriceLabel.name, "price", targetPriceLabel.description ? COLLABORATOR_ONLY_DESCRIPTION : undefined);
+      await createLabel(context, targetPriceLabel.name, "price");
     }
     await addPriceLabelToIssue(context, targetPriceLabel.name);
   }

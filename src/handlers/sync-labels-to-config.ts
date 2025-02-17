@@ -2,7 +2,6 @@ import { COLORS, createLabel, listLabelsForRepo } from "../shared/label";
 import { calculateLabelValue, calculateTaskPrice } from "../shared/pricing";
 import { Context } from "../types/context";
 import { Label } from "../types/github";
-import { COLLABORATOR_ONLY_DESCRIPTION } from "../types/constants";
 
 // This just checks all the labels in the config have been set in gh issue
 // If there's something missing, they will be added
@@ -12,7 +11,7 @@ const NO_OWNER_FOUND = "No owner found in the repository!";
 export async function syncPriceLabelsToConfig(context: Context): Promise<void> {
   const { config, logger } = context;
 
-  const priceLabels: { name: string; collaboratorOnly: boolean }[] = [];
+  const priceLabels: { name: string }[] = [];
   for (const timeLabel of config.labels.time) {
     for (const priorityLabel of config.labels.priority) {
       const timeValue = calculateLabelValue(timeLabel.name);
@@ -23,7 +22,7 @@ export async function syncPriceLabelsToConfig(context: Context): Promise<void> {
       }
       const targetPrice = calculateTaskPrice(context, timeValue, priorityValue, config.basePriceMultiplier);
       const targetPriceLabel = `Price: ${targetPrice} USD`;
-      priceLabels.push({ name: targetPriceLabel, collaboratorOnly: false });
+      priceLabels.push({ name: targetPriceLabel });
     }
   }
 
@@ -60,49 +59,13 @@ export async function syncPriceLabelsToConfig(context: Context): Promise<void> {
     logger.info(`Updating incorrect color labels done`);
   }
 
-  const incorrectDescriptionLabels = pricingLabels.filter((label) => {
-    const item = allLabels.find((o) => o.name === label.name);
-    // Either we should not have a collaborator only but there is a description, or there is a description when
-    // collaborator only is false, or the description doesn't match the current configuration, and it's not a Price
-    // label
-    return Boolean(
-      !!item &&
-        !label.name.startsWith("Price: ") &&
-        ((label.collaboratorOnly && (!item.description || item.description !== COLLABORATOR_ONLY_DESCRIPTION)) || (!label.collaboratorOnly && item.description))
-    );
-  });
-
-  // Update incorrect description labels
-  if (incorrectDescriptionLabels.length > 0) {
-    logger.info("Incorrect description labels found, updating them", {
-      incorrectDescriptionLabels: incorrectDescriptionLabels.map((label) => label.name),
-    });
-    const owner = context.payload.repository.owner?.login;
-    if (!owner) {
-      throw logger.error(NO_OWNER_FOUND);
-    }
-    await Promise.allSettled(
-      incorrectDescriptionLabels.map((label) =>
-        context.octokit.rest.issues.updateLabel({
-          owner,
-          repo: context.payload.repository.name,
-          name: label.name,
-          description: label.collaboratorOnly ? COLLABORATOR_ONLY_DESCRIPTION : "",
-        })
-      )
-    );
-    logger.info(`Updating incorrect description labels done`);
-  }
-
   // Get the missing labels
   const missingLabels = [...new Set(pricingLabels.filter((label) => !allLabels.map((i) => i.name).includes(label.name)))];
 
   // Create missing labels
   if (missingLabels.length > 0) {
     logger.info("Missing labels found, creating them", { missingLabels });
-    await Promise.allSettled(
-      missingLabels.map((label) => createLabel(context, label.name, "default", label.collaboratorOnly ? COLLABORATOR_ONLY_DESCRIPTION : undefined))
-    );
+    await Promise.allSettled(missingLabels.map((label) => createLabel(context, label.name, "default")));
     logger.info(`Creating missing labels done`);
   }
 }

@@ -60,11 +60,6 @@
                   "examples": ["Time: <2 Hours", "Time: <1 Week"],
                   "description": "The display name of the label representing estimated task length",
                   "type": "string"
-                },
-                "collaboratorOnly": {
-                  "default": false,
-                  "description": "Whether the task is only available for collaborators to be assigned",
-                  "type": "boolean"
                 }
               },
               "required": ["name"]
