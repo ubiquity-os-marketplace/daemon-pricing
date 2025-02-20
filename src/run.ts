@@ -4,17 +4,22 @@ import { syncPriceLabelsToConfig } from "./handlers/sync-labels-to-config";
 import { Context } from "./types/context";
 import { isIssueLabelEvent } from "./types/typeguards";
 
+export function isLocalEnvironment() {
+  return process.env.NODE_ENV === "local";
+}
+
 function isGithubOrLocalEnvironment() {
-  return process.env.NODE_ENV === "local" || !!process.env.GITHUB_ACTIONS;
+  return isLocalEnvironment() || !!process.env.GITHUB_ACTIONS;
 }
 
 function isWorkerOrLocalEnvironment() {
-  return process.env.NODE_ENV === "local" || !process.env.GITHUB_ACTIONS;
+  return isLocalEnvironment() || !process.env.GITHUB_ACTIONS;
 }
 
 export async function run(context: Context) {
   const { eventName, logger } = context;
 
+  console.log(">>>>> issues labeled??", eventName);
   switch (eventName) {
     case "issues.opened":
     case "repository.created":

@@ -1,12 +1,12 @@
 import { isUserAdminOrBillingManager, listOrgRepos, listRepoIssues } from "../shared/issue";
-import { Label } from "../types/github";
 import { Context } from "../types/context";
+import { Label } from "../types/github";
 import { isPushEvent } from "../types/typeguards";
 import { isConfigModified } from "./check-modified-base-rate";
 import { getBaseRateChanges } from "./get-base-rate-changes";
 import { getLabelsChanges } from "./get-label-changes";
-import { syncPriceLabelsToConfig } from "./sync-labels-to-config";
 import { setPriceLabel } from "./pricing-label";
+import { syncPriceLabelsToConfig } from "./sync-labels-to-config";
 
 async function isAuthed(context: Context): Promise<boolean> {
   if (!isPushEvent(context)) {
@@ -66,21 +66,51 @@ export async function globalLabelUpdate(context: Context) {
 
   const repos = await listOrgRepos(context);
 
-  for (const repo of repos) {
+  for (const repository of repos) {
     const ctx = {
       ...context,
       payload: {
-        repository: repo,
+        repository: repository,
       },
     } as Context;
 
-    // this should create labels on the repos that are missing
-    await syncPriceLabelsToConfig(ctx);
+    logger.info(`Updating price labels in ${repository.html_url}`);
+
+    const owner = repository.owner.login;
+    const repo = repository.name;
+    const issues = await listRepoIssues(context, owner, repo);
+    for (const issue of issues) {
+      const currentLabels = (
+        await context.octokit.paginate(context.octokit.rest.issues.listLabelsOnIssue, {
+          owner,
+          repo,
+          issue_number: issue.number,
+        })
+      )
+        .filter((o) => !o.name.startsWith("Price:"))
+        .map((o) => o.name);
+      logger.info(`Removing price labels in issue ${issue.html_url}`, { currentLabels });
+      if (currentLabels.length) {
+        await context.octokit.rest.issues.removeAllLabels({
+          owner,
+          repo,
+          issue_number: issue.number,
+        });
+        // this should create labels on the repos that are missing
+        await syncPriceLabelsToConfig(ctx);
+        await context.octokit.rest.issues.addLabels({
+          repo,
+          owner,
+          issue_number: issue.number,
+          labels: currentLabels,
+        });
+      }
+    }
   }
 
   // update all issues with the new pricing
   if (config.globalConfigUpdate) {
-    await updateAllIssuePriceLabels(context);
+    // await updateAllIssuePriceLabels(context);
   }
 }
 
