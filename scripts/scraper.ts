@@ -20,24 +20,24 @@ const repositories: RepoConfig[] = [
   {
     owner: "ubiquity-os-marketplace",
     repos: [
-      // "text-conversation-rewards",
-      // "command-start-stop",
-      // "text-vector-embeddings",
-      // "command-wallet",
-      // "daemon-pricing",
-      // "daemon-disqualifier",
-      // "command-query",
+      "text-conversation-rewards",
+      "command-start-stop",
+      "text-vector-embeddings",
+      "command-wallet",
+      "daemon-pricing",
+      "daemon-disqualifier",
+      "command-query",
       "command-ask",
     ],
   },
-  // {
-  //   owner: "ubiquity-os",
-  //   repos: ["plugin-sdk", "ubiquity-os-plugin-installer", "ubiquity-os-kernel"],
-  // },
-  // {
-  //   owner: "ubiquity",
-  //   repos: ["pay.ubq.fi", "work.ubq.fi", "ubiquity-dollar"],
-  // },
+  {
+    owner: "ubiquity-os",
+    repos: ["plugin-sdk", "ubiquity-os-plugin-installer", "ubiquity-os-kernel"],
+  },
+  {
+    owner: "ubiquity",
+    repos: ["pay.ubq.fi", "work.ubq.fi", "ubiquity-dollar"],
+  },
 ];
 
 const TRAIN_SPLIT = 0.8;
@@ -893,7 +893,6 @@ async function gitPush() {
     let latestCommitSha: string;
 
     if (!isBranchPresent) {
-      // Create an empty blob for initial README
       const { data: blob } = await octokit.rest.git.createBlob({
         owner,
         repo,
@@ -901,7 +900,6 @@ async function gitPush() {
         encoding: "utf-8",
       });
 
-      // Create a tree with the README blob
       const { data: tree } = await octokit.rest.git.createTree({
         owner,
         repo,
@@ -915,16 +913,14 @@ async function gitPush() {
         ],
       });
 
-      // Create initial commit with no parents (orphan)
       const { data: commit } = await octokit.rest.git.createCommit({
         owner,
         repo,
         message: "Initialize __STORAGE__ branch",
         tree: tree.sha,
-        parents: [], // Orphan commit - no parents
+        parents: [],
       });
 
-      // Create the branch
       await octokit.rest.git.createRef({
         owner,
         repo,
@@ -942,7 +938,6 @@ async function gitPush() {
       latestCommitSha = refData.object.sha;
     }
 
-    // Process changes in batches
     let currentChanges: Array<{ path: string; content: string }> = [];
     let currentSize = 0;
 
