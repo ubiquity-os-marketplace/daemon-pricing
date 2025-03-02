@@ -32,7 +32,7 @@ const repositories: RepoConfig[] = [
     repos: ["plugin-sdk", "ubiquity-os-plugin-installer", "ubiquity-os-kernel"],
   },
   {
-    owner: "ubiquity-os",
+    owner: "ubiquity",
     repos: ["pay.ubq.fi", "work.ubq.fi", "ubiquity-dollar"],
   },
 ];
