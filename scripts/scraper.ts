@@ -4,6 +4,9 @@ type PullRequest = RestEndpointMethodTypes["pulls"]["list"]["response"]["data"][
 import crypto from "crypto";
 import { Octokit } from "@octokit/rest";
 import dotenv from "dotenv";
+import { Logs } from "@ubiquity-os/ubiquity-os-logger";
+
+const logger = new Logs("info");
 
 dotenv.config();
 
@@ -178,7 +181,7 @@ async function fetchMergedPullRequests(owner: string, repo: string): Promise<Pul
   let page = 1;
   const perPage = 100;
   try {
-    console.log(`\nFetching merged PRs for ${owner}/${repo}...`);
+    logger.info(`\nFetching merged PRs for ${owner}/${repo}...`);
 
     const repoStatus = await checkRepoAccess(owner, repo);
     if (!repoStatus.exists) {
@@ -188,7 +191,7 @@ async function fetchMergedPullRequests(owner: string, repo: string): Promise<Pul
     let hasNextPage = true;
     while (hasNextPage) {
       try {
-        console.log(`Fetching page ${page}...`);
+        logger.info(`Fetching page ${page}...`);
 
         const response = await octokit.search.issuesAndPullRequests({
           q: `repo:${owner}/${repo} is:pr is:merged sort:created-asc`,
@@ -196,7 +199,7 @@ async function fetchMergedPullRequests(owner: string, repo: string): Promise<Pul
           page,
         });
 
-        console.log(`Found ${response.data.items.length} PRs, rate limit remaining: ${response.headers["x-ratelimit-remaining"]}`);
+        logger.info(`Found ${response.data.items.length} PRs, rate limit remaining: ${response.headers["x-ratelimit-remaining"]}`);
 
         allPullRequests = allPullRequests.concat(response.data.items as unknown as PullRequest[]);
 
@@ -635,7 +638,7 @@ async function calculateTimeToComplete(
     if (issue.user === null) return;
 
     const contributors = new Set(prData.assignees.map((a: { login: string }) => a.login));
-    console.log(`Commits: ${prData.commits.length}, Comments: ${prData.comments.length}`);
+    logger.info(`Commits: ${prData.commits.length}, Comments: ${prData.comments.length}`);
 
     events.push(...getCommitEvents(prData.commits, contributors));
     events.push(...getCommentEvents(prData.comments, contributors));
@@ -747,7 +750,7 @@ async function processRepository(owner: string, repo: string, sourceStats: Map<s
   const examples: TrainingExample[] = [];
   const prs = await fetchMergedPullRequests(owner, repo);
   const repoPath = `${owner}/${repo}`;
-  console.log(`\nFetched ${prs.length} PRs from ${repoPath}`);
+  logger.info(`\nFetched ${prs.length} PRs from ${repoPath}`);
 
   let validIssueCount = 0;
 
@@ -757,7 +760,7 @@ async function processRepository(owner: string, repo: string, sourceStats: Map<s
     validIssueCount += issueExamples.length;
   }
 
-  console.log(`Found ${validIssueCount} valid issues with time labels in ${repoPath}`);
+  logger.info(`Found ${validIssueCount} valid issues with time labels in ${repoPath}`);
   return examples;
 }
 
@@ -800,7 +803,7 @@ async function processIssue(
   if (timeLabels.length === 0) return null;
 
   const completionTime = await calculateTimeToComplete(issue, owner, repo, prData);
-  console.log(`Issue #${issue.number} in ${repoPath} took ${completionTime} to complete`);
+  logger.info(`Issue #${issue.number} in ${repoPath} took ${completionTime} to complete`);
 
   if (completionTime === "Not completed" || completionTime === undefined) return null;
 
@@ -838,9 +841,9 @@ function prepareDatasetSplit(allExamples: TrainingExample[]): { trainData: strin
   const trainData = balancedExamples.slice(0, trainSize);
   const validationData = balancedExamples.slice(trainSize);
 
-  console.log("\nDataset split:");
-  console.log(`Training set: ${trainData.length} examples`);
-  console.log(`Validation set: ${validationData.length} examples`);
+  logger.info("\nDataset split:");
+  logger.info(`Training set: ${trainData.length} examples`);
+  logger.info(`Validation set: ${validationData.length} examples`);
 
   const trainJsonlData = trainData.map((data) => JSON.stringify({ messages: data.messages })).join("\n");
   const validationJsonlData = validationData.map((data) => JSON.stringify({ messages: data.messages })).join("\n");
@@ -852,9 +855,9 @@ function prepareDatasetSplit(allExamples: TrainingExample[]): { trainData: strin
 }
 
 function displaySourceStats(sourceStats: Map<string, number>): void {
-  console.log("\nSources breakdown:");
+  logger.info("\nSources breakdown:");
   for (const [source, count] of sourceStats.entries()) {
-    console.log(`${source}: ${count} examples`);
+    logger.info(`${source}: ${count} examples`);
   }
 }
 
@@ -867,7 +870,7 @@ async function getCompletedIssues(): Promise<{
       throw new Error("GitHub token not found");
     }
 
-    console.log("Starting data collection...");
+    logger.info("Starting data collection...");
     const allExamples: TrainingExample[] = [];
     const sourceStats = new Map<string, number>();
 
