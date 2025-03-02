@@ -248,7 +248,6 @@ async function getAssignees(
   title: string;
 }> {
   const assigneesQuery = `
-    /* GraphQL */
     query($owner: String!, $repo: String!, $prNumber: Int!) {
       repository(owner: $owner, name: $repo) {
         pullRequest(number: $prNumber) {
@@ -318,7 +317,6 @@ async function getPullRequestDetailsAndLinkedIssues(
     const { assignees, title } = await getAssignees(owner, repo, parseInt(prNumber));
 
     const dataQuery = `
-      /* GraphQL */
       query($owner: String!, $repo: String!, $prNumber: Int!, $commitsCursor: String, $commentsCursor: String) {
         repository(owner: $owner, name: $repo) {
           pullRequest(number: $prNumber) {
@@ -453,7 +451,6 @@ async function handleCommitsPagination(
   while (hasNextPage && cursor) {
     await sleep(1000);
     const commitsQuery = `
-      /* GraphQL */
       query($owner: String!, $repo: String!, $prNumber: Int!, $cursor: String) {
         repository(owner: $owner, name: $repo) {
           pullRequest(number: $prNumber) {
@@ -514,7 +511,6 @@ async function handleCommentsPagination(
   while (hasNextPage && cursor) {
     await sleep(1000);
     const commentsQuery = `
-      /* GraphQL */
       query($owner: String!, $repo: String!, $prNumber: Int!, $cursor: String) {
         repository(owner: $owner, name: $repo) {
           pullRequest(number: $prNumber) {
