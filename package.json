@@ -10,6 +10,7 @@
     "node": ">=20.10.0"
   },
   "scripts": {
+    "scraper": "bun scripts/scraper.ts",
     "worker": "wrangler dev --env dev --port 4001",
     "format": "run-s format:lint format:prettier format:cspell",
     "format:lint": "eslint --fix .",

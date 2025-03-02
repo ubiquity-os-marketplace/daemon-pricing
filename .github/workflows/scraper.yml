@@ -12,33 +12,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
         with:
-          node-version: "20"
+          bun-version: latest
 
-      - name: Install dependencies
-        run: npm install -g tsx
-
-      - name: Install GitHub CLI
+      - name: Configure Git
         run: |
-          type -p curl >/dev/null || (sudo apt update && sudo apt install curl -y)
-          curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
-          && sudo chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
-          && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
-          && sudo apt update \
-          && sudo apt install gh -y
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
 
-      - name: Setup GitHub CLI auth
-        run: echo "${{ secrets.GITHUB_TOKEN }}" | gh auth login --with-token
+      - name: Setup and switch to __STORAGE__ branch
+        run: |
+          git fetch origin __STORAGE__ || git branch __STORAGE__
+          git checkout __STORAGE__ || (git checkout -b __STORAGE__ && git push -u origin __STORAGE__)
+          mkdir -p data
 
-      - name: Create data directory
-        run: mkdir -p data
-
-      - name: Run scraper
-        run: tsx scripts/scraper.ts
+      - name: Run scraper and save data
+        run: |
+          bun install
+          OUTPUT=$(bun run scraper)
+          echo "$OUTPUT" | bun run -e "
+            const fs = require('fs');
+            const data = JSON.parse(process.stdin.read());
+            fs.writeFileSync('data/fine_tuning_train.jsonl', data.trainData);
+            fs.writeFileSync('data/fine_tuning_validation.jsonl', data.validationData);
+          "
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Check for changes
         id: changes
@@ -49,11 +50,9 @@ jobs:
             echo "has_changes=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Commit changes
+      - name: Commit and push changes
         if: steps.changes.outputs.has_changes == 'true'
         run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
           git add data/
           git commit -m "Update training data [skip ci]"
-          git push
+          git push origin __STORAGE__

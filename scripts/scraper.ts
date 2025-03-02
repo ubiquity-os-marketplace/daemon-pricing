@@ -1,14 +1,17 @@
-/* eslint-disable sonarjs/os-command */
-import { execSync } from "child_process";
-import { writeFileSync, mkdirSync, existsSync } from "fs";
-import { join } from "path";
+import type { RestEndpointMethodTypes } from "@octokit/rest";
+type Issue = RestEndpointMethodTypes["issues"]["listForRepo"]["response"]["data"][0];
+type PullRequest = RestEndpointMethodTypes["pulls"]["list"]["response"]["data"][0];
 import crypto from "crypto";
+import { Octokit } from "@octokit/rest";
+import dotenv from "dotenv";
 
-// Repository configuration
-interface RepoConfig {
-  owner: string;
-  repos: string[];
-}
+dotenv.config();
+
+const TIME_BUFFERS = {
+  COMMIT: 15,
+  COMMENT: 5,
+  OTHER: 1,
+};
 
 const repositories: RepoConfig[] = [
   {
@@ -34,44 +37,88 @@ const repositories: RepoConfig[] = [
   },
 ];
 
-// Ensure data directory exists
-const dataDir = join(process.cwd(), "data");
-if (!existsSync(dataDir)) {
-  mkdirSync(dataDir);
+const TRAIN_SPLIT = 0.8;
+
+interface RepoConfig {
+  owner: string;
+  repos: string[];
 }
 
-const trainOutputPath = join(dataDir, "fine_tuning_train.jsonl");
-const validationOutputPath = join(dataDir, "fine_tuning_validation.jsonl");
-const TRAIN_SPLIT = 0.8; // 80% training, 20% validation
-
-// Valid time labels
-const VALID_TIME_LABELS = new Set([
-  "Time: <15 Minutes",
-  "Time: <1 Day",
-  "Time: <1 Week",
-  "Time: <1 Month",
-  "Time: <1 Hour",
-  "Time: <2 Hours",
-  "Time: <4 Hours",
-]);
-
-interface Label {
-  name: string;
-}
-
-interface User {
-  login: string;
-  type?: string;
-}
-
-interface Issue {
+interface IssueWithComments extends Issue {
+  issueComments?: Array<{
+    user: { login: string };
+    created_at: string;
+    body: string;
+  }>;
+  number: number;
+  title: string;
   body: string;
-  labels: Label[];
   created_at: string;
   closed_at: string | null;
-  number: number;
-  user: User;
-  pull_request?: unknown;
+  labels: Array<{ name: string }>;
+}
+
+interface PullRequestGraphQlResponse {
+  repository: {
+    pullRequest: {
+      title: string;
+      assignees: ConnectionNodes<{ login: string }>;
+      commits?: ConnectionNodes<CommitNode>;
+      comments?: ConnectionNodes<CommentNode>;
+      closingIssuesReferences: {
+        nodes: Array<{
+          number: number;
+          title: string;
+          body: string;
+          createdAt: string;
+          closedAt: string | null;
+          labels: {
+            nodes: Array<{ name: string }>;
+          };
+          comments: {
+            nodes: Array<{
+              createdAt: string;
+              author: { login: string };
+              body: string;
+            }>;
+          };
+        }>;
+      };
+    };
+  };
+}
+
+interface PageInfo {
+  hasNextPage: boolean;
+  endCursor: string | null;
+}
+
+interface CommitNode {
+  commit: {
+    committedDate: string;
+    author: {
+      user?: {
+        login: string;
+      } | null;
+    };
+  };
+}
+
+interface CommentNode {
+  createdAt: string;
+  author: {
+    login: string;
+  };
+}
+
+interface ConnectionNodes<T> {
+  nodes: T[];
+  pageInfo: PageInfo;
+}
+
+interface TimeEvent {
+  type: "COMMIT" | "COMMENT" | "OTHER";
+  timestamp: Date;
 }
 
 interface TrainingExample {
@@ -83,82 +130,476 @@ interface TrainingExample {
   source: string;
 }
 
+interface GitHubError extends Error {
+  status?: number;
+}
+
+const octokit = new Octokit({
+  auth: process.env.GITHUB_TOKEN,
+  request: {
+    cache: new Map(),
+  },
+});
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function sanitizeInput(input: string): string {
-  // Remove any characters that could be used for command injection
-  return input.replace(/[;&|`$(){}[\]<>\\]/g, "");
+async function checkRepoAccess(
+  owner: string,
+  repo: string
+): Promise<{
+  exists: boolean;
+  private?: boolean;
+  message?: string;
+}> {
+  try {
+    const response = await octokit.repos.get({
+      owner,
+      repo,
+    });
+    return {
+      exists: true,
+      private: response.data.private,
+    };
+  } catch (error) {
+    if (error instanceof Error) {
+      return {
+        exists: false,
+        message: error.message,
+      };
+    }
+    throw error;
+  }
 }
 
-async function fetchIssuesForState(owner: string, repo: string, state: "open" | "closed"): Promise<Issue[]> {
-  let allIssues: Issue[] = [];
+async function fetchMergedPullRequests(owner: string, repo: string): Promise<PullRequest[]> {
+  let allPullRequests: PullRequest[] = [];
   let page = 1;
   const perPage = 100;
+  try {
+    console.log(`\nFetching merged PRs for ${owner}/${repo}...`);
 
-  while (true) {
-    try {
-      const sanitizedOwner = sanitizeInput(owner);
-      const sanitizedRepo = sanitizeInput(repo);
+    const repoStatus = await checkRepoAccess(owner, repo);
+    if (!repoStatus.exists) {
+      console.error(`Repository ${owner}/${repo} not found: ${repoStatus.message}`);
+      return [];
+    }
+    let hasNextPage = true;
+    while (hasNextPage) {
+      try {
+        console.log(`Fetching page ${page}...`);
 
-      const cmd = `gh api "/repos/${sanitizedOwner}/${sanitizedRepo}/issues?state=${state}&per_page=${perPage}&page=${page}&sort=created&direction=asc"`;
-      console.log(`Fetching ${state} issues page ${page} from ${owner}/${repo}...`);
+        const response = await octokit.search.issuesAndPullRequests({
+          q: `repo:${owner}/${repo} is:pr is:merged sort:created-asc`,
+          per_page: perPage,
+          page,
+        });
 
-      //@eslint-disable
-      const response = execSync(cmd, {
-        encoding: "utf8",
-        maxBuffer: 100 * 1024 * 1024,
-      });
+        console.log(`Found ${response.data.items.length} PRs, rate limit remaining: ${response.headers["x-ratelimit-remaining"]}`);
 
-      const issues = JSON.parse(response) as Issue[];
+        allPullRequests = allPullRequests.concat(response.data.items as unknown as PullRequest[]);
 
-      if (issues.length === 0) {
-        console.log(`No more ${state} issues found for ${owner}/${repo}`);
-        break;
+        const link = response.headers.link;
+        hasNextPage = link?.includes('rel="next"') ?? false;
+        page++;
+
+        await sleep(1000);
+      } catch (error) {
+        if (error instanceof Error) {
+          console.error(`Error fetching page ${page} for ${owner}/${repo}:`, error.message);
+          const gitHubError = error as GitHubError;
+          if (gitHubError.status === 404) {
+            console.error("Repository not found or no access");
+            return [];
+          }
+          throw error;
+        }
+        throw new Error("An unknown error occurred");
       }
+    }
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error(`Error in fetchMergedPullRequests for ${owner}/${repo}:`, error.message);
+    }
+    return [];
+  }
 
-      const filteredIssues = issues.filter((issue) => !issue.pull_request);
-      console.log(`Found ${filteredIssues.length} ${state} issues on page ${page}`);
+  return allPullRequests;
+}
 
-      allIssues = allIssues.concat(filteredIssues);
-      page++;
+interface PullRequestWithLinkedIssues {
+  commits: CommitNode[];
+  comments: CommentNode[];
+  assignees: Array<{ login: string }>;
+  title: string;
+  linkedIssues: IssueWithComments[];
+}
 
-      await sleep(1000);
-    } catch (error) {
-      console.error(`Error fetching ${state} issues page ${page} for ${owner}/${repo}:`, error);
-      if (error instanceof Error && error.message.includes("rate limit")) {
-        console.log("Rate limit hit, waiting for 60 seconds...");
-        await sleep(60000);
-        continue;
+async function getAssignees(
+  owner: string,
+  repo: string,
+  prNumber: number
+): Promise<{
+  assignees: Array<{ login: string }>;
+  title: string;
+}> {
+  const assigneesQuery = `
+    /* GraphQL */
+    query($owner: String!, $repo: String!, $prNumber: Int!) {
+      repository(owner: $owner, name: $repo) {
+        pullRequest(number: $prNumber) {
+          title
+          assignees(first: 100) {
+            nodes {
+              login
+            }
+          }
+          closingIssuesReferences(first: 50) {
+            nodes {
+              number
+              assignees(first: 100) {
+                nodes {
+                  login
+                }
+              }
+            }
+          }
+        }
       }
-      break;
+    }
+  `;
+
+  const assigneesResponse = await octokit.graphql<{
+    repository: {
+      pullRequest: {
+        title: string;
+        assignees: ConnectionNodes<{ login: string }>;
+        closingIssuesReferences: {
+          nodes: Array<{
+            number: number;
+            assignees: ConnectionNodes<{ login: string }>;
+          }>;
+        };
+      };
+    };
+  }>(assigneesQuery, {
+    owner,
+    repo,
+    prNumber,
+  });
+
+  const allAssigneesSet = new Set<string>();
+
+  assigneesResponse.repository.pullRequest.assignees.nodes.forEach((a) => allAssigneesSet.add(a.login));
+
+  assigneesResponse.repository.pullRequest.closingIssuesReferences.nodes.forEach((issue) => issue.assignees.nodes.forEach((a) => allAssigneesSet.add(a.login)));
+
+  return {
+    assignees: Array.from(allAssigneesSet).map((login) => ({ login })),
+    title: assigneesResponse.repository.pullRequest.title,
+  };
+}
+
+async function getPullRequestDetailsAndLinkedIssues(
+  owner: string,
+  repo: string,
+  prNumber: string,
+  assigneeLogins: string[]
+): Promise<PullRequestWithLinkedIssues> {
+  let allCommits: CommitNode[] = [];
+  let allComments: CommentNode[] = [];
+  let linkedIssues: IssueWithComments[] = [];
+
+  try {
+    const { assignees, title } = await getAssignees(owner, repo, parseInt(prNumber));
+
+    const dataQuery = `
+      /* GraphQL */
+      query($owner: String!, $repo: String!, $prNumber: Int!, $commitsCursor: String, $commentsCursor: String) {
+        repository(owner: $owner, name: $repo) {
+          pullRequest(number: $prNumber) {
+            commits(first: 100, after: $commitsCursor) {
+              nodes {
+                commit {
+                  committedDate
+                  author {
+                    user {
+                      login
+                    }
+                  }
+                }
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+            }
+            comments(first: 100, after: $commentsCursor) {
+              nodes {
+                createdAt
+                author {
+                  login
+                }
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+            }
+            closingIssuesReferences(first: 50) {
+              nodes {
+                number
+                title
+                body
+                createdAt
+                closedAt
+                labels(first: 100) {
+                  nodes {
+                    name
+                  }
+                }
+                comments(first: 100) {
+                  nodes {
+                    createdAt
+                    author {
+                      login
+                    }
+                    body
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const response = await octokit.graphql<PullRequestGraphQlResponse>(dataQuery, {
+      owner,
+      repo,
+      prNumber: parseInt(prNumber),
+      commitsCursor: null,
+      commentsCursor: null,
+    });
+
+    const pr = response.repository.pullRequest;
+
+    if (pr.commits) {
+      allCommits = pr.commits.nodes.filter((node) => node.commit.author.user?.login && assigneeLogins.includes(node.commit.author.user.login));
+    }
+
+    if (pr.comments) {
+      allComments = pr.comments.nodes.filter((node) => assigneeLogins.includes(node.author.login));
+    }
+
+    const issueRefs = pr.closingIssuesReferences.nodes;
+    linkedIssues = issueRefs.map((issue) => ({
+      number: issue.number,
+      title: issue.title,
+      body: issue.body,
+      created_at: issue.createdAt,
+      closed_at: issue.closedAt,
+      labels: issue.labels.nodes.map((label) => ({ name: label.name })),
+      issueComments: issue.comments.nodes
+        .filter((comment) => assigneeLogins.includes(comment.author.login))
+        .map((comment) => ({
+          user: { login: comment.author.login },
+          created_at: comment.createdAt,
+          body: comment.body,
+        })),
+    })) as IssueWithComments[];
+
+    // Handle pagination
+    const { commits: paginatedCommits } = await handleCommitsPagination(owner, repo, parseInt(prNumber), pr, assigneeLogins);
+    const { comments: paginatedComments } = await handleCommentsPagination(owner, repo, parseInt(prNumber), pr, assigneeLogins);
+
+    allCommits = [...allCommits, ...paginatedCommits];
+    allComments = [...allComments, ...paginatedComments];
+
+    return {
+      commits: allCommits,
+      comments: allComments,
+      assignees,
+      title,
+      linkedIssues,
+    };
+  } catch (error) {
+    console.error(`Error fetching PR data for ${owner}/${repo}#${prNumber}:`, error);
+    return {
+      commits: [],
+      comments: [],
+      assignees: [],
+      title: "",
+      linkedIssues: [],
+    };
+  }
+}
+
+async function handleCommitsPagination(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  pr: PullRequestGraphQlResponse["repository"]["pullRequest"],
+  assigneeLogins: string[]
+): Promise<{ commits: CommitNode[] }> {
+  const additionalCommits: CommitNode[] = [];
+  let hasNextPage = pr.commits?.pageInfo.hasNextPage || false;
+  let cursor = pr.commits?.pageInfo.endCursor || null;
+
+  while (hasNextPage && cursor) {
+    await sleep(1000);
+    const commitsQuery = `
+      /* GraphQL */
+      query($owner: String!, $repo: String!, $prNumber: Int!, $cursor: String) {
+        repository(owner: $owner, name: $repo) {
+          pullRequest(number: $prNumber) {
+            commits(first: 100, after: $cursor) {
+              nodes {
+                commit {
+                  committedDate
+                  author {
+                    user {
+                      login
+                    }
+                  }
+                }
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const response = await octokit.graphql<PullRequestGraphQlResponse>(commitsQuery, {
+      owner,
+      repo,
+      prNumber,
+      cursor,
+    });
+
+    if (response.repository.pullRequest.commits) {
+      const filteredCommits = response.repository.pullRequest.commits.nodes.filter(
+        (node) => node.commit.author.user?.login && assigneeLogins.includes(node.commit.author.user.login)
+      );
+      additionalCommits.push(...filteredCommits);
+      hasNextPage = response.repository.pullRequest.commits.pageInfo.hasNextPage;
+      cursor = response.repository.pullRequest.commits.pageInfo.endCursor;
+    } else {
+      hasNextPage = false;
     }
   }
 
-  return allIssues;
+  return { commits: additionalCommits };
 }
 
-async function fetchAllIssues(owner: string, repo: string): Promise<Issue[]> {
-  console.log(`\nFetching all issues for ${owner}/${repo}...`);
+async function handleCommentsPagination(
+  owner: string,
+  repo: string,
+  prNumber: number,
+  pr: PullRequestGraphQlResponse["repository"]["pullRequest"],
+  assigneeLogins: string[]
+): Promise<{ comments: CommentNode[] }> {
+  const additionalComments: CommentNode[] = [];
+  let hasNextPage = pr.comments?.pageInfo.hasNextPage || false;
+  let cursor = pr.comments?.pageInfo.endCursor || null;
 
-  const openIssues = await fetchIssuesForState(owner, repo, "open");
-  console.log(`Found ${openIssues.length} open issues`);
+  while (hasNextPage && cursor) {
+    await sleep(1000);
+    const commentsQuery = `
+      /* GraphQL */
+      query($owner: String!, $repo: String!, $prNumber: Int!, $cursor: String) {
+        repository(owner: $owner, name: $repo) {
+          pullRequest(number: $prNumber) {
+            comments(first: 100, after: $cursor) {
+              nodes {
+                createdAt
+                author {
+                  login
+                }
+              }
+              pageInfo {
+                hasNextPage
+                endCursor
+              }
+            }
+          }
+        }
+      }
+    `;
 
-  const closedIssues = await fetchIssuesForState(owner, repo, "closed");
-  console.log(`Found ${closedIssues.length} closed issues`);
+    const response = await octokit.graphql<PullRequestGraphQlResponse>(commentsQuery, {
+      owner,
+      repo,
+      prNumber,
+      cursor,
+    });
 
-  const allIssues = [...openIssues, ...closedIssues];
-  console.log(`Total issues found for ${owner}/${repo}: ${allIssues.length}\n`);
+    if (response.repository.pullRequest.comments) {
+      const filteredComments = response.repository.pullRequest.comments.nodes.filter((node) => assigneeLogins.includes(node.author.login));
+      additionalComments.push(...filteredComments);
+      hasNextPage = response.repository.pullRequest.comments.pageInfo.hasNextPage;
+      cursor = response.repository.pullRequest.comments.pageInfo.endCursor;
+    } else {
+      hasNextPage = false;
+    }
+  }
 
-  return allIssues;
+  return { comments: additionalComments };
 }
 
-function calculateTimeToComplete(createdAt: string, closedAt: string | null): string {
-  if (!closedAt) return "Not completed";
+function calculateTimeWithBuffers(events: TimeEvent[]): { totalMinutes: number; formattedTime: string } {
+  if (events.length === 0) {
+    return { totalMinutes: 0, formattedTime: "0 minutes" };
+  }
 
-  const diffMs = new Date(closedAt).getTime() - new Date(createdAt).getTime();
+  events.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+  const timeRanges = events.map((event) => {
+    const bufferMinutes = TIME_BUFFERS[event.type];
+    const start = new Date(event.timestamp);
+    const end = new Date(event.timestamp);
+    start.setMinutes(start.getMinutes() - bufferMinutes);
+    end.setMinutes(end.getMinutes() + bufferMinutes);
+    return { start, end };
+  });
 
+  const mergedRanges = mergeTimeRanges(timeRanges);
+  const totalMinutes = calculateTotalMinutes(mergedRanges);
+  return formatTime(totalMinutes);
+}
+
+function mergeTimeRanges(ranges: Array<{ start: Date; end: Date }>): Array<{ start: Date; end: Date }> {
+  const mergedRanges: Array<{ start: Date; end: Date }> = [];
+
+  for (const range of ranges) {
+    if (mergedRanges.length === 0) {
+      mergedRanges.push(range);
+      continue;
+    }
+
+    const lastRange = mergedRanges[mergedRanges.length - 1];
+    if (range.start <= lastRange.end) {
+      lastRange.end = new Date(Math.max(lastRange.end.getTime(), range.end.getTime()));
+    } else {
+      mergedRanges.push(range);
+    }
+  }
+
+  return mergedRanges;
+}
+
+function calculateTotalMinutes(ranges: Array<{ start: Date; end: Date }>): number {
+  return ranges.reduce((total, range) => {
+    const durationMinutes = (range.end.getTime() - range.start.getTime()) / (1000 * 60);
+    return total + durationMinutes;
+  }, 0);
+}
+
+function formatTime(totalMinutes: number): { totalMinutes: number; formattedTime: string } {
   const units = [
     { value: 60, unit: "minute" },
     { value: 24, unit: "hour" },
@@ -167,7 +608,7 @@ function calculateTimeToComplete(createdAt: string, closedAt: string | null): st
     { value: Infinity, unit: "month" },
   ];
 
-  let time = Math.round(diffMs / (1000 * 60));
+  let time = Math.round(totalMinutes);
   let unitIndex = 0;
 
   while (unitIndex < units.length - 1 && time >= units[unitIndex].value) {
@@ -176,13 +617,90 @@ function calculateTimeToComplete(createdAt: string, closedAt: string | null): st
   }
 
   const unit = units[unitIndex].unit;
-  return `${time} ${time === 1 ? unit : unit + "s"}`;
+  const formattedTime = `${time} ${time === 1 ? unit : unit + "s"}`;
+
+  return { totalMinutes, formattedTime };
+}
+
+async function calculateTimeToComplete(
+  issue: IssueWithComments,
+  owner: string,
+  repo: string,
+  prData: PullRequestWithLinkedIssues
+): Promise<string | undefined> {
+  if (!issue.closed_at) return "Not completed";
+
+  try {
+    const events: TimeEvent[] = [];
+    if (issue.user === null) return;
+
+    const contributors = new Set(prData.assignees.map((a: { login: string }) => a.login));
+    console.log(`Commits: ${prData.commits.length}, Comments: ${prData.comments.length}`);
+
+    events.push(...getCommitEvents(prData.commits, contributors));
+    events.push(...getCommentEvents(prData.comments, contributors));
+    events.push(...getIssueCommentEvents(issue.issueComments, contributors));
+
+    const { formattedTime } = calculateTimeWithBuffers(events);
+    return formattedTime;
+  } catch (error) {
+    if (!(error instanceof Error)) {
+      throw new Error("An unknown error occurred");
+    }
+    return calculateFallbackTime(issue);
+  }
+}
+
+function getCommitEvents(commits: CommitNode[], contributors: Set<string>): TimeEvent[] {
+  return commits
+    .filter((node) => {
+      const authorLogin = node.commit.author.user?.login;
+      return authorLogin && contributors.has(authorLogin);
+    })
+    .map((node) => ({
+      type: "COMMIT" as const,
+      timestamp: new Date(node.commit.committedDate),
+    }));
+}
+
+function getCommentEvents(comments: CommentNode[], contributors: Set<string>): TimeEvent[] {
+  return comments
+    .filter((node) => contributors.has(node.author.login))
+    .map((node) => ({
+      type: "COMMENT" as const,
+      timestamp: new Date(node.createdAt),
+    }));
+}
+
+function getIssueCommentEvents(comments: IssueWithComments["issueComments"], contributors: Set<string>): TimeEvent[] {
+  if (!comments) return [];
+
+  const validComments = [];
+
+  for (const comment of comments) {
+    if (!contributors.has(comment.user.login)) continue;
+    validComments.push(comment);
+  }
+
+  return validComments.map((comment) => ({
+    type: "COMMENT" as const,
+    timestamp: new Date(comment.created_at),
+  }));
+}
+
+function calculateFallbackTime(issue: IssueWithComments): string {
+  if (!issue.closed_at) {
+    return "Unknown time (not closed)";
+  }
+  const diffMs = new Date(issue.closed_at).getTime() - new Date(issue.created_at).getTime();
+  const diffMinutes = Math.round(diffMs / (1000 * 60));
+  const { formattedTime } = formatTime(diffMinutes);
+  return `${formattedTime} (calculation error)`;
 }
 
 function shuffleArray<T>(array: T[]): T[] {
   const newArray = [...array];
   for (let i = newArray.length - 1; i > 0; i--) {
-    // Generate cryptographically secure random number
     const randomBytes = crypto.randomBytes(4);
     const j = Math.floor((randomBytes.readUInt32BE(0) / 0x100000000) * (i + 1));
     [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
@@ -192,19 +710,18 @@ function shuffleArray<T>(array: T[]): T[] {
 
 function formatContent(issue: Issue, metadata: string): string {
   return [
+    "### Issue Title",
+    issue.title || "No Title",
+    "",
     "### Issue Description",
-    `[${new Date(issue.created_at).toISOString()}] [${issue.user.login}]:\n${issue.body || ""}`,
+    `\n${issue.body}`,
     "",
-    "### Issue Details",
+    "### Actual Time Taken to Complete the Task",
     metadata,
-    "",
-    "### Valid Time Labels",
-    Array.from(VALID_TIME_LABELS).join("\n"),
   ].join("\n");
 }
 
 function balanceDataset(examples: TrainingExample[]): TrainingExample[] {
-  // Group examples by time label
   const groupedExamples = new Map<string, TrainingExample[]>();
   for (const example of examples) {
     const currentGroup = groupedExamples.get(example.timeLabel) || [];
@@ -212,130 +729,171 @@ function balanceDataset(examples: TrainingExample[]): TrainingExample[] {
     groupedExamples.set(example.timeLabel, currentGroup);
   }
 
-  // Find minimum count across all labels
   let minCount = Infinity;
-  for (const [label, group] of groupedExamples.entries()) {
-    console.log(`Found ${group.length} examples for ${label}`);
+  for (const group of groupedExamples.values()) {
     minCount = Math.min(minCount, group.length);
   }
-  console.log(`\nBalancing dataset to ${minCount} examples per label`);
+
   const balancedExamples: TrainingExample[] = [];
-  for (const [label, group] of groupedExamples.entries()) {
+  for (const group of groupedExamples.values()) {
     const shuffled = shuffleArray(group);
     const selected = shuffled.slice(0, minCount);
     balancedExamples.push(...selected);
-    console.log(`Selected ${selected.length} examples for ${label}`);
   }
   return shuffleArray(balancedExamples);
 }
 
-async function getClosedIssues(): Promise<void> {
+async function processRepository(owner: string, repo: string, sourceStats: Map<string, number>): Promise<TrainingExample[]> {
+  const examples: TrainingExample[] = [];
+  const prs = await fetchMergedPullRequests(owner, repo);
+  const repoPath = `${owner}/${repo}`;
+  console.log(`\nFetched ${prs.length} PRs from ${repoPath}`);
+
+  let validIssueCount = 0;
+
+  for (const pr of prs) {
+    const issueExamples = await processIssuesForPullRequest(owner, repo, pr, repoPath, sourceStats);
+    examples.push(...issueExamples);
+    validIssueCount += issueExamples.length;
+  }
+
+  console.log(`Found ${validIssueCount} valid issues with time labels in ${repoPath}`);
+  return examples;
+}
+
+async function processIssuesForPullRequest(
+  owner: string,
+  repo: string,
+  pr: PullRequest,
+  repoPath: string,
+  sourceStats: Map<string, number>
+): Promise<TrainingExample[]> {
+  const examples: TrainingExample[] = [];
+  const { assignees } = await getAssignees(owner, repo, pr.number);
+  const prData = await getPullRequestDetailsAndLinkedIssues(
+    owner,
+    repo,
+    pr.number.toString(),
+    assignees.map((a) => a.login)
+  );
+
+  for (const issue of prData.linkedIssues) {
+    const example = await processIssue(issue, owner, repo, prData, repoPath, sourceStats);
+    if (example) {
+      examples.push(example);
+    }
+  }
+
+  return examples;
+}
+
+async function processIssue(
+  issue: IssueWithComments,
+  owner: string,
+  repo: string,
+  prData: PullRequestWithLinkedIssues,
+  repoPath: string,
+  sourceStats: Map<string, number>
+): Promise<TrainingExample | null> {
+  const timeLabels = issue.labels.map((label) => label.name).filter((name) => name.startsWith("Time: "));
+
+  if (timeLabels.length === 0) return null;
+
+  const completionTime = await calculateTimeToComplete(issue, owner, repo, prData);
+  console.log(`Issue #${issue.number} in ${repoPath} took ${completionTime} to complete`);
+
+  if (completionTime === "Not completed" || completionTime === undefined) return null;
+
+  const timeLabel = timeLabels[0];
+  if (timeLabel === undefined) return null;
+
+  sourceStats.set(repoPath, (sourceStats.get(repoPath) || 0) + 1);
+
+  return createTrainingExample(issue, completionTime, timeLabel, repoPath);
+}
+
+function createTrainingExample(issue: Issue, completionTime: string, timeLabel: string, repoPath: string): TrainingExample {
+  const timeString = `Time to Complete: ${completionTime}`;
+
+  const systemPrompt = [
+    "Given the issue content and actual completion time, assign the most appropriate Time Label.",
+    "Consider the task complexity and actual completion time.",
+    "Ensure your selection reflects the real time investment needed for the task.",
+  ].join("\n");
+
+  const content = formatContent(issue, timeString);
+
+  const messages = [
+    { role: "system", content: systemPrompt },
+    { role: "user", content },
+    { role: "assistant", content: timeLabel },
+  ];
+
+  return { messages, timeLabel, source: repoPath };
+}
+
+function prepareDatasetSplit(allExamples: TrainingExample[]): { trainData: string; validationData: string } {
+  const balancedExamples = balanceDataset(allExamples);
+  const trainSize = Math.floor(balancedExamples.length * TRAIN_SPLIT);
+  const trainData = balancedExamples.slice(0, trainSize);
+  const validationData = balancedExamples.slice(trainSize);
+
+  console.log("\nDataset split:");
+  console.log(`Training set: ${trainData.length} examples`);
+  console.log(`Validation set: ${validationData.length} examples`);
+
+  const trainJsonlData = trainData.map((data) => JSON.stringify({ messages: data.messages })).join("\n");
+  const validationJsonlData = validationData.map((data) => JSON.stringify({ messages: data.messages })).join("\n");
+
+  return {
+    trainData: trainJsonlData,
+    validationData: validationJsonlData,
+  };
+}
+
+function displaySourceStats(sourceStats: Map<string, number>): void {
+  console.log("\nSources breakdown:");
+  for (const [source, count] of sourceStats.entries()) {
+    console.log(`${source}: ${count} examples`);
+  }
+}
+
+async function getCompletedIssues(): Promise<{
+  trainData: string;
+  validationData: string;
+}> {
   try {
+    if (!process.env.GITHUB_TOKEN) {
+      throw new Error("GitHub token not found");
+    }
+
+    console.log("Starting data collection...");
     const allExamples: TrainingExample[] = [];
     const sourceStats = new Map<string, number>();
 
     for (const config of repositories) {
       for (const repo of config.repos) {
-        console.log(`Processing ${config.owner}/${repo}...`);
-        const issues = await fetchAllIssues(config.owner, repo);
-        const repoPath = `${config.owner}/${repo}`;
-
-        let processedCount = 0;
-        for (const issue of issues) {
-          const timeLabels = issue.labels.filter((label) => VALID_TIME_LABELS.has(label.name)).map((label) => label.name);
-
-          if (timeLabels.length > 0) {
-            const completionTime = calculateTimeToComplete(issue.created_at, issue.closed_at);
-
-            const metadata = [`Repository: ${repoPath}`, `Issue Number: #${issue.number}`, `Time to Complete: ${completionTime}`].join("\n");
-
-            const systemPrompt = [
-              "Given the issue content and actual completion time, assign the most appropriate Time Label.",
-              "Consider the task complexity and actual completion time to select from the available time labels.",
-              "Ensure your selection reflects the real time investment needed for the task.",
-            ].join("\n");
-
-            const content = formatContent(issue, metadata);
-            const timeLabel = timeLabels[0];
-            sourceStats.set(repoPath, (sourceStats.get(repoPath) || 0) + 1);
-
-            const messages = [
-              { role: "system", content: systemPrompt },
-              { role: "user", content },
-              { role: "assistant", content: timeLabel },
-            ];
-
-            allExamples.push({ messages, timeLabel, source: repoPath });
-            processedCount++;
-          }
-        }
-        console.log(`Processed ${processedCount} labeled issues from ${repoPath}`);
+        const examples = await processRepository(config.owner, repo, sourceStats);
+        allExamples.push(...examples);
       }
     }
 
-    console.log("\nInitial Source Distribution:");
-    for (const [source, count] of sourceStats.entries()) {
-      console.log(`${source}: ${count} issues`);
-    }
-
     if (allExamples.length === 0) {
-      throw new Error("No valid training data found!");
+      throw new Error("No valid training data found - no issues had valid time labels");
     }
-
-    // Balance the dataset
-    console.log("\nBalancing dataset...");
-    const balancedExamples = balanceDataset(allExamples);
-    console.log(`\nFinal balanced dataset size: ${balancedExamples.length}`);
-
-    // Shuffle and split the balanced data
-    const trainSize = Math.floor(balancedExamples.length * TRAIN_SPLIT);
-    const trainData = balancedExamples.slice(0, trainSize);
-    const validationData = balancedExamples.slice(trainSize);
-
-    // Write training data
-    const trainJsonlData = trainData.map((data) => JSON.stringify({ messages: data.messages })).join("\n");
-    writeFileSync(trainOutputPath, trainJsonlData);
-    console.log(`\nTraining data (${trainData.length} examples) written to ${trainOutputPath}`);
-
-    // Write validation data
-    const validationJsonlData = validationData.map((data) => JSON.stringify({ messages: data.messages })).join("\n");
-    writeFileSync(validationOutputPath, validationJsonlData);
-    console.log(`\nValidation data (${validationData.length} examples) written to ${validationOutputPath}`);
-
-    // Log final counts
-    const labelCounts = new Map<string, number>();
-    for (const example of balancedExamples) {
-      labelCounts.set(example.timeLabel, (labelCounts.get(example.timeLabel) || 0) + 1);
+    displaySourceStats(sourceStats);
+    return prepareDatasetSplit(allExamples);
+  } catch (error: unknown) {
+    if (error instanceof Error) {
+      throw error;
     }
-
-    console.log("\nFinal Label Distribution:");
-    for (const [label, count] of labelCounts.entries()) {
-      console.log(`${label}: ${count} examples`);
-    }
-
-    console.log(`\nTotal balanced examples: ${balancedExamples.length}`);
-    console.log(`Training examples: ${trainData.length}`);
-    console.log(`Validation examples: ${validationData.length}`);
-  } catch (error) {
-    console.error("Error processing issues:", error);
-    process.exit(1);
+    throw new Error("An unknown error occurred");
   }
 }
 
-// Check if gh cli is installed and authenticated
-try {
-  // Use full path to gh binary for security
-  execSync("/usr/bin/gh auth status", { stdio: "ignore" });
-} catch (error) {
-  if (error instanceof Error) {
-    console.error("Error: GitHub CLI is not installed or not authenticated.");
-    console.error('Please install GitHub CLI and run "gh auth login" to authenticate.');
+if (import.meta.url === import.meta.resolve("./scraper.ts")) {
+  getCompletedIssues().catch((error: unknown) => {
+    console.error(error instanceof Error ? error.message : "An unknown error occurred");
     process.exit(1);
-  }
+  });
 }
-
-// Use proper Promise handling
-void getClosedIssues().catch((error) => {
-  console.error("Fatal error:", error);
-  process.exit(1);
-});
