@@ -20,24 +20,24 @@ const repositories: RepoConfig[] = [
   {
     owner: "ubiquity-os-marketplace",
     repos: [
-      "text-conversation-rewards",
-      "command-start-stop",
-      "text-vector-embeddings",
-      "command-wallet",
-      "daemon-pricing",
-      "daemon-disqualifier",
-      "command-query",
+      // "text-conversation-rewards",
+      // "command-start-stop",
+      // "text-vector-embeddings",
+      // "command-wallet",
+      // "daemon-pricing",
+      // "daemon-disqualifier",
+      // "command-query",
       "command-ask",
     ],
   },
-  {
-    owner: "ubiquity-os",
-    repos: ["plugin-sdk", "ubiquity-os-plugin-installer", "ubiquity-os-kernel"],
-  },
-  {
-    owner: "ubiquity",
-    repos: ["pay.ubq.fi", "work.ubq.fi", "ubiquity-dollar"],
-  },
+  // {
+  //   owner: "ubiquity-os",
+  //   repos: ["plugin-sdk", "ubiquity-os-plugin-installer", "ubiquity-os-kernel"],
+  // },
+  // {
+  //   owner: "ubiquity",
+  //   repos: ["pay.ubq.fi", "work.ubq.fi", "ubiquity-dollar"],
+  // },
 ];
 
 const TRAIN_SPLIT = 0.8;
@@ -553,7 +553,7 @@ async function handleCommentsPagination(
 
 function calculateTimeWithBuffers(events: TimeEvent[]): { totalMinutes: number; formattedTime: string } {
   if (events.length === 0) {
-    return { totalMinutes: 0, formattedTime: "0 minutes" };
+    throw new Error("No events found");
   }
 
   events.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
@@ -621,12 +621,7 @@ function formatTime(totalMinutes: number): { totalMinutes: number; formattedTime
   return { totalMinutes, formattedTime };
 }
 
-async function calculateTimeToComplete(
-  issue: IssueWithComments,
-  owner: string,
-  repo: string,
-  prData: PullRequestWithLinkedIssues
-): Promise<string | undefined> {
+async function calculateTimeToComplete(issue: IssueWithComments, prData: PullRequestWithLinkedIssues): Promise<string | undefined> {
   if (!issue.closed_at) return "Not completed";
 
   try {
@@ -777,7 +772,7 @@ async function processIssuesForPullRequest(
   );
 
   for (const issue of prData.linkedIssues) {
-    const example = await processIssue(issue, owner, repo, prData, repoPath, sourceStats);
+    const example = await processIssue(issue, prData, repoPath, sourceStats);
     if (example) {
       examples.push(example);
     }
@@ -788,8 +783,6 @@ async function processIssuesForPullRequest(
 
 async function processIssue(
   issue: IssueWithComments,
-  owner: string,
-  repo: string,
   prData: PullRequestWithLinkedIssues,
   repoPath: string,
   sourceStats: Map<string, number>
@@ -798,7 +791,7 @@ async function processIssue(
 
   if (timeLabels.length === 0) return null;
 
-  const completionTime = await calculateTimeToComplete(issue, owner, repo, prData);
+  const completionTime = await calculateTimeToComplete(issue, prData);
   logger.info(`Issue #${issue.number} in ${repoPath} took ${completionTime} to complete`);
 
   if (completionTime === "Not completed" || completionTime === undefined) return null;
@@ -900,18 +893,35 @@ async function gitPush() {
     let latestCommitSha: string;
 
     if (!isBranchPresent) {
-      const { data: emptyTree } = await octokit.rest.git.createTree({
+      // Create an empty blob for initial README
+      const { data: blob } = await octokit.rest.git.createBlob({
         owner,
         repo,
-        tree: [],
+        content: "# Training Data Storage\n\nThis branch stores training data for the daemon pricing model.",
+        encoding: "utf-8",
       });
 
+      // Create a tree with the README blob
+      const { data: tree } = await octokit.rest.git.createTree({
+        owner,
+        repo,
+        tree: [
+          {
+            path: "README.md",
+            mode: "100644",
+            type: "blob",
+            sha: blob.sha,
+          },
+        ],
+      });
+
+      // Create initial commit with no parents (orphan)
       const { data: commit } = await octokit.rest.git.createCommit({
         owner,
         repo,
         message: "Initialize __STORAGE__ branch",
-        tree: emptyTree.sha,
-        parents: [],
+        tree: tree.sha,
+        parents: [], // Orphan commit - no parents
       });
 
       // Create the branch
