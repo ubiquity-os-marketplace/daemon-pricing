@@ -857,10 +857,142 @@ function displaySourceStats(sourceStats: Map<string, number>): void {
   }
 }
 
-async function getCompletedIssues(): Promise<{
-  trainData: string;
-  validationData: string;
-}> {
+let gitChanges: Array<{ path: string; content: string }> = [];
+const MAX_PAYLOAD_SIZE = 100000000;
+
+async function gitCommit(data: string, fileName: string) {
+  try {
+    gitChanges.push({
+      path: fileName,
+      content: data,
+    });
+  } catch (error) {
+    console.error(`Error handling data for ${fileName}:`, error);
+    throw error;
+  }
+}
+
+async function gitPush() {
+  if (gitChanges.length === 0) {
+    logger.info("No changes to commit");
+    return;
+  }
+
+  try {
+    const owner = process.env.REPO_OWNER;
+    const repo = process.env.REPO_NAME;
+
+    if (!owner || !repo) {
+      throw new Error("Repository owner or name not found in environment variables");
+    }
+    const branch = "__STORAGE__";
+
+    let isBranchPresent = true;
+    try {
+      await octokit.rest.git.getRef({
+        owner,
+        repo,
+        ref: `heads/${branch}`,
+      });
+    } catch {
+      isBranchPresent = false;
+    }
+    let latestCommitSha: string;
+
+    if (!isBranchPresent) {
+      const { data: emptyTree } = await octokit.rest.git.createTree({
+        owner,
+        repo,
+        tree: [],
+      });
+
+      const { data: commit } = await octokit.rest.git.createCommit({
+        owner,
+        repo,
+        message: "Initialize __STORAGE__ branch",
+        tree: emptyTree.sha,
+        parents: [],
+      });
+
+      // Create the branch
+      await octokit.rest.git.createRef({
+        owner,
+        repo,
+        ref: `refs/heads/${branch}`,
+        sha: commit.sha,
+      });
+
+      latestCommitSha = commit.sha;
+    } else {
+      const { data: refData } = await octokit.rest.git.getRef({
+        owner,
+        repo,
+        ref: `heads/${branch}`,
+      });
+      latestCommitSha = refData.object.sha;
+    }
+
+    // Process changes in batches
+    let currentChanges: Array<{ path: string; content: string }> = [];
+    let currentSize = 0;
+
+    for (const change of gitChanges) {
+      const changeSize = Buffer.byteLength(change.content, "utf8");
+      if (currentSize + changeSize > MAX_PAYLOAD_SIZE) {
+        await commitBatch(octokit, owner, repo, branch, latestCommitSha, currentChanges);
+        currentChanges = [];
+        currentSize = 0;
+      }
+      currentChanges.push(change);
+      currentSize += changeSize;
+    }
+
+    if (currentChanges.length > 0) {
+      await commitBatch(octokit, owner, repo, branch, latestCommitSha, currentChanges);
+    }
+
+    gitChanges = [];
+    logger.info("Successfully pushed changes to __STORAGE__ branch");
+  } catch (error) {
+    console.error("Error pushing changes:", error);
+    throw error;
+  }
+}
+
+async function commitBatch(octokit: Octokit, owner: string, repo: string, branch: string, baseSha: string, changes: Array<{ path: string; content: string }>) {
+  if (changes.length === 0) return;
+
+  const { data: treeData } = await octokit.rest.git.createTree({
+    owner,
+    repo,
+    base_tree: baseSha,
+    tree: changes.map((change) => ({
+      path: change.path,
+      mode: "100644",
+      type: "blob",
+      content: change.content,
+    })),
+  });
+
+  const { data: commitData } = await octokit.rest.git.createCommit({
+    owner,
+    repo,
+    message: "Update training data",
+    tree: treeData.sha,
+    parents: [baseSha],
+  });
+
+  await octokit.rest.git.updateRef({
+    owner,
+    repo,
+    ref: `heads/${branch}`,
+    sha: commitData.sha,
+  });
+
+  logger.info(`Committed to ${branch}: ${commitData.sha}`);
+}
+
+async function getCompletedIssues(): Promise<void> {
   try {
     if (!process.env.GITHUB_TOKEN) {
       throw new Error("GitHub token not found");
@@ -881,7 +1013,16 @@ async function getCompletedIssues(): Promise<{
       throw new Error("No valid training data found - no issues had valid time labels");
     }
     displaySourceStats(sourceStats);
-    return prepareDatasetSplit(allExamples);
+    const { trainData, validationData } = prepareDatasetSplit(allExamples);
+
+    // Commit the files
+    await gitCommit(trainData, "data/fine_tuning_train.jsonl");
+    await gitCommit(validationData, "data/fine_tuning_validation.jsonl");
+
+    // Push all changes
+    await gitPush();
+
+    logger.info("\nData files committed to __STORAGE__ branch");
   } catch (error: unknown) {
     if (error instanceof Error) {
       throw error;
@@ -891,8 +1032,12 @@ async function getCompletedIssues(): Promise<{
 }
 
 if (import.meta.url === import.meta.resolve("./scraper.ts")) {
-  getCompletedIssues().catch((error: unknown) => {
-    console.error(error instanceof Error ? error.message : "An unknown error occurred");
-    process.exit(1);
-  });
+  getCompletedIssues()
+    .then(() => {
+      logger.info("\nScraping completed successfully");
+    })
+    .catch((error: unknown) => {
+      console.error(error instanceof Error ? error.message : "An unknown error occurred");
+      process.exit(1);
+    });
 }

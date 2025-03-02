@@ -17,42 +17,11 @@ jobs:
         with:
           bun-version: latest
 
-      - name: Configure Git
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-
-      - name: Setup and switch to __STORAGE__ branch
-        run: |
-          git fetch origin __STORAGE__ || git branch __STORAGE__
-          git checkout __STORAGE__ || (git checkout -b __STORAGE__ && git push -u origin __STORAGE__)
-          mkdir -p data
-
-      - name: Run scraper and save data
+      - name: Run scraper
         run: |
           bun install
-          OUTPUT=$(bun run scraper)
-          echo "$OUTPUT" | bun run -e "
-            const fs = require('fs');
-            const data = JSON.parse(process.stdin.read());
-            fs.writeFileSync('data/fine_tuning_train.jsonl', data.trainData);
-            fs.writeFileSync('data/fine_tuning_validation.jsonl', data.validationData);
-          "
+          bun run scraper
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Check for changes
-        id: changes
-        run: |
-          if [[ -n "$(git status --porcelain data/)" ]]; then
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-          else
-            echo "has_changes=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Commit and push changes
-        if: steps.changes.outputs.has_changes == 'true'
-        run: |
-          git add data/
-          git commit -m "Update training data [skip ci]"
-          git push origin __STORAGE__
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
