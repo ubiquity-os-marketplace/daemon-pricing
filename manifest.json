@@ -118,6 +118,26 @@
         "description": "The base price multiplier for all tasks",
         "type": "number"
       },
+      "aiEstimation": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "default": false,
+            "description": "Whether to use AI for time estimation",
+            "type": "boolean"
+          },
+          "openaiApiKey": {
+            "description": "API key (OpenAI key for fine-tuned models, OpenRouter key otherwise)",
+            "type": "string"
+          },
+          "modelName": {
+            "default": "anthropic/sonnet-3.7",
+            "description": "Model name (OpenAI fine-tuned model ID or model identifier for OpenRouter)",
+            "type": "string"
+          }
+        },
+        "required": ["openaiApiKey"]
+      },
       "publicAccessControl": {
         "default": {},
         "type": "object",
