@@ -2,6 +2,7 @@ import { addLabelToIssue, clearAllPriceLabelsOnIssue, createLabel, listLabelsFor
 import { labelAccessPermissionsCheck } from "../shared/permissions";
 import { Label, UserType } from "../types/github";
 import { getPrice } from "../shared/pricing";
+import { estimateTimeWithAi } from "../shared/ai-estimation";
 import { handleParentIssue, isParentIssue, sortLabelsByValue } from "./handle-parent-issue";
 import { AssistivePricingSettings } from "../types/plugin-input";
 import { isIssueLabelEvent } from "../types/typeguards";
@@ -20,12 +21,22 @@ export async function onLabelChangeSetPricing(context: Context): Promise<void> {
     logger.error("No owner found in the repository");
     return;
   }
+
   const labels = payload.issue.labels;
   if (!labels) {
     logger.info(`No labels to calculate price`);
     return;
   }
 
+  // Skip if it's a price label being set directly
+  const isPayloadToSetPrice = payload.label?.name.includes("Price: ");
+  if (isPayloadToSetPrice) {
+    logger.info("This is setting the price label directly so skipping the rest of the action.");
+    await handleDirectPriceLabel(context);
+    return;
+  }
+
+  // Check for parent issue first
   if (payload.issue.body && isParentIssue(payload.issue.body)) {
     await handleParentIssue(context, labels);
     return;
@@ -36,32 +47,62 @@ export async function onLabelChangeSetPricing(context: Context): Promise<void> {
     return;
   }
 
-  // here we should make an exception if it was a price label that was just set to just skip this action
-  const isPayloadToSetPrice = payload.label?.name.includes("Price: ");
-  if (isPayloadToSetPrice) {
-    logger.info("This is setting the price label directly so skipping the rest of the action.");
-
-    // make sure to clear all other price labels except for the smallest price label.
-
-    const priceLabels = labels.filter((label) => label.name.includes("Price: "));
-    const sortedPriceLabels = sortLabelsByValue(priceLabels);
-    const smallestPriceLabel = sortedPriceLabels.shift();
-    const smallestPriceLabelName = smallestPriceLabel?.name;
-    if (smallestPriceLabelName) {
-      for (const label of sortedPriceLabels) {
-        await context.octokit.rest.issues.removeLabel({
-          owner,
-          repo: payload.repository.name,
-          issue_number: payload.issue.number,
-          name: label.name,
-        });
-      }
+  // Try AI estimation if enabled and no time label exists
+  if (config.aiEstimation?.enabled && !labels.some((label: Label) => label.name.startsWith("Time:"))) {
+    const timeLabel = await estimateTimeWithAi(context, payload.issue.title, payload.issue.body || "");
+    if (timeLabel) {
+      // add the AI-estimated time label
+      await addLabelToIssue(context, timeLabel);
+      // Refresh labels after adding the time label without fetching them again
+      const updatedLabels = [
+        ...labels,
+        {
+          id: 0,
+          node_id: "",
+          url: "",
+          name: timeLabel,
+          description: null,
+          color: "ffffff",
+          default: false,
+        },
+      ];
+      await setPriceLabel(context, updatedLabels, config);
+      return;
     }
+  }
 
+  // Proceed with normal price label handling
+  await setPriceLabel(context, labels, config);
+}
+
+async function handleDirectPriceLabel(context: Context) {
+  if (!isIssueLabelEvent(context)) {
     return;
   }
 
-  await setPriceLabel(context, labels, config);
+  const { payload } = context;
+  const labels = (payload.issue.labels || []) as Label[];
+  const priceLabels = labels.filter((label: Label) => label.name.includes("Price: "));
+  const sortedPriceLabels = sortLabelsByValue(priceLabels);
+  const smallestPriceLabel = sortedPriceLabels.shift();
+  const smallestPriceLabelName = smallestPriceLabel?.name;
+
+  const owner = payload.repository.owner?.login;
+  if (!owner) {
+    context.logger.error("No owner found in repository");
+    return;
+  }
+
+  if (smallestPriceLabelName) {
+    for (const label of sortedPriceLabels) {
+      await context.octokit.rest.issues.removeLabel({
+        owner,
+        repo: payload.repository.name,
+        issue_number: payload.issue.number,
+        name: label.name,
+      });
+    }
+  }
 }
 
 export async function setPriceLabel(context: Context, issueLabels: Label[], config: AssistivePricingSettings) {
@@ -150,7 +191,7 @@ async function handleExistingPriceLabel(context: Context, targetPriceLabel: stri
   let labeledEvents = await getAllLabeledEvents(context);
   if (!labeledEvents) return logger.error("No labeled events found");
 
-  labeledEvents = labeledEvents.filter((event) => "label" in event && event.label.name.includes("Price"));
+  labeledEvents = labeledEvents.filter((event) => "label" in event && event.label.name.includes("Price:"));
   if (!labeledEvents.length) return logger.error("No price labeled events found");
 
   if (labeledEvents[labeledEvents.length - 1].actor?.type == UserType.User) {
@@ -172,14 +213,20 @@ async function getAllLabeledEvents(context: Context) {
 }
 
 async function getAllIssueEvents(context: Context) {
-  if (!("issue" in context.payload) || !context.payload.issue) {
+  if (!isIssueLabelEvent(context)) {
     context.logger.debug("Not an issue event");
     return;
   }
 
   try {
+    const owner = context.payload.repository.owner?.login;
+    if (!owner) {
+      context.logger.error("No owner found in repository");
+      return;
+    }
+
     return await context.octokit.paginate(context.octokit.rest.issues.listEvents, {
-      owner: context.payload.repository.owner.login,
+      owner,
       repo: context.payload.repository.name,
       issue_number: context.payload.issue.number,
       per_page: 100,
