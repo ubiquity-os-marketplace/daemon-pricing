@@ -1,5 +1,21 @@
 # Changelog
 
+## [4.1.0](https://github.com/ubiquity-os-marketplace/daemon-pricing/compare/v4.0.0...v4.1.0) (2025-03-13)
+
+
+### Features
+
+* used ubiquity's knip-reporter ([42391a6](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/42391a683a183f614ac63598cda333562bb85e72))
+* used ubiquity's knip-reporter ([ecc041e](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/ecc041edd014fbfc0f933627c8a9f615fb70dc79))
+
+
+### Bug Fixes
+
+* label generation ([305eed6](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/305eed61201335f4fec9f5340b556a990b74a232))
+* labels are deleted from the targeted repo on regeneration ([c977b8b](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/c977b8bb2a5eb549e77696aeb4ba576d76d16d4b))
+* labels do not get added twice to the label price list on update ([9e9ce5d](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/9e9ce5dce7365f2b9818a4ee00a25de0aa45b5c8))
+* only the incorrect labels get deleted on multiplier update ([e05e224](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/e05e224c8cd5c4f27b0a11e58e6d37d58ac6f6f6))
+
 ## [4.0.0](https://github.com/ubiquity-os-marketplace/daemon-pricing/compare/v3.0.0...v4.0.0) (2025-02-16)
 
 
