@@ -30,9 +30,15 @@ async function checkIfIsBillingManager(context: Context, username: string) {
   return membership.role === "billing_manager";
 }
 
+function isUserOrganizationBot(context: Context) {
+  const { payload } = context;
+
+  return payload.sender?.type === "Bot";
+}
+
 export async function isUserAdminOrBillingManager(context: Context, username?: string): Promise<"admin" | "billing_manager" | false> {
   if (!username) return false;
-  const isAdmin = await checkIfIsAdmin(context, username);
+  const isAdmin = (await checkIfIsAdmin(context, username)) || isUserOrganizationBot(context);
   if (isAdmin) return "admin";
 
   const isBillingManager = await checkIfIsBillingManager(context, username);
@@ -57,11 +63,10 @@ export async function listOrgRepos(context: Context) {
 
 export async function listRepoIssues(context: Context, owner: string, repo: string) {
   try {
-    const response = await context.octokit.rest.issues.listForRepo({
+    return await context.octokit.paginate(context.octokit.rest.issues.listForRepo, {
       owner,
       repo,
     });
-    return response.data;
   } catch (err) {
     throw context.logger.error("Listing repo issues failed!", { err });
   }

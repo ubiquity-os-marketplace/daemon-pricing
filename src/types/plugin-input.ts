@@ -18,7 +18,6 @@ export const pluginSettingsSchema = T.Object(
         time: T.Array(
           T.Object({
             name: T.String({ examples: ["Time: <2 Hours", "Time: <1 Week"], description: "The display name of the label representing estimated task length" }),
-            collaboratorOnly: T.Boolean({ default: false, description: "Whether the task is only available for collaborators to be assigned" }),
           }),
           {
             default: [

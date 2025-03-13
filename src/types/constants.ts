@@ -1,1 +1,1 @@
-export const COLLABORATOR_ONLY_DESCRIPTION = "⚠️ Collaborator only";
+export const COMMIT_MESSAGE = "chore: [skip ci] update labels configuration";

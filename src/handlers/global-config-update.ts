@@ -1,12 +1,16 @@
+import { CONFIG_ORG_REPO } from "@ubiquity-os/plugin-sdk/constants";
+import { pushEmptyCommit } from "../shared/commits";
 import { isUserAdminOrBillingManager, listOrgRepos, listRepoIssues } from "../shared/issue";
-import { Label } from "../types/github";
+import { COMMIT_MESSAGE } from "../types/constants";
 import { Context } from "../types/context";
+import { Label } from "../types/github";
 import { isPushEvent } from "../types/typeguards";
 import { isConfigModified } from "./check-modified-base-rate";
-import { getBaseRateChanges } from "./get-base-rate-changes";
 import { getLabelsChanges } from "./get-label-changes";
-import { syncPriceLabelsToConfig } from "./sync-labels-to-config";
 import { setPriceLabel } from "./pricing-label";
+import { getPriceLabels, syncPriceLabelsToConfig } from "./sync-labels-to-config";
+
+type Repositories = Awaited<ReturnType<typeof listOrgRepos>>;
 
 async function isAuthed(context: Context): Promise<boolean> {
   if (!isPushEvent(context)) {
@@ -24,14 +28,52 @@ async function isAuthed(context: Context): Promise<boolean> {
   const isSenderAuthed = await isUserAdminOrBillingManager(context, sender);
 
   if (!isPusherAuthed) {
-    logger.error("Pusher is not an admin or billing manager");
+    logger.error("Pusher is not an admin or billing manager", {
+      login: pusher,
+    });
   }
 
   if (!isSenderAuthed) {
-    logger.error("Sender is not an admin or billing manager");
+    logger.error("Sender is not an admin or billing manager", {
+      login: sender,
+    });
   }
 
   return !!(isPusherAuthed && isSenderAuthed);
+}
+
+async function sendEmptyCommits(context: Context<"push">) {
+  const {
+    logger,
+    config: { globalConfigUpdate },
+  } = context;
+
+  const repos: Repositories = [];
+  const { repository } = context.payload;
+
+  // If the configuration was modified from the configuration repo, chances are we want to update many repository labels
+  if (repository.name === CONFIG_ORG_REPO) {
+    repos.push(...(await listOrgRepos(context)).filter((repo) => !globalConfigUpdate?.excludeRepos.includes(repo.name)));
+  } else {
+    // Otherwise the configuration should only impact the hosting repository itself
+    repos.push(context.payload.repository as Repositories[0]);
+  }
+
+  logger.info("Will send an empty commit to the following list of repositories", { repos: repos.map((repo) => repo.html_url) });
+  for (const repository of repos) {
+    const ctx = {
+      ...context,
+      payload: {
+        repository: repository,
+      },
+    } as Context;
+    try {
+      // Pushing an empty commit will trigger a label update on the repository using its local configuration.
+      await pushEmptyCommit(ctx);
+    } catch (err) {
+      logger.warn(`Could not push an empty commit to ${repository.html_url}`, { err });
+    }
+  }
 }
 
 export async function globalLabelUpdate(context: Context) {
@@ -40,73 +82,59 @@ export async function globalLabelUpdate(context: Context) {
     return;
   }
 
-  const { logger, config } = context;
+  const { logger } = context;
 
   if (!(await isAuthed(context))) {
     logger.error("Changes should be pushed and triggered by an admin or billing manager.");
     return;
   }
 
-  if (!(await isConfigModified(context))) {
+  const didConfigurationChange = (await isConfigModified(context)) || (await getLabelsChanges(context));
+
+  if (didConfigurationChange && isPushEvent(context)) {
+    await sendEmptyCommits(context as Context<"push">);
+    return;
+  } else if (context.payload.head_commit?.message !== COMMIT_MESSAGE) {
+    logger.info("The commit name does not match the label update commit message, won't update labels.", {
+      url: context.payload.repository.html_url,
+    });
     return;
   }
 
-  const rates = await getBaseRateChanges(context);
-  const didLabelsChange = await getLabelsChanges(context);
+  const { incorrectPriceLabels, allLabels, pricingLabels } = await getPriceLabels(context);
+  const missingLabels = [...new Set(pricingLabels.filter((label) => !allLabels.map((i) => i.name).includes(label.name)).map((o) => o.name))];
 
-  if (rates.newBaseRate === null && !didLabelsChange) {
-    logger.error("No changes found in the diff, skipping.");
+  if (incorrectPriceLabels.length <= 0 && missingLabels.length <= 0) {
+    logger.info("No incorrect price label to delete and no labels are missing, skipping.", {
+      url: context.payload.repository.html_url,
+    });
     return;
   }
 
-  if (rates.newBaseRate !== null) {
-    logger.info(`Updating base rate from ${rates.previousBaseRate} to ${rates.newBaseRate}`);
-    config.basePriceMultiplier = rates.newBaseRate;
+  const repository = context.payload.repository;
+
+  logger.info(`Updating pricing labels in ${repository.html_url}`, {
+    incorrectPriceLabels,
+    missingLabels,
+  });
+
+  const owner = repository.owner?.login;
+  const repo = repository.name;
+
+  if (!owner) {
+    throw logger.error("No owner was found in the payload.");
   }
 
-  const repos = await listOrgRepos(context);
-
-  for (const repo of repos) {
+  await syncPriceLabelsToConfig(context);
+  const issues = await listRepoIssues(context, owner, repo);
+  for (const issue of issues) {
     const ctx = {
       ...context,
       payload: {
-        repository: repo,
+        ...context.payload,
+        issue,
       },
-    } as Context;
-
-    // this should create labels on the repos that are missing
-    await syncPriceLabelsToConfig(ctx);
-  }
-
-  // update all issues with the new pricing
-  if (config.globalConfigUpdate) {
-    await updateAllIssuePriceLabels(context);
-  }
-}
-
-async function updateAllIssuePriceLabels(context: Context) {
-  const { logger, config } = context;
-  const repos = await listOrgRepos(context);
-
-  for (const repo of repos) {
-    logger.info(`Fetching issues for ${repo.name}`);
-    const issues = await listRepoIssues(context, repo.owner.login, repo.name);
-
-    for (const issue of issues) {
-      logger.info(`Updating issue ${issue.number} in ${repo.name}`);
-      await setPriceLabel(
-        {
-          ...context,
-          payload: {
-            repository: repo,
-            issue,
-          },
-        } as Context,
-        issue.labels as Label[],
-        config
-      );
-
-      await new Promise((resolve) => setTimeout(resolve, 50));
-    }
+    };
+    await setPriceLabel(ctx, issue.labels as Label[], ctx.config);
   }
 }
