@@ -1,4 +1,5 @@
 import { jest } from "@jest/globals";
+import { LogReturn, Logs } from "@ubiquity-os/ubiquity-os-logger";
 import { syncPriceLabelsToConfig } from "../src/handlers/sync-labels-to-config";
 import { calculateLabelValue } from "../src/shared/pricing";
 import { Context } from "../src/types/context";
@@ -7,10 +8,6 @@ interface Label {
   name: string;
   description: string | undefined;
 }
-
-jest.unstable_mockModule("../src/shared/label", () => ({
-  listLabelsForRepo: jest.fn(),
-}));
 
 const mockLogger = {
   info: jest.fn(),
@@ -49,6 +46,7 @@ const mockContext: Context = {
 describe("syncPriceLabelsToConfig function", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.resetModules();
   });
 
   it("should not update labels if descriptions match the collaboratorOnly criteria", async () => {
@@ -57,6 +55,9 @@ describe("syncPriceLabelsToConfig function", () => {
       { name: "Label2", description: "" },
       { name: "Label3", description: "" },
     ];
+    jest.unstable_mockModule("../src/shared/label", () => ({
+      listLabelsForRepo: jest.fn(),
+    }));
 
     const pricingLabels = [{ name: "Label1" }, { name: "Label2" }, { name: "Label3" }];
     const { listLabelsForRepo } = await import("../src/shared/label");
@@ -80,5 +81,30 @@ describe("syncPriceLabelsToConfig function", () => {
     expect(labelValue).toEqual(0);
     labelValue = calculateLabelValue("Time: some Hours");
     expect(labelValue).toEqual(null);
+  });
+
+  it("Should ignore tags on parent issue, and clear pricing", async () => {
+    const clearAllPriceLabelsOnIssue = jest.fn();
+    const context = { logger: new Logs("debug"), eventName: "issues.labeled" } as unknown as Context;
+    jest.unstable_mockModule("../src/shared/label", () => ({
+      clearAllPriceLabelsOnIssue: clearAllPriceLabelsOnIssue,
+    }));
+    const { handleParentIssue } = await import("../src/handlers/handle-parent-issue");
+
+    await expect(handleParentIssue(context, [])).rejects.toBeInstanceOf(LogReturn);
+    await expect(
+      handleParentIssue(context, [
+        {
+          name: "Price: 1 USD",
+          id: 0,
+          node_id: "",
+          url: "",
+          description: null,
+          color: "",
+          default: false,
+        },
+      ])
+    ).rejects.toBeInstanceOf(LogReturn);
+    expect(clearAllPriceLabelsOnIssue).toHaveBeenCalledTimes(1);
   });
 });
