@@ -78,13 +78,7 @@ Example of valid configuration:
         - name: "Priority: 4 (Urgent)"
         - name: "Priority: 5 (Emergency)"
     basePriceMultiplier: 1
-    publicAccessControl:
-      setLabel: true
-      fundExternalClosedIssue: false
-      protectLabels:
-        - price
-        - time
-        - priority
+    shouldFundContributorClosedIssue: false
     globalConfigUpdate:
       excludeRepos: ["devpool-directory", "devpool-directory-private"]
 ```

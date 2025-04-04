@@ -13,8 +13,8 @@ async function generatePriceLabels(context: Context) {
   const priceLabels: { name: string }[] = [];
   for (const timeLabel of config.labels.time) {
     for (const priorityLabel of config.labels.priority) {
-      const timeValue = calculateLabelValue(timeLabel.name);
-      const priorityValue = calculateLabelValue(priorityLabel.name);
+      const timeValue = calculateLabelValue(context, timeLabel.name);
+      const priorityValue = calculateLabelValue(context, priorityLabel.name);
       if (timeValue === null || priorityValue === null) {
         logger.info("Time or Priority label is not defined, skipping.", { timeLabel, priorityLabel });
         continue;

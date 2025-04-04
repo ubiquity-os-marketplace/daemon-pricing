@@ -594,10 +594,7 @@ function createContext(
           collaboratorOnly: false,
         })),
       },
-      publicAccessControl: {
-        fundExternalClosedIssue: false,
-        setLabel: true,
-      },
+      shouldFundContributorClosedIssue: false,
       globalConfigUpdate: globalConfigUpdate ?? {
         excludeRepos: [],
       },

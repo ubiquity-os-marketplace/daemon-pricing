@@ -1,8 +1,8 @@
+import { extractLabelPattern } from "../handlers/label-checks";
 import { Context } from "../types/context";
 import { UserType } from "../types/github";
 import { isIssueLabelEvent } from "../types/typeguards";
 import { isUserAdminOrBillingManager } from "./issue";
-import { addLabelToIssue, removeLabelFromIssue } from "./label";
 
 export async function labelAccessPermissionsCheck(context: Context) {
   if (!isIssueLabelEvent(context)) {
@@ -10,11 +10,14 @@ export async function labelAccessPermissionsCheck(context: Context) {
     return false;
   }
   const { logger, payload } = context;
-  const { publicAccessControl } = context.config;
-  if (!payload.label?.name) return false;
+  const { shouldFundContributorClosedIssue } = context.config;
+  if (!payload.label?.name) {
+    logger.debug("The label has no name.");
+    return false;
+  }
 
-  if (publicAccessControl.setLabel) {
-    logger.info("Public access control is enabled for setting labels");
+  if (shouldFundContributorClosedIssue) {
+    logger.info("Fund contributor closed issue is enabled for setting labels");
     return true;
   }
   if (payload.sender?.type === UserType.Bot) {
@@ -29,22 +32,18 @@ export async function labelAccessPermissionsCheck(context: Context) {
 
   const repo = payload.repository;
   const sufficientPrivileges = await isUserAdminOrBillingManager(context, sender);
-
-  const labelName = payload.label.name;
-
+  const timeRegex = extractLabelPattern(context.config.labels.time);
+  const priorityRegex = extractLabelPattern(context.config.labels.priority);
   // get text before :
   const match = payload.label?.name?.split(":");
   // We can ignore custom labels which are not like Label: <value>
-  if (match.length <= 1) return false;
-  const labelType = match[0].toLowerCase();
-
-  // event in plain english
-  let action;
-  if ("action" in payload) {
-    action = payload.action;
-  } else {
-    throw new Error("No action found in payload");
+  if (match.length <= 1 && !timeRegex.test(payload.label.name) && !priorityRegex.test(payload.label.name)) {
+    context.logger.debug("The label does not appear to be a recognized label.", {
+      label: payload.label,
+    });
+    return false;
   }
+  const labelType = match[0].toLowerCase();
 
   if (sufficientPrivileges) {
     logger.info("Admin and billing managers have full control over all labels", {
@@ -53,37 +52,6 @@ export async function labelAccessPermissionsCheck(context: Context) {
       labelType,
     });
     return true;
-  } else {
-    return handleInsufficientPrivileges(context, labelType, sender, repo, action, labelName);
   }
-}
-
-async function handleInsufficientPrivileges(
-  context: Context,
-  labelType: string,
-  sender: string,
-  repo: Context["payload"]["repository"],
-  action: string,
-  labelName: string
-) {
-  const { logger, config, commentHandler } = context;
-  logger.info("Checking access for labels", { repo: repo.full_name, user: sender, labelType });
-
-  if (config.publicAccessControl.protectLabels.some((protectedLabel) => protectedLabel.toLowerCase() === labelType.toLowerCase())) {
-    await commentHandler.postComment(
-      context,
-      logger.error(`You do not have permissions to adjust ${config.publicAccessControl.protectLabels.map((label) => `\`${label}\``).join(", ")} labels.`, {
-        sender,
-        label: labelName,
-      })
-    );
-    if (action === "labeled") {
-      await removeLabelFromIssue(context, labelName);
-    } else if (action === "unlabeled") {
-      await addLabelToIssue(context, labelName);
-    }
-    return false;
-  }
-
-  return true;
+  return false;
 }

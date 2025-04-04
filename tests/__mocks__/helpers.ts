@@ -1,5 +1,5 @@
 import { Context } from "../../src/types/context";
-import { AUTHED_USER, BILLING_MANAGER, UNAUTHED_USER, PRICE_LABELS, TIME_LABELS, PRIORITY_LABELS } from "./constants";
+import { AUTHED_USER, BILLING_MANAGER, PRICE_LABELS, PRIORITY_LABELS, TIME_LABELS, UNAUTHED_USER } from "./constants";
 import { db } from "./db";
 import issueTemplate from "./issue-template";
 import { STRINGS } from "./strings";
@@ -12,8 +12,7 @@ export function getBaseRateChanges(changeAmt: number, withChanges = true, withPl
   --- a /.github /.ubiquity-os - config.yml
   +++ b /.github /.ubiquity-os - config.yml
   @@ - 7, 7 + 7, 7 @@features:
-          setLabel: true
-       fundExternalClosedIssue: true
+       shouldFundContributorClosedIssue: false
   ${
     withChanges
       ? `
@@ -32,7 +31,6 @@ export function getBaseRateChanges(changeAmt: number, withChanges = true, withPl
       labels:
         time: []
 @ -40,115 +36,124 @@
-          setLabel: true
         assistivePricing: true
   `
       : ""
