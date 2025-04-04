@@ -1,5 +1,16 @@
 # Changelog
 
+## [4.1.1](https://github.com/ubiquity-os-marketplace/daemon-pricing/compare/v4.1.0...v4.1.1) (2025-04-04)
+
+
+### Bug Fixes
+
+* pricing attempt on parent issue now displays a warning, or nothing is no price is set ([72c8912](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/72c89125b01c6c111010b5afa80794a9614b32e3))
+* pricing parent issue ([fd23fd0](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/fd23fd031d531dde732144e8b6142f240e82964e))
+* remove public-access-control ([16dff27](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/16dff27429d4ccc399a13e30b197c07a4c6f7272))
+* removed `publicAccessControl` and replaced it with `shouldFundContributorClosedIssue` ([f250edb](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/f250edb16d6785cf73dedfda858c178b1d37ce11))
+* the error message regarding the label set only appear on pricing attempts ([bc91264](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/bc91264bed7fd25c883bec23739d265eec170d86))
+
 ## [4.1.0](https://github.com/ubiquity-os-marketplace/daemon-pricing/compare/v4.0.0...v4.1.0) (2025-03-13)
 
 
