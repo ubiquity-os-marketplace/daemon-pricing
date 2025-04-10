@@ -1,0 +1,178 @@
+name: Deploy Vercel Function
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Update Configuration and Build"]
+    types:
+      - completed
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+
+jobs:
+  deploy-to-vercel:
+    runs-on: ubuntu-latest
+    name: Automatic Vercel Deploy
+    permissions:
+      contents: write
+
+    steps:
+      - name: Get Branch Name
+        id: get_branch
+        run: |
+          branch_name=$(echo '${{ github.event.workflow_run.head_branch || github.ref }}' | sed 's#refs/heads/##')
+          echo "branch_name=$branch_name" >> $GITHUB_OUTPUT
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.get_branch.outputs.branch_name }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install Vercel CLI
+        run: bun add -g vercel
+
+      - name: Determine Vercel Environment
+        id: vercel_env
+        run: |
+          if [[ "${{ steps.get_branch.outputs.branch_name }}" == "main" ]]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+          else
+            echo "environment=preview" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Determine Vercel Project Name
+        id: project_name
+        run: |
+          repo_name=$(echo "${{ github.repository }}" | cut -d'/' -f2)
+          project_name=$(echo "$repo_name" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | cut -c 1-63)
+          echo "name=$project_name" >> $GITHUB_OUTPUT
+          echo "Using Vercel project name: $project_name"
+
+      - name: Ensure Vercel Project Exists
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          PROJECT_NAME: ${{ steps.project_name.outputs.name }}
+        run: |
+          echo "Ensuring project '$PROJECT_NAME' exists in org '$VERCEL_ORG_ID'..."
+          vercel project add $PROJECT_NAME --token $VERCEL_TOKEN
+
+      - name: Pull Vercel Project Settings & Link
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          echo "Linking local directory to Vercel project..."
+          vercel pull --yes --environment=${{ steps.vercel_env.outputs.environment }} --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Add Environment Variables to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          TARGET_ENV: ${{ steps.vercel_env.outputs.environment }}
+          SECRET_APP_ID: ${{ secrets.APP_ID }}
+          SECRET_APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+          SECRET_APP_INSTALLATION_ID: ${{ secrets.APP_INSTALLATION_ID }}
+          SECRET_KERNEL_PUBLIC_KEY: ${{ secrets.KERNEL_PUBLIC_KEY }}
+        run: |
+          for secret_env_var in $(env | grep '^SECRET_' | cut -d= -f1); do
+            vercel_var_name=$(echo "$secret_env_var" | sed 's/^SECRET_//')
+            secret_value=$(printenv "$secret_env_var")
+
+            if [[ -n "$secret_value" ]]; then
+              echo "Adding $vercel_var_name to $TARGET_ENV environment..."
+              vercel env add "$vercel_var_name" "$secret_value" "$TARGET_ENV" --token="$VERCEL_TOKEN" --yes
+            else
+              echo "Skipping $vercel_var_name (secret is empty)."
+            fi
+          done
+
+      - name: Build Project
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy Project to Vercel
+        id: vercel_deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          deploy_output=$(mktemp)
+          echo "Deploying to Vercel (${{ steps.vercel_env.outputs.environment }})..."
+          if [[ "${{ steps.vercel_env.outputs.environment }}" == "production" ]]; then
+            vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }} | tee $deploy_output
+          else
+            vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }} | tee $deploy_output
+          fi
+          deploy_url=$(tail -n 1 $deploy_output)
+          if [[ ! $deploy_url == https://* ]]; then
+             echo "Error: Failed to capture deployment URL."
+             echo "Output:"
+             cat $deploy_output
+             exit 1
+          fi
+          echo "Deployment URL: $deploy_url"
+          echo "deployment-url=$deploy_url" >> $GITHUB_OUTPUT
+          rm $deploy_output
+
+      - name: Update manifest.json worker url
+        id: update_manifest
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const manifestPath = path.resolve("${{ github.workspace }}", './manifest.json');
+            if (!fs.existsSync(manifestPath)) {
+              console.log('manifest.json not found, skipping update.');
+              process.exit(0);
+            }
+            const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+            manifest["homepage_url"] = "${{ steps.vercel_deploy.outputs.deployment-url }}";
+            const updatedManifest = JSON.stringify(manifest, null, 2);
+            fs.writeFileSync(manifestPath, updatedManifest);
+            console.log('Updated manifest:', updatedManifest);
+
+      - name: Check required secrets for token generation
+        id: check_secrets
+        if: steps.update_manifest.outcome == 'success'
+        run: |
+          if [[ -n "${{ secrets.APP_ID }}" && -n "${{ secrets.APP_PRIVATE_KEY }}" ]]; then
+            echo "secrets_present=true" >> $GITHUB_OUTPUT
+          else
+            echo "secrets_present=false" >> $GITHUB_OUTPUT
+            echo "Skipping token generation: APP_ID or APP_PRIVATE_KEY secret is missing."
+          fi
+
+      - name: Get GitHub App token
+        if: steps.check_secrets.outputs.secrets_present == 'true'
+        uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Format manifest.json using Prettier
+        if: steps.update_manifest.outcome == 'success'
+        shell: bash
+        run: |
+          if ! bun pm ls | grep -q prettier; then
+            bun add -DE prettier
+          fi
+          bun prettier --write ./manifest.json
+
+      - name: Commit file
+        if: steps.update_manifest.outcome == 'success'
+        uses: swinton/commit@v2.x
+        env:
+          GH_TOKEN: ${{ steps.check_secrets.outputs.secrets_present == 'true' && steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+        with:
+          files: |
+            manifest.json
+          commit-message: "chore: [skip ci] update manifest.json url for Vercel"
+          ref: ${{ steps.get_branch.outputs.branch_name }}
+
+      - name: Write Deployment URL to Summary
+        run: |
+          echo "### Vercel Deployment URL (${{ steps.vercel_env.outputs.environment }})" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.vercel_deploy.outputs.deployment-url }}" >> $GITHUB_STEP_SUMMARY
