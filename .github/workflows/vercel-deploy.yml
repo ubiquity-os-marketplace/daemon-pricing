@@ -37,7 +37,7 @@ jobs:
           if [[ "${{ steps.get_branch.outputs.branch_name }}" == "main" ]]; then
             echo "environment=production" >> $GITHUB_OUTPUT
           else
-            echo "environment=preview" >> $GITHUB_OUTPUT
+            echo "environment=development" >> $GITHUB_OUTPUT
           fi
 
       - name: Determine Vercel Project Name
@@ -97,7 +97,7 @@ jobs:
           SECRET_KERNEL_PUBLIC_KEY: ${{ secrets.KERNEL_PUBLIC_KEY }}
           SECRET_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SECRET_SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          SECRET_LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
+          SECRET_LOG_LEVEL: ${{ secrets.LOG_LEVEL || 'info' }}
           SECRET_ACTION_REF: ${{ secrets.ACTION_REF }}
         run: |
           existing_vars=$(vercel env ls "$TARGET_ENV" --token="$VERCEL_TOKEN" || true)
@@ -113,7 +113,7 @@ jobs:
                 vercel env rm "$vercel_var_name" "$TARGET_ENV" --token="$VERCEL_TOKEN" --yes
               fi
               echo "Adding $vercel_var_name to $TARGET_ENV environment..."
-              echo "$secret_value" | vercel env add "$vercel_var_name" "$TARGET_ENV" --token="$VERCEL_TOKEN"
+              echo -n "$secret_value" | vercel env add "$vercel_var_name" "$TARGET_ENV" --token="$VERCEL_TOKEN"
             else
               echo "Skipping $vercel_var_name (secret is empty)."
             fi
@@ -194,10 +194,8 @@ jobs:
         if: steps.update_manifest.outcome == 'success'
         shell: bash
         run: |
-          if ! bun pm ls | grep -q prettier; then
-            bun add -DE prettier
-          fi
-          bun prettier --write ./manifest.json
+          bun add -DE prettier
+          bun prettier --write .
 
       - name: Commit file
         if: steps.update_manifest.outcome == 'success'
