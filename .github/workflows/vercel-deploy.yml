@@ -9,6 +9,7 @@ on:
 
 jobs:
   deploy-to-vercel:
+    environment: ${{ (github.ref == 'refs/heads/main' || github.event.workflow_run.head_branch == 'main') && 'main' || 'development' }}
     runs-on: ubuntu-latest
     name: Automatic Vercel Deploy
     permissions:
