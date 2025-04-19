@@ -16,3 +16,4 @@ cypress/screenshots
 /tests/http/http-client.private.env.json
 test-dashboard.md
 .wrangler
+.vercel

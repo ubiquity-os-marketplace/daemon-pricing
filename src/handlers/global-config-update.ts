@@ -1,14 +1,14 @@
 import { CONFIG_ORG_REPO } from "@ubiquity-os/plugin-sdk/constants";
-import { pushEmptyCommit } from "../shared/commits";
-import { isUserAdminOrBillingManager, listOrgRepos, listRepoIssues } from "../shared/issue";
-import { COMMIT_MESSAGE } from "../types/constants";
-import { Context } from "../types/context";
-import { Label } from "../types/github";
-import { isPushEvent } from "../types/typeguards";
-import { isConfigModified } from "./check-modified-base-rate";
-import { getLabelsChanges } from "./get-label-changes";
-import { setPriceLabel } from "./pricing-label";
-import { getPriceLabels, syncPriceLabelsToConfig } from "./sync-labels-to-config";
+import { pushEmptyCommit } from "../shared/commits.js";
+import { isUserAdminOrBillingManager, listOrgRepos, listRepoIssues } from "../shared/issue.js";
+import { COMMIT_MESSAGE } from "../types/constants.js";
+import { Context } from "../types/context.js";
+import { Label } from "../types/github.js";
+import { isPushEvent } from "../types/typeguards.js";
+import { isConfigModified } from "./check-modified-base-rate.js";
+import { getLabelsChanges } from "./get-label-changes.js";
+import { setPriceLabel } from "./pricing-label.js";
+import { getPriceLabels, syncPriceLabelsToConfig } from "./sync-labels-to-config.js";
 
 type Repositories = Awaited<ReturnType<typeof listOrgRepos>>;
 

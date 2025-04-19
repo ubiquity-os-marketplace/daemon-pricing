@@ -1,8 +1,8 @@
-import { extractLabelPattern } from "../handlers/label-checks";
-import { Context } from "../types/context";
-import { UserType } from "../types/github";
-import { isIssueLabelEvent } from "../types/typeguards";
-import { isUserAdminOrBillingManager } from "./issue";
+import { extractLabelPattern } from "../handlers/label-checks.js";
+import { Context } from "../types/context.js";
+import { UserType } from "../types/github.js";
+import { isIssueLabelEvent } from "../types/typeguards.js";
+import { isUserAdminOrBillingManager } from "./issue.js";
 
 export async function labelAccessPermissionsCheck(context: Context) {
   if (!isIssueLabelEvent(context)) {

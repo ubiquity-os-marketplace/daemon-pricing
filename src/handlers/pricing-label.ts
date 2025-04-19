@@ -1,12 +1,12 @@
-import { addLabelToIssue, clearAllPriceLabelsOnIssue, createLabel, listLabelsForRepo, removeLabelFromIssue } from "../shared/label";
-import { labelAccessPermissionsCheck } from "../shared/permissions";
-import { Label, UserType } from "../types/github";
-import { getPrice } from "../shared/pricing";
-import { handleParentIssue, isParentIssue, sortLabelsByValue } from "./handle-parent-issue";
-import { AssistivePricingSettings } from "../types/plugin-input";
-import { isIssueLabelEvent } from "../types/typeguards";
-import { Context } from "../types/context";
-import { extractLabelPattern } from "./label-checks";
+import { addLabelToIssue, clearAllPriceLabelsOnIssue, createLabel, listLabelsForRepo, removeLabelFromIssue } from "../shared/label.js";
+import { labelAccessPermissionsCheck } from "../shared/permissions.js";
+import { Label, UserType } from "../types/github.js";
+import { getPrice } from "../shared/pricing.js";
+import { handleParentIssue, isParentIssue, sortLabelsByValue } from "./handle-parent-issue.js";
+import { AssistivePricingSettings } from "../types/plugin-input.js";
+import { isIssueLabelEvent } from "../types/typeguards.js";
+import { Context } from "../types/context.js";
+import { extractLabelPattern } from "./label-checks.js";
 
 export async function onLabelChangeSetPricing(context: Context): Promise<void> {
   if (!isIssueLabelEvent(context)) {

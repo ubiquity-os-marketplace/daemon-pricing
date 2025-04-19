@@ -1,5 +1,5 @@
-import { COMMIT_MESSAGE } from "../types/constants";
-import { Context } from "../types/context";
+import { COMMIT_MESSAGE } from "../types/constants.js";
+import { Context } from "../types/context.js";
 
 export async function pushEmptyCommit(context: Context) {
   const { octokit, payload, logger } = context;

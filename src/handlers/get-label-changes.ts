@@ -1,5 +1,5 @@
-import { Context } from "../types/context";
-import { isPushEvent } from "../types/typeguards";
+import { Context } from "../types/context.js";
+import { isPushEvent } from "../types/typeguards.js";
 
 export async function getLabelsChanges(context: Context) {
   if (!isPushEvent(context)) {
