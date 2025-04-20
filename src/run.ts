@@ -1,8 +1,8 @@
-import { globalLabelUpdate } from "./handlers/global-config-update";
-import { onLabelChangeSetPricing } from "./handlers/pricing-label";
-import { syncPriceLabelsToConfig } from "./handlers/sync-labels-to-config";
-import { Context } from "./types/context";
-import { isIssueLabelEvent } from "./types/typeguards";
+import { globalLabelUpdate } from "./handlers/global-config-update.js";
+import { onLabelChangeSetPricing } from "./handlers/pricing-label.js";
+import { syncPriceLabelsToConfig } from "./handlers/sync-labels-to-config.js";
+import { Context } from "./types/context.js";
+import { isIssueLabelEvent } from "./types/typeguards.js";
 
 export function isLocalEnvironment() {
   return process.env.NODE_ENV === "local";

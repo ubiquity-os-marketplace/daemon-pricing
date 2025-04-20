@@ -1,7 +1,7 @@
 import { CONFIG_FULL_PATH, DEV_CONFIG_FULL_PATH } from "@ubiquity-os/plugin-sdk/constants";
-import { Context } from "../types/context";
-import { isPushEvent } from "../types/typeguards";
-import { getCommitChanges } from "./get-commit-changes";
+import { Context } from "../types/context.js";
+import { isPushEvent } from "../types/typeguards.js";
+import { getCommitChanges } from "./get-commit-changes.js";
 
 export const ZERO_SHA = "0000000000000000000000000000000000000000";
 const BASE_RATE_FILES = [DEV_CONFIG_FULL_PATH, CONFIG_FULL_PATH];

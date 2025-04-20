@@ -1,7 +1,7 @@
-import { clearAllPriceLabelsOnIssue } from "../shared/label";
-import { calculateLabelValue } from "../shared/pricing";
-import { Label } from "../types/github";
-import { Context } from "../types/context";
+import { clearAllPriceLabelsOnIssue } from "../shared/label.js";
+import { calculateLabelValue } from "../shared/pricing.js";
+import { Label } from "../types/github.js";
+import { Context } from "../types/context.js";
 
 export async function handleParentIssue(context: Context, labels: Label[]) {
   const issuePrices = labels.filter((label) => label.name.toString().startsWith("Price:"));

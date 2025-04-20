@@ -1,7 +1,7 @@
 import { Decimal } from "decimal.js";
-import { determinePriorityOrder, extractLabelPattern } from "../handlers/label-checks";
-import { Label } from "../types/github";
-import { Context } from "../types/context";
+import { determinePriorityOrder, extractLabelPattern } from "../handlers/label-checks.js";
+import { Label } from "../types/github.js";
+import { Context } from "../types/context.js";
 
 export function calculateTaskPrice(context: Context, timeValue: number, priorityValue: number, baseValue?: number): string {
   const base = baseValue ?? context.config.basePriceMultiplier;
