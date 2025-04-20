@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.2.0](https://github.com/ubiquity-os-marketplace/daemon-pricing/compare/v4.1.1...v4.2.0) (2025-04-20)
+
+
+### Features
+
+* vercel migration ([31dc3b8](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/31dc3b89523e25a198786a44d101add11bdfa411))
+
 ## [4.1.1](https://github.com/ubiquity-os-marketplace/daemon-pricing/compare/v4.1.0...v4.1.1) (2025-04-04)
 
 
