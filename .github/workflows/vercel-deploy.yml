@@ -9,7 +9,6 @@ on:
 
 jobs:
   deploy-to-vercel:
-    environment: ${{ (github.ref == 'refs/heads/main' || github.event.workflow_run.head_branch == 'main') && 'main' || 'development' }}
     runs-on: ubuntu-latest
     name: Automatic Vercel Deploy
     permissions:
@@ -94,6 +93,7 @@ jobs:
           TARGET_ENV: ${{ steps.vercel_env.outputs.environment }}
           SECRET_APP_ID: ${{ secrets.APP_ID }}
           SECRET_APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+          SECRET_APP_INSTALLATION_ID: ${{ secrets.APP_INSTALLATION_ID }}
           SECRET_KERNEL_PUBLIC_KEY: ${{ secrets.KERNEL_PUBLIC_KEY }}
           SECRET_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SECRET_SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
@@ -125,13 +125,8 @@ jobs:
           VERCEL_PROJECT_ID: ${{ steps.get_project_id.outputs.project_id }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
         run: |
-          if [[ "${{ steps.vercel_env.outputs.environment }}" == "production" ]]; then
-            vercel pull --environment=production --yes --token=${{ secrets.VERCEL_TOKEN }}
-            vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
-          else
-            vercel pull --environment=development --yes --token=${{ secrets.VERCEL_TOKEN }}
-            vercel build --token=${{ secrets.VERCEL_TOKEN }}
-          fi
+          vercel pull --yes --token=${{ secrets.VERCEL_TOKEN }}
+          vercel build --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy Project to Vercel
         id: vercel_deploy
