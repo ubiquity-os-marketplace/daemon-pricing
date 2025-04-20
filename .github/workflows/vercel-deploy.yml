@@ -9,7 +9,6 @@ on:
 
 jobs:
   deploy-to-vercel:
-    environment: ${{ (github.ref == 'refs/heads/main' || github.event.workflow_run.head_branch == 'main') && 'main' || 'development' }}
     runs-on: ubuntu-latest
     name: Automatic Vercel Deploy
     permissions:
@@ -94,29 +93,39 @@ jobs:
           TARGET_ENV: ${{ steps.vercel_env.outputs.environment }}
           SECRET_APP_ID: ${{ secrets.APP_ID }}
           SECRET_APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+          SECRET_APP_INSTALLATION_ID: ${{ secrets.APP_INSTALLATION_ID }}
           SECRET_KERNEL_PUBLIC_KEY: ${{ secrets.KERNEL_PUBLIC_KEY }}
           SECRET_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SECRET_SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           SECRET_LOG_LEVEL: ${{ secrets.LOG_LEVEL || 'info' }}
           SECRET_ACTION_REF: ${{ secrets.ACTION_REF }}
         run: |
-          existing_vars=$(vercel env ls "$TARGET_ENV" --token="$VERCEL_TOKEN" || true)
-          echo "Existing vars fetched for $TARGET_ENV.${existing_vars}"
+          if [[ "$TARGET_ENV" == "production" ]]; then
+            environments=("production")
+          else
+            environments=("development" "preview")
+          fi
 
-          for secret_env_var in $(env | grep '^SECRET_' | cut -d= -f1); do
-            vercel_var_name=$(echo "$secret_env_var" | sed 's/^SECRET_//')
-            secret_value=$(printenv "$secret_env_var")
+          for env_target in "${environments[@]}"; do
+            echo "Processing environment: $env_target"
+            existing_vars=$(vercel env ls "$env_target" --token="$VERCEL_TOKEN" || true)
+            echo "Existing vars fetched for $env_target.${existing_vars}"
 
-            if [[ -n "$secret_value" ]]; then
-              if echo "$existing_vars" | grep -q -w "$vercel_var_name"; then
-                echo "$vercel_var_name already exists in $TARGET_ENV. Removing first..."
-                vercel env rm "$vercel_var_name" "$TARGET_ENV" --token="$VERCEL_TOKEN" --yes
+            for secret_env_var in $(env | grep '^SECRET_' | cut -d= -f1); do
+              vercel_var_name=$(echo "$secret_env_var" | sed 's/^SECRET_//')
+              secret_value=$(printenv "$secret_env_var")
+
+              if [[ -n "$secret_value" ]]; then
+                if echo "$existing_vars" | grep -q -w "$vercel_var_name"; then
+                  echo "$vercel_var_name already exists in $env_target. Removing first..."
+                  vercel env rm "$vercel_var_name" "$env_target" --token="$VERCEL_TOKEN" --yes
+                fi
+                echo "Adding $vercel_var_name to $env_target environment..."
+                echo -n "$secret_value" | vercel env add "$vercel_var_name" "$env_target" --token="$VERCEL_TOKEN"
+              else
+                echo "Skipping $vercel_var_name (secret is empty)."
               fi
-              echo "Adding $vercel_var_name to $TARGET_ENV environment..."
-              echo -n "$secret_value" | vercel env add "$vercel_var_name" "$TARGET_ENV" --token="$VERCEL_TOKEN"
-            else
-              echo "Skipping $vercel_var_name (secret is empty)."
-            fi
+            done
           done
 
       - name: Build Project
@@ -125,13 +134,8 @@ jobs:
           VERCEL_PROJECT_ID: ${{ steps.get_project_id.outputs.project_id }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
         run: |
-          if [[ "${{ steps.vercel_env.outputs.environment }}" == "production" ]]; then
-            vercel pull --environment=production --yes --token=${{ secrets.VERCEL_TOKEN }}
-            vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
-          else
-            vercel pull --environment=development --yes --token=${{ secrets.VERCEL_TOKEN }}
-            vercel build --token=${{ secrets.VERCEL_TOKEN }}
-          fi
+          vercel pull --yes --token=${{ secrets.VERCEL_TOKEN }}
+          vercel build --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy Project to Vercel
         id: vercel_deploy
