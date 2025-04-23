@@ -1,6 +1,7 @@
 import { createAppAuth } from "@octokit/auth-app";
 import { Octokit } from "@octokit/rest";
 import { createPlugin } from "@ubiquity-os/plugin-sdk";
+import { env as honoEnv } from "hono/adapter";
 import { customOctokit } from "@ubiquity-os/plugin-sdk/octokit";
 import { Manifest } from "@ubiquity-os/plugin-sdk/manifest";
 import { LOG_LEVEL, LogLevel } from "@ubiquity-os/ubiquity-os-logger";
@@ -10,6 +11,7 @@ import { isLocalEnvironment, run } from "./run";
 import { Context, SupportedEvents } from "./types/context";
 import { Env, envSchema } from "./types/env";
 import { AssistivePricingSettings, pluginSettingsSchema } from "./types/plugin-input";
+import { getPricing, getPriorityTime } from "./handlers/get-priority-time";
 
 async function startAction(context: Context, inputs: Record<string, unknown>) {
   const { payload, logger, env } = context;
@@ -74,7 +76,7 @@ export default {
     // It is important to clone the request because the body is read within createPlugin as well
     const responseClone = request.clone();
 
-    return createPlugin<AssistivePricingSettings, Env, null, SupportedEvents>(
+    const app = createPlugin<AssistivePricingSettings, Env, null, SupportedEvents>(
       async (context) => {
         switch (context.eventName) {
           case "issues.opened":
@@ -105,6 +107,43 @@ export default {
         kernelPublicKey: env.KERNEL_PUBLIC_KEY as string,
         bypassSignatureVerification: env.NODE_ENV === "local",
       }
-    ).fetch(request, env, executionCtx);
+    );
+
+    // /time endpoint
+    app.post("/time", async (c) => {
+      const env = honoEnv(c);
+      //Better checking
+      const { BASETEN_API_KEY, BASE_PRICE_MULTIPLIER, API_URL } = env;
+      if (!BASETEN_API_KEY) {
+        return c.json({ error: "BASETEN_API_KEY is not set" }, 500);
+      }
+
+      const body = await c.req.json();
+      const { issue_description, issue_title } = body as {
+        issue_description: string;
+        issue_title: string;
+      };
+
+      // Get the priority time estimate
+      const priorityTimeEstimate = await getPriorityTime(issue_description, issue_title, BASETEN_API_KEY as string, API_URL as string);
+
+      if (!priorityTimeEstimate) {
+        return c.json({ error: "No priority time estimate" }, 500);
+      }
+
+      // Get the time and priority from the estimate
+      const { time, priority } = priorityTimeEstimate;
+
+      // Return the time and priority
+      const price = getPricing(parseFloat(BASE_PRICE_MULTIPLIER as string), parseFloat(time), priority);
+
+      return c.json({
+        time: time,
+        priority: priority,
+        price: price.toString(),
+      });
+    });
+
+    return app.fetch(request, env, executionCtx);
   },
 };
