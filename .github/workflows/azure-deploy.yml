@@ -143,5 +143,5 @@ jobs:
         id: fa
         with:
           app-name: "${{ env.FUNCTION_NAME }}"
-          slot-name: "Production"
+          slot-name: ${{ github.ref == 'refs/heads/main' && 'Production' || 'development' }}
           package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
