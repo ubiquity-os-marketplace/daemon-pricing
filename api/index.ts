@@ -72,6 +72,7 @@ async function startAction(context: Context, inputs: Record<string, unknown>) {
   });
 }
 
+// eslint-disable-next-line func-style
 export const POST = (request: Request) => {
   const responseClone = request.clone();
   const pluginApp = createPlugin<AssistivePricingSettings, Env, null, SupportedEvents>(
