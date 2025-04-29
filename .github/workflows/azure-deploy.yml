@@ -112,8 +112,8 @@ jobs:
             az functionapp config appsettings set \
               --name ${{ env.FUNCTION_NAME }} \
               --resource-group ubiquity-os_group \
-              --settings @local.settings.json \
-              --slot ${{ github.ref == 'refs/heads/main' && 'production' || 'development' }}
+              --settings @local.settings.json${{ github.ref != 'refs/heads/main' && ' \
+              --slot development' || '' }}
 
   deploy:
     environment: ${{ github.ref == 'refs/heads/main' && 'main' || 'development' }}
