@@ -113,7 +113,7 @@ jobs:
               --name ${{ env.FUNCTION_NAME }} \
               --resource-group ubiquity-os_group \
               --settings @local.settings.json \
-              --slot ${{ github.ref == 'refs/heads/main' && 'Production' || 'development' }}
+              --slot ${{ github.ref == 'refs/heads/main' && 'production' || 'development' }}
 
   deploy:
     environment: ${{ github.ref == 'refs/heads/main' && 'main' || 'development' }}
