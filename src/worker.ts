@@ -70,7 +70,7 @@ async function startAction(context: Context, inputs: Record<string, unknown>) {
 }
 
 export default {
-  async fetch(request: Request, env: Record<string, string>, executionCtx?: ExecutionContext) {
+  async fetch(request: Request, env: Record<string, unknown>, executionCtx?: ExecutionContext) {
     // It is important to clone the request because the body is read within createPlugin as well
     const responseClone = request.clone();
 
@@ -102,7 +102,7 @@ export default {
         postCommentOnError: true,
         settingsSchema: pluginSettingsSchema,
         logLevel: (env.LOG_LEVEL as LogLevel) || LOG_LEVEL.INFO,
-        kernelPublicKey: env.KERNEL_PUBLIC_KEY,
+        kernelPublicKey: env.KERNEL_PUBLIC_KEY as string,
         bypassSignatureVerification: env.NODE_ENV === "local",
       }
     ).fetch(request, env, executionCtx);
