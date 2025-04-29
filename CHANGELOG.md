@@ -1,5 +1,17 @@
 # Changelog
 
+## [4.3.0](https://github.com/ubiquity-os-marketplace/daemon-pricing/compare/v4.2.0...v4.3.0) (2025-04-29)
+
+
+### Features
+
+* azure deploy ([324af09](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/324af09d8d05b9da666e357cd8ad4ac50d16fae3))
+
+
+### Bug Fixes
+
+* **vercel-deploy:** handle multiple environments dynamically ([54370e4](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/54370e4836fbaf0d32699dca24c513a8ea3d1b17))
+
 ## [4.2.0](https://github.com/ubiquity-os-marketplace/daemon-pricing/compare/v4.1.1...v4.2.0) (2025-04-20)
 
 
