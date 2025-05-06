@@ -112,8 +112,7 @@ export default {
     // /time endpoint
     app.post("/time", async (c) => {
       const env = honoEnv(c);
-      //Better checking
-      const { BASETEN_API_KEY, BASE_PRICE_MULTIPLIER, API_URL } = env;
+      const { BASETEN_API_KEY, BASE_PRICE_MULTIPLIER, BASETEN_API_URL } = env;
       if (!BASETEN_API_KEY) {
         return c.json({ error: "BASETEN_API_KEY is not set" }, 500);
       }
@@ -124,17 +123,14 @@ export default {
         issue_title: string;
       };
 
-      // Get the priority time estimate
-      const priorityTimeEstimate = await getPriorityTime(issue_description, issue_title, BASETEN_API_KEY as string, API_URL as string);
+      const priorityTimeEstimate = await getPriorityTime(issue_description, issue_title, BASETEN_API_KEY as string, BASETEN_API_URL as string);
 
       if (!priorityTimeEstimate) {
         return c.json({ error: "No priority time estimate" }, 500);
       }
 
-      // Get the time and priority from the estimate
       const { time, priority } = priorityTimeEstimate;
 
-      // Return the time and priority
       const price = getPricing(parseFloat(BASE_PRICE_MULTIPLIER as string), parseFloat(time), priority);
 
       return c.json({
