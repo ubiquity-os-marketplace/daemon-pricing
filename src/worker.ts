@@ -115,8 +115,9 @@ export default {
       const { BASETEN_API_KEY, BASE_PRICE_MULTIPLIER, BASETEN_API_URL } = env;
       if (!BASETEN_API_KEY) {
         return c.json({ error: "BASETEN_API_KEY is not set" }, 500);
+      } else if (!BASETEN_API_URL) {
+        return c.json({ error: "BASETEN_API_URL is not set" }, 500);
       }
-
       const body = await c.req.json();
       const { issue_description, issue_title } = body as {
         issue_description: string;
