@@ -14,7 +14,7 @@ export async function getPriorityTime(
   issueDescription: string,
   issueTitle: string,
   basetenApiKey: string,
-  basetenApiUrl: string = "https://model-yqvr8mjw.api.baseten.co/development/predict"
+  basetenApiUrl: string
 ): Promise<PriorityTimeEstimate> {
   const headers = {
     "Content-Type": "application/json",
