@@ -74,7 +74,7 @@ jobs:
           }')
 
           # Define excluded prefixes
-          excluded_prefixes=("GITHUB_" "ACTIONS_" "AZUREAPPSERVICE_")
+          excluded_prefixes=("GITHUB_" "AZUREAPPSERVICE_")
 
           # Iterate through secrets and add non-excluded ones
           for secret_name in $(echo "$secrets" | jq -r 'keys[]'); do
