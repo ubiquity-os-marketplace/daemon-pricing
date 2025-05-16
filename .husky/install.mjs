@@ -4,5 +4,5 @@ if (process.env.NODE_ENV === "production" || process.env.CI === "true") {
   console.log("Skipping Husky install because of production environment.");
   process.exit(0);
 }
-import husky from "husky";
+const husky = (await import("husky")).default;
 console.log(husky());
