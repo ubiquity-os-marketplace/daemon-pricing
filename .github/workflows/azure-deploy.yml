@@ -98,14 +98,15 @@ jobs:
           echo "$settings" | jq '.' > local.settings.json
 
           total_secrets=$(echo "$secrets" | jq -r 'keys | length')
-          included_count=${#included_secrets[@]}
+          included_count=$(echo "$settings" | jq -r '.Values | keys | length')
+          env_var_names=$(echo "$settings" | jq -r '.Values | keys[]')
 
           echo "Environment variables parsed:"
           echo "- Total secrets processed: $total_secrets"
           echo "- Included in settings: $included_count"
           echo "Environment variables added to settings:"
-          for secret in "${included_secrets[@]}"; do
-            echo "• $secret"
+          echo "$env_var_names" | while read -r var_name; do
+            echo "• $var_name"
           done
 
       - uses: azure/login@v2
