@@ -74,7 +74,7 @@ jobs:
           }')
 
           # Define excluded prefixes
-          excluded_prefixes=("GITHUB_" "AZUREAPPSERVICE_")
+          excluded_prefixes=("GITHUB_" "ACTIONS_" "AZUREAPPSERVICE_" "RUNNER_")
 
           # Iterate through secrets and add non-excluded ones
           for secret_name in $(echo "$secrets" | jq -r 'keys[]'); do
@@ -96,6 +96,15 @@ jobs:
 
           # Output the final settings to local.settings.json
           echo "$settings" | jq '.' > local.settings.json
+
+          total_secrets=$(echo "$secrets" | jq -r 'keys | length')
+          included_count=${#included_secrets[@]}
+
+          echo "Environment variables parsed:"
+          echo "- Total secrets processed: $total_secrets"
+          echo "- Included in settings: $included_count"
+          echo "Environment variables added to settings:"
+          printf "- %s\n" "${included_secrets[@]}"
 
       - uses: azure/login@v2
         with:
