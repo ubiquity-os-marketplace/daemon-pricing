@@ -104,7 +104,9 @@ jobs:
           echo "- Total secrets processed: $total_secrets"
           echo "- Included in settings: $included_count"
           echo "Environment variables added to settings:"
-          printf "- %s\n" "${included_secrets[@]}"
+          for secret in "${included_secrets[@]}"; do
+            echo "• $secret"
+          done
 
       - uses: azure/login@v2
         with:
