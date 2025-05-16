@@ -95,19 +95,9 @@ jobs:
           done
 
           # Output the final settings to local.settings.json
+          echo "Writing setting the the local settings file"
+          echo "$settings"
           echo "$settings" | jq '.' > local.settings.json
-
-          total_secrets=$(echo "$secrets" | jq -r 'keys | length')
-          included_count=$(echo "$settings" | jq -r '.Values | keys | length')
-          env_var_names=$(echo "$settings" | jq -r '.Values | keys[]')
-
-          echo "Environment variables parsed:"
-          echo "- Total secrets processed: $total_secrets"
-          echo "- Included in settings: $included_count"
-          echo "Environment variables added to settings:"
-          echo "$env_var_names" | while read -r var_name; do
-            echo "• $var_name"
-          done
 
       - uses: azure/login@v2
         with:
