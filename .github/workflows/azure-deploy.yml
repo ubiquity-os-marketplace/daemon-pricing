@@ -74,7 +74,7 @@ jobs:
           }')
 
           # Define excluded prefixes
-          excluded_prefixes=("GITHUB_" "ACTIONS_" "AZUREAPPSERVICE_")
+          excluded_prefixes=("GITHUB_" "ACTIONS_" "AZUREAPPSERVICE_" "RUNNER_")
 
           # Iterate through secrets and add non-excluded ones
           for secret_name in $(echo "$secrets" | jq -r 'keys[]'); do
@@ -95,6 +95,8 @@ jobs:
           done
 
           # Output the final settings to local.settings.json
+          echo "Writing setting the the local settings file"
+          echo "$settings"
           echo "$settings" | jq '.' > local.settings.json
 
       - uses: azure/login@v2
