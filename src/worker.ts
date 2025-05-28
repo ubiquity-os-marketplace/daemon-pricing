@@ -6,12 +6,13 @@ import { customOctokit } from "@ubiquity-os/plugin-sdk/octokit";
 import { Manifest } from "@ubiquity-os/plugin-sdk/manifest";
 import { LOG_LEVEL, LogLevel } from "@ubiquity-os/ubiquity-os-logger";
 import type { ExecutionContext } from "hono";
-const manifest = await import("../manifest.json");
 import { isLocalEnvironment, run } from "./run";
 import { Context, SupportedEvents } from "./types/context";
 import { Env, envSchema } from "./types/env";
 import { AssistivePricingSettings, pluginSettingsSchema } from "./types/plugin-input";
 import { getPricing, getPriorityTime } from "./handlers/get-priority-time";
+
+const manifest = await import("../manifest.json");
 
 async function startAction(context: Context, inputs: Record<string, unknown>) {
   const { payload, logger, env } = context;
