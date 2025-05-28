@@ -1,4 +1,4 @@
-name: Deno Deploy
+name: Deno Deploy 2
 
 on:
   workflow_dispatch:
@@ -19,18 +19,6 @@ jobs:
       id-token: write
 
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_branch || github.ref }}
-
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-
-      - name: Install CLI
-        run: deno install -gArf jsr:@deno/deployctl
-
       - name: Set ACTION_REF environment variable
         run: |
           branch_name=$(echo '${{ github.event.workflow_run.head_branch || github.ref }}' | sed 's#refs/heads/##')
@@ -45,117 +33,12 @@ jobs:
           new_name=$(echo "$new_name" | cut -c 1-26)
           echo "PROJECT_NAME=$new_name" >> $GITHUB_ENV
 
-      - name: Generate .env File
+      - uses: Meniole/deno-deploy@main
         env:
-          APP_ID: ${{ secrets.APP_ID }}
-          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
           KERNEL_PUBLIC_KEY: ${{ secrets.KERNEL_PUBLIC_KEY }}
+          APP_ID: ${{ env.APP_ID }}
+          APP_PRIVATE_KEY: ${{ env.APP_PRIVATE_KEY }}
           APP_INSTALLATION_ID: ${{ env.APP_INSTALLATION_ID }}
           ACTION_REF: ${{ env.ACTION_REF }}
-        run: |
-          cat > generate-env.ts <<'EOF'
-          const envVars = Deno.env.toObject();
-          const filtered = Object.entries(envVars)
-            .filter(([k, v]) => !/^(GITHUB_|RUNNER_|CI|HOME|PATH|PWD|SHELL|USER|LANG|LC_|TZ|DENO_|ACTIONS_)/.test(k))
-            .filter(([k, v]) => v !== undefined && v !== null && v.trim() !== "")
-            .reduce((acc, [k,v]) => ({...acc, [k]:v}), {});
-          await Deno.writeTextFile(".env", 
-            Object.entries(filtered)
-              .map(([k,v]) => `${k}="${v.replace(/"/g, '\\"')}"`)
-              .join("\n")
-          );
-          EOF
-          deno run --allow-env --allow-write=.env generate-env.ts
-          rm generate-env.ts
-
-      - name: Create Deno Entry Point
-        run: |
-          mkdir -p src
-          cat << 'EOF' > src/deno.ts
-          import worker from "./worker";
-          export default {
-            async fetch(request: Request, env: Record<string, unknown>, executionCtx?: ExecutionContext) {
-              Object.assign(env, Deno.env.toObject());
-              return worker.fetch(request, env, executionCtx);
-            },
-          };
-          EOF
-
-      - name: Fix Import Extensions
-        run: |
-          find src -name "*.ts" -type f -exec sh -c '
-            sed -i.bak "s/from \"\.\([^\"]*\)\"/from \".\1.ts\"/g; s/from '"'"'\.\([^'"'"']*\)'"'"'/from '"'"'.\1.ts'"'"'/g; s/\.json\.ts/.json/g; s/\.css\.ts/.css/g; s/\.svg\.ts/.svg/g; s/\.ts\.ts/.ts/g" "$1"
-          ' _ {} \;
-          find src -name "*.ts.bak" -delete
-
-      - name: Manage Deno Deploy Project
-        id: deno_project
-        env:
-          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
-        run: |
-          deployctl projects create \
-            --token=$DENO_DEPLOY_TOKEN \
-            --project=$PROJECT_NAME \
-            --force \
-            --color=never || true
-
-          PROJECT_INFO=$(deployctl projects show --token=$DENO_DEPLOY_TOKEN --project=$PROJECT_NAME --color=never)
-          PROJECT_URL=$(echo "$PROJECT_INFO" | grep "Domain(s):" | awk '{print $2}')
-
-          echo "PROJECT_URL=$PROJECT_URL" >> $GITHUB_ENV
-          echo "deployment_url=$PROJECT_URL" >> $GITHUB_OUTPUT
-
-      - name: Update manifest.json with deployment URL
-        uses: actions/github-script@v7
         with:
-          script: |
-            const fs = require('fs');
-            const path = require('path');
-
-            const manifestPath = path.resolve("${{ github.workspace }}", './manifest.json');
-            const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-
-            manifest["homepage_url"] = "${{ steps.deno_project.outputs.deployment_url }}";
-
-            const updatedManifest = JSON.stringify(manifest, null, 2);
-            fs.writeFileSync(manifestPath, updatedManifest);
-            console.log('Updated manifest:', updatedManifest);
-
-      - name: Deploy to Deno
-        env:
-          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
-        run: |
-          deployctl deploy \
-            --token=$DENO_DEPLOY_TOKEN \
-            --project=$PROJECT_NAME \
-            --env-file=.env \
-            --entrypoint=src/deno.ts \
-            --prod
-
-      - name: Get GitHub App token
-        if: env.APP_ID != '' && env.APP_PRIVATE_KEY != ''
-        uses: actions/create-github-app-token@v1
-        id: app-token
-        with:
-          app-id: ${{ env.APP_ID }}
-          private-key: ${{ env.APP_PRIVATE_KEY }}
-
-      - name: Format manifest.json using Deno
-        shell: bash
-        run: |
-          deno fmt --ext=json manifest.json
-
-      - name: Commit file
-        uses: swinton/commit@v2.x
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
-        with:
-          files: |
-            manifest.json
-          commit-message: "chore: [skip ci] update manifest.json url"
-          ref: ${{ github.event.workflow_run.head_branch || github.ref }}
-
-      - name: Write Deployment URL to Summary
-        run: |
-          echo "### Deployment URL" >> $GITHUB_STEP_SUMMARY
-          echo "${{ steps.deno_project.outputs.deployment_url }}" >> $GITHUB_STEP_SUMMARY
+          token: ${{ secrets.DENO_DEPLOY_TOKEN }}
