@@ -7,6 +7,7 @@ on:
 env:
   APP_ID: ${{ secrets.APP_ID }}
   APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+  APP_INSTALLATION_ID: ${{ secrets.APP_INSTALLATION_ID }}
 
 jobs:
   deploy:
@@ -29,6 +30,11 @@ jobs:
 
       - name: Install CLI
         run: deno install -gArf jsr:@deno/deployctl
+
+      - name: Set ACTION_REF environment variable
+        run: |
+          branch_name=$(echo '${{ github.event.workflow_run.head_branch || github.ref }}' | sed 's#refs/heads/##')
+          echo "ACTION_REF=${GITHUB_REPOSITORY}@${branch_name}" >> $GITHUB_ENV
 
       - name: Prepare Environment Variables
         run: |
@@ -103,8 +109,7 @@ jobs:
             --project=$PROJECT_NAME \
             --env-file=.env \
             --entrypoint=src/deno.ts \
-            --prod \
-            --allowEmptyValues
+            --prod
 
       - name: Get GitHub App token
         if: env.APP_ID != '' && env.APP_PRIVATE_KEY != ''
