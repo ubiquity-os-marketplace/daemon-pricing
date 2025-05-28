@@ -68,11 +68,24 @@ jobs:
           deno run --allow-env --allow-write=.env generate-env.ts
           rm generate-env.ts
 
+      - name: Create Deno Entry Point
+        run: |
+          mkdir -p src
+          cat << 'EOF' > src/deno.ts
+          import worker from "./worker";
+          export default {
+            async fetch(request: Request, env: Record<string, unknown>, executionCtx?: ExecutionContext) {
+              Object.assign(env, Deno.env.toObject());
+              return worker.fetch(request, env, executionCtx);
+            },
+          };
+          EOF
+
       - name: Fix Import Extensions
         run: |
-          find src -name "*.ts" -type f -exec sed -i.bak -E \
-            's|(import[^"'\'']*from[[:space:]]*["\x27])(\.[^"'\'']*[^"'\'']+)(["\x27])|\1\2.ts\3|g; s|\.json\.ts|.json|g; s|\.css\.ts|.css|g; s|\.html\.ts|.html|g; s|\.svg\.ts|.svg|g; s|\.png\.ts|.png|g; s|\.jpg\.ts|.jpg|g; s|\.ts\.ts|.ts|g' \
-            {} \;
+          find src -name "*.ts" -type f -exec sh -c '
+            sed -i.bak "s/from \"\.\([^\"]*\)\"/from \".\1.ts\"/g; s/from '"'"'\.\([^'"'"']*\)'"'"'/from '"'"'.\1.ts'"'"'/g; s/\.json\.ts/.json/g; s/\.css\.ts/.css/g; s/\.svg\.ts/.svg/g; s/\.ts\.ts/.ts/g" "$1"
+          ' _ {} \;
           find src -name "*.ts.bak" -delete
 
       - name: Manage Deno Deploy Project

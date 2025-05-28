@@ -21,7 +21,6 @@
     "test": "cross-env NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" jest --setupFiles dotenv/config --coverage",
     "run": "bun run --watch --no-clear-screen src/worker.ts",
     "start": "func start --port 4001",
-    "start:deno": "deno serve --watch --allow-net --allow-env --allow-read --unstable-sloppy-imports --port 4001 src/deno.ts",
     "prestart": "bun run build",
     "build": "tsup",
     "build:watch": "tsup --watch",
