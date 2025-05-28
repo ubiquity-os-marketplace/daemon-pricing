@@ -68,6 +68,14 @@ jobs:
           deno run --allow-env --allow-write=.env generate-env.ts
           rm generate-env.ts
 
+      - name: Fix Import Extensions
+        run: |
+          find src -name "*.ts" -type f -exec sed -i.bak -E '
+            s|(import[^"'"'"']*from[[:space:]]*["'"'"'"])(\.\/[^"'"'"']*)(\.js)(["'"'"'"])||\1\2.ts\4|g;
+            s|(import[^"'"'"']*from[[:space:]]*["'"'"'"])(\.\/[^"'"'"']*[^\.ts])(["'"'"'"])||\1\2.ts\3|g
+          ' {} \;
+          find src -name "*.ts.bak" -delete
+
       - name: Manage Deno Deploy Project
         id: deno_project
         env:
