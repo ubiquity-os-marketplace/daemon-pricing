@@ -6,7 +6,7 @@ import { customOctokit } from "@ubiquity-os/plugin-sdk/octokit";
 import { Manifest } from "@ubiquity-os/plugin-sdk/manifest";
 import { LOG_LEVEL, LogLevel } from "@ubiquity-os/ubiquity-os-logger";
 import type { ExecutionContext } from "hono";
-import manifest from "../manifest.json";
+import manifest from "../manifest.json" with { type: "json" };
 import { isLocalEnvironment, run } from "./run";
 import { Context, SupportedEvents } from "./types/context";
 import { Env, envSchema } from "./types/env";

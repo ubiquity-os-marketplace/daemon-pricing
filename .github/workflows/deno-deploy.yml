@@ -1,0 +1,134 @@
+name: Deno Deploy
+
+on:
+  workflow_dispatch:
+  push:
+
+env:
+  APP_ID: ${{ secrets.APP_ID }}
+  APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy
+    environment: ${{ (github.ref == 'refs/heads/main' || github.event.workflow_run.head_branch == 'main') && 'main' || 'development' }}
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch || github.ref }}
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Install CLI
+        run: deno install -gArf jsr:@deno/deployctl
+
+      - name: Prepare Environment Variables
+        run: |
+          branch_name=$(echo '${{ github.event.workflow_run.head_branch || github.ref }}' | sed 's#refs/heads/##' | sed 's#[^a-zA-Z0-9]#-#g')
+          project_name="${{ github.event.repository.name }}"
+          new_name="${project_name}-${branch_name}"
+          # Deno project names cannot exceed 26 characters
+          new_name=$(echo "$new_name" | cut -c 1-26)
+          echo "PROJECT_NAME=$new_name" >> $GITHUB_ENV
+
+      - name: Generate .env File
+        env:
+          APP_ID: ${{ secrets.APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+          KERNEL_PUBLIC_KEY: ${{ secrets.KERNEL_PUBLIC_KEY }}
+          APP_INSTALLATION_ID: ${{ env.APP_INSTALLATION_ID }}
+          ACTION_REF: ${{ env.ACTION_REF }}
+        run: |
+          cat > generate-env.ts <<'EOF'
+          const envVars = Deno.env.toObject();
+          const filtered = Object.entries(envVars)
+            .filter(([k]) => !/^(GITHUB_|RUNNER_|CI|HOME|PATH|PWD|SHELL|USER|LANG|LC_|TZ|DENO_|ACTIONS_)/.test(k))
+            .reduce((acc, [k,v]) => ({...acc, [k]:v}), {});
+          await Deno.writeTextFile(".env", 
+            Object.entries(filtered)
+              .map(([k,v]) => `${k}="${v.replace(/"/g, '\\"')}"`)
+              .join("\n")
+          );
+          EOF
+          deno run --allow-env --allow-write=.env generate-env.ts
+          rm generate-env.ts
+
+      - name: Manage Deno Deploy Project
+        id: deno_project
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+        run: |
+          deployctl projects create \
+            --token=$DENO_DEPLOY_TOKEN \
+            --project=$PROJECT_NAME \
+            --force \
+            --color=never || true
+
+          PROJECT_INFO=$(deployctl projects show --token=$DENO_DEPLOY_TOKEN --project=$PROJECT_NAME --color=never)
+          PROJECT_URL=$(echo "$PROJECT_INFO" | grep "Domain(s):" | awk '{print $2}')
+
+          echo "PROJECT_URL=$PROJECT_URL" >> $GITHUB_ENV
+          echo "deployment_url=$PROJECT_URL" >> $GITHUB_OUTPUT
+
+      - name: Update manifest.json with deployment URL
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const manifestPath = path.resolve("${{ github.workspace }}", './manifest.json');
+            const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+
+            manifest["homepage_url"] = "${{ steps.deno_project.outputs.deployment_url }}";
+
+            const updatedManifest = JSON.stringify(manifest, null, 2);
+            fs.writeFileSync(manifestPath, updatedManifest);
+            console.log('Updated manifest:', updatedManifest);
+
+      - name: Deploy to Deno
+        env:
+          DENO_DEPLOY_TOKEN: ${{ secrets.DENO_DEPLOY_TOKEN }}
+        run: |
+          deployctl deploy \
+            --token=$DENO_DEPLOY_TOKEN \
+            --project=$PROJECT_NAME \
+            --env-file=.env \
+            --entrypoint=src/deno.ts \
+            --prod
+
+      - name: Get GitHub App token
+        if: env.APP_ID != '' && env.APP_PRIVATE_KEY != ''
+        uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ env.APP_ID }}
+          private-key: ${{ env.APP_PRIVATE_KEY }}
+
+      - name: Format manifest.json using Deno
+        shell: bash
+        run: |
+          deno fmt --ext=json manifest.json
+
+      - name: Commit file
+        uses: swinton/commit@v2.x
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || secrets.GITHUB_TOKEN }}
+        with:
+          files: |
+            manifest.json
+          commit-message: "chore: [skip ci] update manifest.json url"
+          ref: ${{ github.event.workflow_run.head_branch || github.ref }}
+
+      - name: Write Deployment URL to Summary
+        run: |
+          echo "### Deployment URL" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.deno_project.outputs.deployment_url }}" >> $GITHUB_STEP_SUMMARY
