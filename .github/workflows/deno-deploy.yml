@@ -70,10 +70,10 @@ jobs:
 
       - name: Fix Import Extensions
         run: |
-          find src -name "*.ts" -type f -exec sed -i.bak -E '
-            s|(import[^"'"'"']*from[[:space:]]*["'"'"'"])(\.\/[^"'"'"']*)(\.js)(["'"'"'"])||\1\2.ts\4|g;
-            s|(import[^"'"'"']*from[[:space:]]*["'"'"'"])(\.\/[^"'"'"']*[^\.ts])(["'"'"'"])||\1\2.ts\3|g
-          ' {} \;
+          find src -name "*.ts" -type f -exec sed -i.bak -E \
+            -e 's|(import[^"'\'']*from[[:space:]]*["\x27])(\.\/[^"'\'']*)(\.js)(["\x27])|\1\2.ts\4|g' \
+            -e 's|(import[^"'\'']*from[[:space:]]*["\x27])(\.\/[^"'\'']*[^s])(["\x27])|\1\2.ts\3|g' \
+            {} \;
           find src -name "*.ts.bak" -delete
 
       - name: Manage Deno Deploy Project
