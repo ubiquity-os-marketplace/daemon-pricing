@@ -59,6 +59,7 @@ jobs:
             .filter(([k, v]) => !/^(GITHUB_|RUNNER_|CI|HOME|PATH|PWD|SHELL|USER|LANG|LC_|TZ|DENO_|ACTIONS_)/.test(k))
             .filter(([k, v]) => v !== undefined && v !== null && v.trim() !== "")
             .reduce((acc, [k,v]) => ({...acc, [k]:v}), {});
+          console.log(JSON.stringify(filtered, null, 2));
           await Deno.writeTextFile(".env", 
             Object.entries(filtered)
               .map(([k,v]) => `${k}="${v.replace(/"/g, '\\"')}"`)
