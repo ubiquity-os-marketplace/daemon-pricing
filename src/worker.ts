@@ -12,7 +12,7 @@ import { Env, envSchema } from "./types/env";
 import { AssistivePricingSettings, pluginSettingsSchema } from "./types/plugin-input";
 import { getPricing, getPriorityTime } from "./handlers/get-priority-time";
 
-const manifest = await import("../manifest.json");
+const manifest = (await import("../manifest.json")).default;
 
 async function startAction(context: Context, inputs: Record<string, unknown>) {
   const { payload, logger, env } = context;
