@@ -138,6 +138,11 @@
           }
         }
       },
+      "enableAutoTimeEstimation": {
+        "default": false,
+        "description": "Whether to enable automatic time estimation for issues",
+        "type": "boolean"
+      },
       "basePriceMultiplier": {
         "examples": [
           1.5
