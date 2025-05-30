@@ -47,7 +47,6 @@ export async function autoPricingHandler(context: Context<"issues.opened">): Pro
   logger.info(`Priority: ${priority}, Time: ${time} hours`);
   const timeLabel = convertHoursLabel(time);
 
-  await createLabel(context, priority);
   await createLabel(context, timeLabel);
 
   await addLabelToIssue(context, priority);
