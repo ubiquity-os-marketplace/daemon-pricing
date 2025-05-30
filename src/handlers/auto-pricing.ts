@@ -6,12 +6,12 @@
 import { addLabelToIssue, createLabel } from "../shared/label";
 import { Context } from "../types/context";
 import { Label } from "../types/github";
-import { convertHoursLabel, getPriorityTime } from "./get-priority-time";
+import { convertHoursLabel, getPricing, getPriorityTime } from "./get-priority-time";
 
 // Expected to run on "issues.created" and "issues.edited" events
 
 export async function autoPricingHandler(context: Context<"issues.opened">): Promise<void> {
-  const { payload, logger, env } = context;
+  const { payload, logger, env, config } = context;
   if (!("issue" in payload) || !payload.issue) {
     logger.debug("No issue found in the payload");
     return;
@@ -52,6 +52,13 @@ export async function autoPricingHandler(context: Context<"issues.opened">): Pro
   await addLabelToIssue(context, priority);
   await addLabelToIssue(context, timeLabel);
   logger.info(`Added priority label: ${priority} and time label: ${timeLabel} to the issue #${issue.number}`);
+
+  const price = getPricing(config.basePriceMultiplier, parseFloat(time), priority).toFixed(2);
+  const priceLabel = `Price: ${price} USD`;
+  logger.info(`Calculated price label: ${priceLabel}`);
+  await createLabel(context, priceLabel);
+  await addLabelToIssue(context, priceLabel);
+  logger.info(`Added price label: ${priceLabel} to the issue #${issue.number}`);
 }
 
 // Returns the priority labels on the issue
