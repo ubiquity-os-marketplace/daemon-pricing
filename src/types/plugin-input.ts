@@ -94,6 +94,7 @@ export const pluginSettingsSchema = T.Object(
       },
       { default: {} }
     ),
+    enableAutoTimeEstimation: T.Boolean({ default: false, description: "Whether to enable automatic time estimation for issues" }),
     basePriceMultiplier: T.Number({ examples: [1.5], default: 1, description: "The base price multiplier for all tasks" }),
     shouldFundContributorClosedIssue: T.Boolean({ default: false, description: "Whether to allow funding contributor closed issues" }),
   },

@@ -59,3 +59,22 @@ export function getPricing(base: number, time: number, priorityLabel: string): D
     .mul(priorityValue)
     .toDecimalPlaces(2);
 }
+
+export function convertHoursLabel(timeEstimate: string): string {
+  const hours = parseFloat(timeEstimate);
+  if (isNaN(hours)) {
+    throw new Error("Invalid time estimate");
+  }
+  if (hours < 1) {
+    const minutes = Math.round(hours * 60);
+    return `Time: ${minutes} minute${minutes === 1 ? "" : "s"}`;
+  } else if (hours < 24) {
+    return `Time: ${hours} hour${hours === 1 ? "" : "s"}`;
+  } else if (hours < 24 * 7) {
+    const days = Math.round(hours / 24);
+    return `Time: ${days} day${days === 1 ? "" : "s"}`;
+  } else {
+    const weeks = Math.round(hours / (24 * 7));
+    return `Time: ${weeks} week${weeks === 1 ? "" : "s"}`;
+  }
+}

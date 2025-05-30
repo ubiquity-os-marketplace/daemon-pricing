@@ -1,3 +1,4 @@
+import { autoPricingHandler } from "./handlers/auto-pricing.js";
 import { globalLabelUpdate } from "./handlers/global-config-update";
 import { onLabelChangeSetPricing } from "./handlers/pricing-label";
 import { syncPriceLabelsToConfig } from "./handlers/sync-labels-to-config";
@@ -17,13 +18,17 @@ export function isWorkerOrLocalEnvironment() {
 }
 
 export async function run(context: Context) {
-  const { eventName, logger } = context;
+  const { eventName, logger, config } = context;
 
   switch (eventName) {
     case "issues.opened":
     case "repository.created":
       if (isGithubOrLocalEnvironment()) {
         await syncPriceLabelsToConfig(context);
+        if (config.enableAutoTimeEstimation) {
+          logger.info("Auto pricing enabled, running auto pricing handler.");
+          await autoPricingHandler(context as Context<"issues.opened">);
+        }
       }
       break;
     case "issues.labeled":

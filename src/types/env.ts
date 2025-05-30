@@ -8,6 +8,8 @@ export const envSchema = T.Object({
   APP_ID: T.Optional(T.String()),
   APP_PRIVATE_KEY: T.Optional(T.String()),
   APP_INSTALLATION_ID: T.Optional(T.String()),
+  BASETEN_API_KEY: T.Optional(T.String()),
+  BASETEN_API_URL: T.Optional(T.String()),
 });
 
 export type Env = StaticDecode<typeof envSchema>;
