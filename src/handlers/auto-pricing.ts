@@ -3,7 +3,7 @@
 // Once we have the actual labels, we'll add those to the issue
 // Rest of the process should follow the same logic as before
 
-import { createLabel } from "../shared/label";
+import { addLabelToIssue, createLabel } from "../shared/label";
 import { Context } from "../types/context";
 import { Label } from "../types/github";
 import { convertHoursLabel, getPriorityTime } from "./get-priority-time";
@@ -44,10 +44,15 @@ export async function autoPricingHandler(context: Context<"issues.opened">): Pro
   }
 
   const { time, priority } = priorityTimeEstimate;
+  logger.info(`Priority: ${priority}, Time: ${time} hours`);
   const timeLabel = convertHoursLabel(time);
 
   await createLabel(context, priority);
   await createLabel(context, timeLabel);
+
+  await addLabelToIssue(context, priority);
+  await addLabelToIssue(context, timeLabel);
+  logger.info(`Added priority label: ${priority} and time label: ${timeLabel} to the issue #${issue.number}`);
 }
 
 // Returns the priority labels on the issue
