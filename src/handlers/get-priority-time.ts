@@ -69,7 +69,8 @@ export function convertHoursLabel(timeEstimate: string): string {
     const minutes = Math.round(hours * 60);
     return `Time: ${minutes} minute${minutes === 1 ? "" : "s"}`;
   } else if (hours < 24) {
-    return `Time: ${hours} hour${hours === 1 ? "" : "s"}`;
+    const roundedHours = Math.round(hours);
+    return `Time: ${roundedHours} hour${roundedHours === 1 ? "" : "s"}`;
   } else if (hours < 24 * 7) {
     const days = Math.round(hours / 24);
     return `Time: ${days} day${days === 1 ? "" : "s"}`;
