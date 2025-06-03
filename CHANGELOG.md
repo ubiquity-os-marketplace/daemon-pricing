@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.4.0](https://github.com/ubiquity-os-marketplace/daemon-pricing/compare/v4.3.0...v4.4.0) (2025-06-03)
+
+
+### Features
+
+* added deno support ([2c0606c](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/2c0606c3297c035476a360fb451e46f1c33c574f))
+* deno ([e002504](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/e002504015fe024aaa994797efbc4dc6caa6b02e))
+
 ## [4.3.0](https://github.com/ubiquity-os-marketplace/daemon-pricing/compare/v4.2.0...v4.3.0) (2025-05-16)
 
 
