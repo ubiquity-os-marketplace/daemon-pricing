@@ -7,10 +7,10 @@ import { LOG_LEVEL, LogLevel } from "@ubiquity-os/ubiquity-os-logger";
 import { Hono } from "hono";
 import { handle } from "hono/vercel";
 import manifest from "../manifest.json" with { type: "json" };
-import { isLocalEnvironment, run } from "../src/run.js";
-import { Context, SupportedEvents } from "../src/types/context.js";
-import { Env, envSchema } from "../src/types/env.js";
-import { AssistivePricingSettings, pluginSettingsSchema } from "../src/types/plugin-input.js";
+import { isLocalEnvironment, run } from "../src/run";
+import { Context, SupportedEvents } from "../src/types/context";
+import { Env, envSchema } from "../src/types/env";
+import { AssistivePricingSettings, pluginSettingsSchema } from "../src/types/plugin-input";
 
 async function startAction(context: Context, inputs: Record<string, unknown>) {
   const { payload, logger } = context;
