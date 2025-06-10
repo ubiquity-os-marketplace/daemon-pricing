@@ -29,6 +29,7 @@ export async function onLabelChangeSetPricing(context: Context): Promise<void> {
   }
 
   if (payload.issue.body && isParentIssue(payload.issue.body)) {
+    logger.info("This is a parent issue, skipping pricing label handling.");
     await handleParentIssue(context, labels);
     return;
   }
@@ -171,10 +172,12 @@ async function handleManualPricing(context: Context, issueLabels: Label[], confi
 }
 
 export async function setPriceLabel(context: Context, issueLabels: Label[], config: AssistivePricingSettings) {
+  const logger = context.logger;
   const autoPricingTrigger = config.autoLabelingTrigger;
   const isAutoPricing = config.enablePartialAutoEstimation && issueLabels.some((label) => label.name === autoPricingTrigger);
-
+  logger.info(`Auto pricing is ${isAutoPricing ? "enabled" : "disabled"}`);
   if (isAutoPricing) {
+    logger.info("Auto pricing is enabled, running auto pricing handler.");
     const labelNames = issueLabels.map((i) => i.name);
     await handleAutoPricing(context, issueLabels, config, labelNames);
   } else {
