@@ -138,6 +138,16 @@
           }
         }
       },
+      "autoLabelingTrigger": {
+        "default": "auto_price",
+        "description": "The label that triggers automatic pricing when added to an issue.",
+        "type": "string"
+      },
+      "enablePartialAutoEstimation": {
+        "default": false,
+        "description": "Whether to enable automatic time estimation when some of the parameters are given.",
+        "type": "boolean"
+      },
       "enableAutoTimeEstimation": {
         "default": false,
         "description": "Whether to enable automatic time estimation for issues",
