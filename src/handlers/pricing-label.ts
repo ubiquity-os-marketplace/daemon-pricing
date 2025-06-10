@@ -18,6 +18,7 @@ export async function onLabelChangeSetPricing(context: Context): Promise<void> {
   const logger = context.logger;
   const payload = context.payload;
   const owner = payload.repository.owner?.login;
+  logger.info(`Handling label change for issue #${payload.issue.number} in repository ${payload.repository.name}`);
   if (!owner) {
     logger.error("No owner found in the repository");
     return;
@@ -28,6 +29,7 @@ export async function onLabelChangeSetPricing(context: Context): Promise<void> {
     return;
   }
 
+  logger.info(`Labels found: ${labels.map((label) => label.name).join(", ")}`);
   if (payload.issue.body && isParentIssue(payload.issue.body)) {
     logger.info("This is a parent issue, skipping pricing label handling.");
     await handleParentIssue(context, labels);
@@ -44,6 +46,7 @@ export async function onLabelChangeSetPricing(context: Context): Promise<void> {
 
   // here we should make an exception if it was a price label that was just set to just skip this action
   const isPayloadToSetPrice = payload.label?.name.includes("Price: ");
+  logger.info(`Is payload to set price label: ${isPayloadToSetPrice}`);
   if (isPayloadToSetPrice) {
     logger.info("This is setting the price label directly so skipping the rest of the action.");
 
@@ -71,6 +74,7 @@ export async function onLabelChangeSetPricing(context: Context): Promise<void> {
 }
 async function handleAutoPricing(context: Context, issueLabels: Label[], config: AssistivePricingSettings, labelNames: string[]): Promise<void> {
   const logger = context.logger;
+  logger.info("Handling auto pricing for issue labels");
   if (!isIssueLabelEvent(context)) {
     logger.error("No issue found in the payload");
     return;
@@ -124,6 +128,7 @@ async function handleAutoPricing(context: Context, issueLabels: Label[], config:
 
 async function handleManualPricing(context: Context, issueLabels: Label[], config: AssistivePricingSettings): Promise<void> {
   const logger = context.logger;
+  logger.info("Handling manual pricing for issue labels");
   const recognizedLabels = getRecognizedLabels(issueLabels, config);
   const timePattern = extractLabelPattern(config.labels.time);
   const priorityPattern = extractLabelPattern(config.labels.priority);
