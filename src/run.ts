@@ -34,6 +34,7 @@ export async function run(context: Context) {
     case "issues.labeled":
     case "issues.unlabeled":
       if (isIssueLabelEvent(context) && isWorkerOrLocalEnvironment()) {
+        logger.info(`Event ${eventName} detected, running label change pricing handler.`);
         await onLabelChangeSetPricing(context);
       }
       break;
