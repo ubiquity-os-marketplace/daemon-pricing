@@ -94,6 +94,11 @@ export const pluginSettingsSchema = T.Object(
       },
       { default: {} }
     ),
+    autoLabelingTrigger: T.String({ default: "auto_price", description: "The label that triggers automatic pricing when added to an issue." }),
+    enablePartialAutoEstimation: T.Boolean({
+      default: false,
+      description: "Whether to enable automatic time estimation when some of the parameters are given.",
+    }),
     enableAutoTimeEstimation: T.Boolean({ default: false, description: "Whether to enable automatic time estimation for issues" }),
     basePriceMultiplier: T.Number({ examples: [1.5], default: 1, description: "The base price multiplier for all tasks" }),
     shouldFundContributorClosedIssue: T.Boolean({ default: false, description: "Whether to allow funding contributor closed issues" }),

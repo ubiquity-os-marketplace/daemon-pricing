@@ -10,7 +10,7 @@ import { convertHoursLabel, getPricing, getPriorityTime } from "./get-priority-t
 
 // Expected to run on "issues.created" and "issues.edited" events
 
-export async function autoPricingHandler(context: Context<"issues.opened">): Promise<void> {
+export async function autoPricingHandler(context: Context): Promise<void> {
   const { payload, logger, env, config } = context;
   if (!("issue" in payload) || !payload.issue) {
     logger.debug("No issue found in the payload");
@@ -20,11 +20,6 @@ export async function autoPricingHandler(context: Context<"issues.opened">): Pro
   const labels = (issue.labels as Label[]) || [];
   if (!labels || labels.length === 0) {
     logger.info("No labels found on the issue, skipping pricing labels update.");
-  } else {
-    const priorityLabels = getPriorityLabels(labels);
-    const timeLabels = getTimeLabels(labels);
-    await removeLabels(context, [...priorityLabels.map((l) => l.name), ...timeLabels.map((l) => l.name)]);
-    logger.info("Removed existing priority and time labels from the issue.");
   }
 
   if (!issue.body) {
@@ -61,35 +56,26 @@ export async function autoPricingHandler(context: Context<"issues.opened">): Pro
   logger.info(`Added price label: ${priceLabel} to the issue #${issue.number}`);
 }
 
-// Returns the priority labels on the issue
-function getPriorityLabels(labels: Label[]): Label[] {
-  return labels.filter((label) => label.name.startsWith("Priority: "));
-}
+// async function removeLabels(context: Context, labelsToRemove: string[]): Promise<void> {
+//   const { issue } = context.payload;
+//   if (!issue || !issue.number || !context.payload.repository || !context.payload.repository.owner) {
+//     context.logger.debug("No issue number or repository/owner found in the payload");
+//     return Promise.resolve();
+//   }
 
-function getTimeLabels(labels: Label[]): Label[] {
-  return labels.filter((label) => label.name.startsWith("Time: "));
-}
-
-async function removeLabels(context: Context<"issues.opened">, labelsToRemove: string[]): Promise<void> {
-  const { issue } = context.payload;
-  if (!issue || !issue.number || !context.payload.repository || !context.payload.repository.owner) {
-    context.logger.debug("No issue number or repository/owner found in the payload");
-    return Promise.resolve();
-  }
-
-  const owner = context.payload.repository.owner.login;
-  const repo = context.payload.repository.name;
-  labelsToRemove.forEach(async (label) => {
-    try {
-      await context.octokit.rest.issues.removeLabel({
-        owner,
-        repo,
-        issue_number: issue.number,
-        name: label,
-      });
-      context.logger.info(`Removed label ${label} from issue #${issue.number}`);
-    } catch (error) {
-      context.logger.error(`Failed to remove label ${label} from issue #${issue.number}`, { stack: error instanceof Error ? error.stack : String(error) });
-    }
-  });
-}
+//   const owner = context.payload.repository.owner.login;
+//   const repo = context.payload.repository.name;
+//   labelsToRemove.forEach(async (label) => {
+//     try {
+//       await context.octokit.rest.issues.removeLabel({
+//         owner,
+//         repo,
+//         issue_number: issue.number,
+//         name: label,
+//       });
+//       context.logger.info(`Removed label ${label} from issue #${issue.number}`);
+//     } catch (error) {
+//       context.logger.error(`Failed to remove label ${label} from issue #${issue.number}`, { stack: error instanceof Error ? error.stack : String(error) });
+//     }
+//   });
+// }

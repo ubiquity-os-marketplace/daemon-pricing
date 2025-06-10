@@ -1,12 +1,13 @@
 import { addLabelToIssue, clearAllPriceLabelsOnIssue, createLabel, listLabelsForRepo, removeLabelFromIssue } from "../shared/label";
 import { labelAccessPermissionsCheck } from "../shared/permissions";
 import { Label, UserType } from "../types/github";
-import { getPrice } from "../shared/pricing";
+import { calculatePrice, getPrice } from "../shared/pricing";
 import { handleParentIssue, isParentIssue, sortLabelsByValue } from "./handle-parent-issue";
 import { AssistivePricingSettings } from "../types/plugin-input";
 import { isIssueLabelEvent } from "../types/typeguards";
 import { Context } from "../types/context";
 import { extractLabelPattern } from "./label-checks";
+import { getPriorityTime } from "./get-priority-time.js";
 
 export async function onLabelChangeSetPricing(context: Context): Promise<void> {
   if (!isIssueLabelEvent(context)) {
@@ -67,13 +68,66 @@ export async function onLabelChangeSetPricing(context: Context): Promise<void> {
 
   await setPriceLabel(context, labels, config);
 }
-
-export async function setPriceLabel(context: Context, issueLabels: Label[], config: AssistivePricingSettings) {
+async function handleAutoPricing(context: Context, issueLabels: Label[], config: AssistivePricingSettings, labelNames: string[]): Promise<void> {
   const logger = context.logger;
-  const labelNames = issueLabels.map((i) => i.name);
+  if (!isIssueLabelEvent(context)) {
+    logger.error("No issue found in the payload");
+    return;
+  }
   const recognizedLabels = getRecognizedLabels(issueLabels, config);
-  const timePattern = extractLabelPattern(context.config.labels.time);
-  const priorityPattern = extractLabelPattern(context.config.labels.priority);
+  const minLabels = getMinLabels(context, recognizedLabels);
+
+  for (const priorityLabel of recognizedLabels.priority) {
+    if (minLabels.priority && priorityLabel.name !== minLabels.priority.name) {
+      await removeLabelFromIssue(context, priorityLabel.name);
+    }
+  }
+
+  const issueDescription = context.payload.issue.body || "";
+  const issueTitle = context.payload.issue.title;
+  const { BASETEN_API_KEY, BASETEN_API_URL } = context.env;
+
+  if (!BASETEN_API_KEY || !BASETEN_API_URL) {
+    logger.error("Baseten API key or URL is not set in the environment variables.");
+    return;
+  }
+
+  const { time, priority } = await getPriorityTime(issueDescription, issueTitle, BASETEN_API_KEY, BASETEN_API_URL);
+  if (!time || !priority) {
+    logger.error("No time or priority returned from Baseten API");
+    return;
+  }
+
+  let pricingLabel;
+  if (minLabels.priority) {
+    pricingLabel = calculatePrice(context, { name: time }, { name: minLabels.priority.name });
+    await createLabel(context, time, "default");
+    await addLabelToIssue(context, time);
+  } else if (minLabels.time) {
+    pricingLabel = calculatePrice(context, { name: time }, { name: minLabels.time.name });
+  } else {
+    await createLabel(context, time, "default");
+    await createLabel(context, priority, "default");
+    await addLabelToIssue(context, priority);
+    await addLabelToIssue(context, time);
+    pricingLabel = calculatePrice(context, { name: time }, { name: priority });
+  }
+
+  if (!pricingLabel) {
+    logger.error("No pricing label could be calculated.");
+    return;
+  }
+
+  await handleTargetPriceLabel(context, { name: pricingLabel, description: null }, labelNames);
+}
+
+async function handleManualPricing(context: Context, issueLabels: Label[], config: AssistivePricingSettings): Promise<void> {
+  const logger = context.logger;
+  const recognizedLabels = getRecognizedLabels(issueLabels, config);
+  const timePattern = extractLabelPattern(config.labels.time);
+  const priorityPattern = extractLabelPattern(config.labels.priority);
+  const labelNames = issueLabels.map((i) => i.name);
+
   const isPricingAttempt = issueLabels.filter((o) => timePattern.test(o.name) || priorityPattern.test(o.name)).length >= 2;
 
   if (!recognizedLabels.time.length || !recognizedLabels.priority.length) {
@@ -81,7 +135,6 @@ export async function setPriceLabel(context: Context, issueLabels: Label[], conf
       repo: context.payload.repository.html_url,
       recognizedLabels,
     });
-    // We only want to send that message on labeling, because un-label will trigger this during compute
     if (context.eventName === "issues.labeled" && isPricingAttempt) {
       await context.commentHandler.postComment(context, message);
     }
@@ -98,8 +151,14 @@ export async function setPriceLabel(context: Context, issueLabels: Label[], conf
     return;
   }
 
+  for (const timeLabel of recognizedLabels.time) {
+    if (timeLabel.name !== minLabels.time.name) {
+      await removeLabelFromIssue(context, timeLabel.name);
+    }
+  }
+
   for (const priorityLabel of recognizedLabels.priority) {
-    if (priorityLabel.name !== minLabels.time?.name) {
+    if (priorityLabel.name !== minLabels.priority.name) {
       await removeLabelFromIssue(context, priorityLabel.name);
     }
   }
@@ -108,10 +167,18 @@ export async function setPriceLabel(context: Context, issueLabels: Label[], conf
 
   if (targetPriceLabel) {
     await handleTargetPriceLabel(context, { name: targetPriceLabel, description: null }, labelNames);
-    await clearAllPriceLabelsOnIssue(context);
-    logger.info(`Skipping action...`, {
-      repo: context.payload.repository.html_url,
-    });
+  }
+}
+
+export async function setPriceLabel(context: Context, issueLabels: Label[], config: AssistivePricingSettings) {
+  const autoPricingTrigger = config.autoLabelingTrigger;
+  const isAutoPricing = config.enablePartialAutoEstimation && issueLabels.some((label) => label.name === autoPricingTrigger);
+
+  if (isAutoPricing) {
+    const labelNames = issueLabels.map((i) => i.name);
+    await handleAutoPricing(context, issueLabels, config, labelNames);
+  } else {
+    await handleManualPricing(context, issueLabels, config);
   }
 }
 
