@@ -1,4 +1,4 @@
-import { autoPricingHandler } from "./handlers/auto-pricing.js";
+import { autoPricingHandler, checkIfLabelContainsTrigger, onLabelChangeAiEstimation } from "./handlers/auto-pricing.js";
 import { globalLabelUpdate } from "./handlers/global-config-update";
 import { onLabelChangeSetPricing } from "./handlers/pricing-label";
 import { syncPriceLabelsToConfig } from "./handlers/sync-labels-to-config";
@@ -19,7 +19,6 @@ export function isWorkerOrLocalEnvironment() {
 
 export async function run(context: Context) {
   const { eventName, logger, config } = context;
-
   switch (eventName) {
     case "issues.opened":
     case "repository.created":
@@ -27,20 +26,20 @@ export async function run(context: Context) {
         await syncPriceLabelsToConfig(context);
         if (config.enableAutoTimeEstimation) {
           logger.info("Auto pricing enabled, running auto pricing handler.");
-          await autoPricingHandler(context as Context<"issues.opened">);
+          await autoPricingHandler(context);
         }
       }
       break;
     case "issues.labeled":
     case "issues.unlabeled":
-      logger.info(`Event ${eventName} detected.`);
       if (isIssueLabelEvent(context) && isWorkerOrLocalEnvironment()) {
-        logger.info(`Event ${eventName} detected, running label change pricing handler.`);
-        await onLabelChangeSetPricing(context);
-      } else {
-        logger.info(`Event ${eventName} detected, but not running label change pricing handler due to environment.`);
-        logger.info(`isIssueLabelEvent: ${isIssueLabelEvent(context)}`);
-        logger.info(`isWorkerOrLocalEnvironment: ${isWorkerOrLocalEnvironment()}`);
+        if (checkIfLabelContainsTrigger(context)) {
+          logger.info("Label contains trigger, running label change AI pricing handler.");
+          await onLabelChangeAiEstimation(context);
+        } else {
+          logger.info("Label does not contain trigger, running label change set pricing handler.");
+          await onLabelChangeSetPricing(context);
+        }
       }
       break;
     case "push":
