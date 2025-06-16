@@ -116,20 +116,38 @@
           }
         }
       },
-      "autoLabelingTrigger": {
-        "default": "auto_price",
-        "description": "The label that triggers automatic pricing when added to an issue.",
-        "type": "string"
-      },
-      "enablePartialAutoEstimation": {
-        "default": false,
-        "description": "Whether to enable automatic time estimation when some of the parameters are given.",
-        "type": "boolean"
-      },
-      "enableAutoTimeEstimation": {
-        "default": false,
-        "description": "Whether to enable automatic time estimation for issues",
-        "type": "boolean"
+      "autoLabeling": {
+        "default": {
+          "enabled": false
+        },
+        "description": "Sets up automatic pricing, if enabled, based on the mode.",
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "default": true,
+            "description": "Whether to enable automatic pricing for issues based on labels",
+            "type": "boolean"
+          },
+          "mode": {
+            "default": "full",
+            "description": "The mode for automatic labeling.",
+            "anyOf": [
+              {
+                "const": "full",
+                "type": "string"
+              },
+              {
+                "const": "partial",
+                "type": "string"
+              }
+            ]
+          },
+          "triggerLabel": {
+            "default": "auto_price",
+            "description": "The label that triggers automatic pricing when added to an issue.",
+            "type": "string"
+          }
+        }
       },
       "basePriceMultiplier": {
         "examples": [1.5],
