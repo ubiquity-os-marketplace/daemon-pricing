@@ -45,6 +45,9 @@ describe("Permission tests for labels", () => {
           priority: [{ name: "Priority: 1 (Normal)" }, { name: "Priority: 2 (Medium)" }],
           time: [{ name: "Time: <1 day" }, { name: "Time: <1 Week" }],
         },
+        autoLabeling: {
+          enabled: false,
+        },
       },
       commentHandler: {
         postComment: postCommentMock,

@@ -58,8 +58,14 @@ export async function syncPriceLabelsToConfig(context: Context): Promise<void> {
   const { allLabels, pricingLabels, incorrectPriceLabels } = await getPriceLabels(context);
 
   // Check for auto-labeling trigger label
-  await checkAutoLabelingTrigger(context, allLabels, config.autoLabelingTrigger);
-
+  if (config.autoLabeling.enabled) {
+    try {
+      await checkAutoLabelingTrigger(context, allLabels, config.autoLabeling.triggerLabel);
+    } catch (error) {
+      logger.error("Error checking auto-labeling trigger label", { err: error });
+      throw error;
+    }
+  }
   const incorrectColorPriceLabels = allLabels.filter((label) => label.name.startsWith("Price: ") && label.color !== COLORS.price);
 
   // Update incorrect color labels
@@ -96,7 +102,7 @@ export async function syncPriceLabelsToConfig(context: Context): Promise<void> {
 // Checks if the auto-labeling trigger label needs to be added to the repository based on the config
 async function checkAutoLabelingTrigger(context: Context, allLabels: Label[], autoPricingLabel: string) {
   const { logger, config } = context;
-  if (config.enablePartialAutoEstimation) {
+  if (config.autoLabeling.enabled) {
     const isAutoLabelPresent = allLabels.some((label) => label.name === autoPricingLabel);
     if (!isAutoLabelPresent) {
       logger.info(`Auto-labeling trigger label "${autoPricingLabel}" not found, creating it.`);

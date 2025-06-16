@@ -9,7 +9,7 @@ export async function labelAccessPermissionsCheck(context: Context) {
     context.logger.debug("Not an issue event");
     return false;
   }
-  const { logger, payload } = context;
+  const { logger, payload, config } = context;
   const { shouldFundContributorClosedIssue } = context.config;
   if (!payload.label?.name) {
     logger.debug("The label has no name.");
@@ -24,7 +24,6 @@ export async function labelAccessPermissionsCheck(context: Context) {
     logger.info("Bot has full control over all labels");
     return true;
   }
-
   const sender = payload.sender?.login;
   if (!sender) {
     throw logger.error("No sender found in the payload");
@@ -32,12 +31,16 @@ export async function labelAccessPermissionsCheck(context: Context) {
 
   const repo = payload.repository;
   const sufficientPrivileges = await isUserAdminOrBillingManager(context, sender);
-  const timeRegex = extractLabelPattern(context.config.labels.time);
+  // Determine the time label regex based on config
+  const timeRegex = config.autoLabeling.enabled ? /^Time:\s*\d+\s*(hours?|minutes?|seconds?)$/i : extractLabelPattern(context.config.labels.time);
+  // Determine the priority label regex based on config
   const priorityRegex = extractLabelPattern(context.config.labels.priority);
   // get text before :
   const match = payload.label?.name?.split(":");
+  // Check if the label is an auto-labeling trigger
+  const isAutoLabelingTrigger = config.autoLabeling.enabled && payload.label.name.toLowerCase() === config.autoLabeling.triggerLabel;
   // We can ignore custom labels which are not like Label: <value>
-  if (match.length <= 1 && !timeRegex.test(payload.label.name) && !priorityRegex.test(payload.label.name)) {
+  if (match.length <= 1 && !timeRegex.test(payload.label.name) && !priorityRegex.test(payload.label.name) && !isAutoLabelingTrigger) {
     context.logger.debug("The label does not appear to be a recognized label.", {
       label: payload.label,
     });
@@ -54,4 +57,13 @@ export async function labelAccessPermissionsCheck(context: Context) {
     return true;
   }
   return false;
+}
+
+export async function handlePermissionCheck(context: Context): Promise<boolean> {
+  const hasPermission = await labelAccessPermissionsCheck(context);
+  console.log("Has permission:", hasPermission);
+  if (!hasPermission && context.eventName === "issues.labeled" && context.payload.sender?.type !== "Bot") {
+    await context.commentHandler.postComment(context, context.logger.warn("You are not allowed to set labels."));
+  }
+  return hasPermission;
 }

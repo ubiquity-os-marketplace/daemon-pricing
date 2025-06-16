@@ -61,21 +61,20 @@ export function getPricing(base: number, time: number, priorityLabel: string): D
 }
 
 export function convertHoursLabel(timeEstimate: string): string {
-  const hours = parseFloat(timeEstimate);
-  if (isNaN(hours)) {
-    throw new Error("Invalid time estimate");
-  }
+  const hours = Number(timeEstimate);
+  if (isNaN(hours)) throw new Error("Invalid time estimate");
   if (hours < 1) {
-    const minutes = Math.round(hours * 60);
+    const minutes = +(hours * 60).toFixed(2);
     return `Time: ${minutes} minute${minutes === 1 ? "" : "s"}`;
-  } else if (hours < 24) {
-    const roundedHours = Math.round(hours);
-    return `Time: ${roundedHours} hour${roundedHours === 1 ? "" : "s"}`;
-  } else if (hours < 24 * 7) {
-    const days = Math.round(hours / 24);
-    return `Time: ${days} day${days === 1 ? "" : "s"}`;
-  } else {
-    const weeks = Math.round(hours / (24 * 7));
-    return `Time: ${weeks} week${weeks === 1 ? "" : "s"}`;
   }
+  if (hours < 24) {
+    const roundedHours = +hours.toFixed(2);
+    return `Time: ${roundedHours} hour${roundedHours === 1 ? "" : "s"}`;
+  }
+  if (hours < 168) {
+    const days = +(hours / 24).toFixed(2);
+    return `Time: ${days} day${days === 1 ? "" : "s"}`;
+  }
+  const weeks = +(hours / 168).toFixed(2);
+  return `Time: ${weeks} week${weeks === 1 ? "" : "s"}`;
 }
