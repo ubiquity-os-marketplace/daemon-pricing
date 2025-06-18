@@ -61,7 +61,6 @@ export async function labelAccessPermissionsCheck(context: Context) {
 
 export async function handlePermissionCheck(context: Context): Promise<boolean> {
   const hasPermission = await labelAccessPermissionsCheck(context);
-  console.log("Has permission:", hasPermission);
   if (!hasPermission && context.eventName === "issues.labeled" && context.payload.sender?.type !== "Bot") {
     await context.commentHandler.postComment(context, context.logger.warn("You are not allowed to set labels."));
   }

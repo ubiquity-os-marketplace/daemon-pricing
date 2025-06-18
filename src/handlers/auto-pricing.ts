@@ -7,7 +7,7 @@ import { isIssueLabelEvent } from "../types/typeguards";
 import { convertHoursLabel, getPricing, getPriorityTime, PriorityTimeEstimate } from "./get-priority-time";
 import { extractLabelPattern } from "./label-checks";
 import { onLabelChangeSetPricing } from "./pricing-label";
-
+import ms, { StringValue } from "ms";
 interface PricingResult {
   timeInHours: number;
   priorityLabel: string;
@@ -38,16 +38,16 @@ export async function onLabelChangeAiEstimation(context: Context) {
 
   await clearAllPriceLabelsOnIssue(context);
   const issueLabels = (issue.labels as Label[]) || [];
-  const priorityLabels = issueLabels.filter((label) => label.name.toLowerCase().startsWith("priority:"));
   const timeLabels = issueLabels.filter((label) => label.name.toLowerCase().startsWith("time:"));
   const timeRegex = extractLabelPattern(context.config.labels.time);
   const priorityRegex = extractLabelPattern(context.config.labels.priority);
   //test all timeLabels and priorityLabels against the regex
   const isTimeLabelValid = timeLabels.every((label) => timeRegex.test(label.name));
+  const priorityLabels = issueLabels.filter((label) => priorityRegex.test(label.name));
   const isPriorityLabelValid = priorityLabels.every((label) => priorityRegex.test(label.name));
 
   //validation for priority labels
-  if (priorityLabels.length > 0 && !isPriorityLabelValid) {
+  if (!isPriorityLabelValid) {
     context.logger.warn(`Priority label "${priorityLabels[0].name}" does not match the expected pattern.`);
     return;
   }
@@ -226,25 +226,22 @@ function parseTimeLabelToHours(context: Context, timeLabel: string): number {
     }
     return timeValue;
   } else {
-    let totalHours = 0;
-    const unitToHoursMap: { [key: string]: number } = {
-      minute: 1 / 60,
-      min: 1 / 60,
-      hour: 1,
-      hr: 1,
-      h: 1,
-      day: 24,
-      d: 24,
-      week: 168,
-      w: 168,
-      month: 720,
-    };
     const regex = /(\d+(\.\d+)?)\s*?(minute|min|hour|hr|h|day|d|week|w|month)s?/gi;
-    let match;
-    while ((match = regex.exec(timeLabel)) !== null) {
-      totalHours += parseFloat(match[1]) * unitToHoursMap[match[3].toLowerCase()];
+    const match = timeLabel.match(regex);
+    if (match && match.length > 0) {
+      const timeString = match[0] as StringValue;
+      try {
+        const milliseconds = ms(timeString);
+        const hours = milliseconds / (1000 * 60 * 60);
+        return hours;
+      } catch (error) {
+        context.logger.error(`Error parsing time label "${timeLabel}":`, { err: error });
+        return 0;
+      }
+    } else {
+      context.logger.warn(`Time label "${timeLabel}" does not match the expected pattern.`);
+      return 0;
     }
-    return totalHours;
   }
 }
 
@@ -354,7 +351,6 @@ async function processAiEstimation(context: Context, timeLabels: Label[], priori
 
 export function isValidSetupForAutoPricing(context: Context, mode: "full" | "partial"): boolean {
   const { config, logger } = context;
-
   if (!config.autoLabeling.enabled) {
     logger.warn("Auto time estimation is disabled in the configuration.");
     return false;

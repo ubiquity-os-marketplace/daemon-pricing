@@ -138,7 +138,6 @@ describe("AI Estimation Tests", () => {
       },
     });
     const issue = db.issue.findFirst({ where: { id: { equals: ISSUE_ID } } });
-    console.log("Issue before test:", issue);
     if (!issue) {
       throw new Error("Repository or issue not found in the mock database");
     }
