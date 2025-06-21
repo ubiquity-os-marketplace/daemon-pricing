@@ -94,6 +94,34 @@ export const pluginSettingsSchema = T.Object(
       },
       { default: {} }
     ),
+    autoLabeling: T.Object(
+      {
+        enabled: T.Boolean({
+          default: true,
+          description: "Whether to enable automatic pricing for issues based on labels",
+        }),
+        mode: T.Enum(
+          {
+            full: "full", // Estimate both time and priority
+            partial: "partial", // Expects either time or priority label to be present
+          },
+          {
+            default: "full",
+            description: "The mode for automatic labeling.",
+          }
+        ),
+        triggerLabel: T.String({
+          default: "auto_price",
+          description: "The label that triggers automatic pricing when added to an issue.",
+        }),
+      },
+      {
+        default: {
+          enabled: false,
+        },
+        description: "Sets up automatic pricing, if enabled, based on the mode.",
+      }
+    ),
     basePriceMultiplier: T.Number({ examples: [1.5], default: 1, description: "The base price multiplier for all tasks" }),
     shouldFundContributorClosedIssue: T.Boolean({ default: false, description: "Whether to allow funding contributor closed issues" }),
   },
