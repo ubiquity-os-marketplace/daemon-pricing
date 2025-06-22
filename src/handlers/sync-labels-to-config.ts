@@ -38,15 +38,17 @@ async function generatePriceLabels(context: Context) {
 }
 
 export async function getPriceLabels(context: Context) {
+  const { config, logger } = context;
   const { pricingLabels, priceLabels } = await generatePriceLabels(context);
 
   const allLabels = await listLabelsForRepo(context);
 
-  const triggerLabel = context.config.autoLabeling.enabled ? context.config.autoLabeling.triggerLabel : null;
+  if (config.autoLabeling.enabled) {
+    logger.info("Auto-labeling is enabled, incorrect price labels will be skipped.");
+    return { incorrectPriceLabels: [], allLabels, pricingLabels };
+  }
 
-  const otherLabels = allLabels.filter((label) => label.name !== triggerLabel);
-
-  const incorrectPriceLabels = otherLabels.filter(
+  const incorrectPriceLabels = allLabels.filter(
     (label) => label.name.startsWith("Price: ") && !priceLabels.some((validLabel) => validLabel.name === label.name)
   );
 
