@@ -6,7 +6,7 @@ import { customOctokit } from "@ubiquity-os/plugin-sdk/octokit";
 import { LOG_LEVEL, LogLevel } from "@ubiquity-os/ubiquity-os-logger";
 import type { ExecutionContext } from "hono";
 import { env as honoEnv } from "hono/adapter";
-import manifest from "../manifest.json";
+import manifest from "../manifest.json" with { type: "json" };
 import { getPricing, getPriorityTime } from "./handlers/get-priority-time";
 import { isLocalEnvironment, run } from "./run";
 import { Context, SupportedEvents } from "./types/context";
