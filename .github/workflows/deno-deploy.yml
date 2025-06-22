@@ -20,15 +20,17 @@ jobs:
           branch_name=$(echo '${{ github.event.ref || github.event.workflow_run.head_branch || github.ref }}' | sed 's#refs/heads/##')
           echo "ACTION_REF=${GITHUB_REPOSITORY}@${branch_name}" >> $GITHUB_ENV
 
-      - uses: ubiquity-os/deno-deploy@main
+      - uses: ShivTestOrg/deno-deploy@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           KERNEL_PUBLIC_KEY: ${{ secrets.KERNEL_PUBLIC_KEY }}
           APP_ID: ${{ secrets.APP_ID }}
           APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
+          ENVIRONMENT: ${{ secrets.ENVIRONMENT }}
           APP_INSTALLATION_ID: ${{ secrets.APP_INSTALLATION_ID }}
           ACTION_REF: ${{ env.ACTION_REF }}
         with:
           token: ${{ secrets.DENO_DEPLOY_TOKEN }}
           action: ${{ github.event_name == 'delete' && 'delete' || 'deploy' }}
+          entrypoint: './src/worker'
           organization: ${{ secrets.DENO_ORG_NAME }}
