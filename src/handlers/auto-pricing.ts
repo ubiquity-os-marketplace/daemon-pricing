@@ -26,6 +26,7 @@ export async function autoPricingHandler(context: Context): Promise<void> {
   const estimate = await fetchAiEstimates(context);
   const pricingResult = await handleNoLabels(context, estimate);
   await setPrice(context, pricingResult);
+  await addLabelToIssue(context, context.config.autoLabeling.triggerLabel);
 }
 
 export async function onLabelChangeAiEstimation(context: Context) {
@@ -287,6 +288,10 @@ function getMinPriorityLabel(context: Context, priorityLabels: Label[]): Label |
 }
 
 function ignoreLabelChange(context: Context, sender: Context["payload"]["sender"], labelName: string): boolean {
+  if (context.eventName == "issues.opened" && sender?.type === "Bot" && labelName == context.config.autoLabeling.triggerLabel) {
+    context.logger.info(`Ignoring label change event for "${labelName}" on issue opened.`);
+    return true;
+  }
   if (sender?.type === "Bot" && labelName && (labelName.startsWith("Time:") || labelName.startsWith("Priority:") || labelName.startsWith("Price:"))) {
     context.logger.info(`Ignoring label change event for "${labelName}" from bot.`);
     return true;

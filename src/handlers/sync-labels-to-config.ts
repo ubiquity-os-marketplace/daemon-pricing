@@ -40,10 +40,16 @@ async function generatePriceLabels(context: Context) {
 export async function getPriceLabels(context: Context) {
   const { pricingLabels, priceLabels } = await generatePriceLabels(context);
 
-  // List all the labels for a repository
   const allLabels = await listLabelsForRepo(context);
 
-  const incorrectPriceLabels = allLabels.filter((label) => label.name.startsWith("Price: ") && !priceLabels.some((o) => o.name === label.name));
+  const triggerLabel = context.config.autoLabeling.enabled ? context.config.autoLabeling.triggerLabel : null;
+
+  const otherLabels = allLabels.filter((label) => label.name !== triggerLabel);
+
+  const incorrectPriceLabels = otherLabels.filter(
+    (label) => label.name.startsWith("Price: ") && !priceLabels.some((validLabel) => validLabel.name === label.name)
+  );
+
   return { incorrectPriceLabels, allLabels, pricingLabels };
 }
 
