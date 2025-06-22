@@ -22,13 +22,13 @@ jobs:
 
       - uses: ShivTestOrg/deno-deploy@main
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PLUGIN_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           KERNEL_PUBLIC_KEY: ${{ secrets.KERNEL_PUBLIC_KEY }}
-          APP_ID: ${{ secrets.APP_ID }}
-          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
-          ENVIRONMENT: ${{ secrets.ENVIRONMENT }}
-          APP_INSTALLATION_ID: ${{ secrets.APP_INSTALLATION_ID }}
+          LOG_LEVEL: ${{ secrets.LOG_LEVEL || 'info' }}
           ACTION_REF: ${{ env.ACTION_REF }}
+          BASETEN_API_KEY: ${{ secrets.BASETEN_API_KEY }}
+          BASETEN_API_URL: ${{ secrets.BASETEN_API_URL }}
+
         with:
           token: ${{ secrets.DENO_DEPLOY_TOKEN }}
           action: ${{ github.event_name == 'delete' && 'delete' || 'deploy' }}
