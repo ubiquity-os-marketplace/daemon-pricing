@@ -22,9 +22,10 @@ jobs:
 
       - uses: ShivTestOrg/deno-deploy@main
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PLUGIN_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           KERNEL_PUBLIC_KEY: ${{ secrets.KERNEL_PUBLIC_KEY }}
           APP_ID: ${{ secrets.APP_ID }}
+          LOG_LEVEL: ${{ secrets.LOG_LEVEL || 'info' }}
           APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
           APP_INSTALLATION_ID: ${{ secrets.APP_INSTALLATION_ID }}
           BASETEN_API_KEY: ${{ secrets.BASETEN_API_KEY }}
