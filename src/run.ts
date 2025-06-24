@@ -36,6 +36,7 @@ export async function run(context: Context) {
     case "issues.opened":
     case "repository.created":
       if (isGithubOrLocalEnvironment()) {
+        console.log("Running global label update for issues opened or repository created event.");
         await syncPriceLabelsToConfig(context);
         if (isValidSetupForAutoPricing(context, "full")) {
           logger.info("Auto pricing enabled, running auto pricing handler.");

@@ -4,10 +4,16 @@ import { setupTests } from "./__mocks__/helpers";
 import { db } from "./__mocks__/db";
 import { drop } from "@mswjs/data";
 import { Logs } from "@ubiquity-os/ubiquity-os-logger";
-import * as allFunctions from "../src/handlers/get-priority-time";
+import * as autoEstimationModuleFunctions from "../src/handlers/get-priority-time";
 import * as issueModuleFunctions from "../src/shared/issue";
+import * as labelModuleFunctions from "../src/shared/label";
 
-function createMockOctokit(overrides = {}) {
+interface Label {
+  name: string;
+  description: string | undefined;
+}
+
+function createMockOctokit(overrides = {}, paginateMock = jest.fn()) {
   return {
     rest: {
       issues: {
@@ -16,7 +22,7 @@ function createMockOctokit(overrides = {}) {
         ...overrides,
       },
     },
-    paginate: jest.fn(),
+    paginate: paginateMock,
   };
 }
 
@@ -41,6 +47,7 @@ describe("AI Estimation Tests", () => {
     jest.clearAllMocks();
     jest.resetModules();
     drop(db);
+    process.env.NODE_ENV = "local"; // (to skip isWorkerOrLocalEnvironment check)
     await setupTests();
   });
 
@@ -59,7 +66,7 @@ describe("AI Estimation Tests", () => {
       throw new Error("Repository or issue not found in the mock database");
     }
     jest.unstable_mockModule("../src/handlers/get-priority-time", () => ({
-      ...allFunctions,
+      ...autoEstimationModuleFunctions,
       getPriorityTime: jest.fn((issueDescription: string, issueTitle: string, basetenApiKey: string, basetenApiUrl: string) => {
         expect(issueDescription).toBe(issue.body);
         expect(issueTitle).toBe(issue.title);
@@ -142,7 +149,18 @@ describe("AI Estimation Tests", () => {
       throw new Error("Repository or issue not found in the mock database");
     }
 
-    const { run } = await import("../src/run");
+    const allLabels: Label[] = [
+      { name: "Label1", description: "" },
+      { name: "Label2", description: "" },
+      { name: "Label3", description: "" },
+    ];
+    jest.unstable_mockModule("../src/shared/label", () => ({
+      ...labelModuleFunctions,
+      listLabelsForRepo: jest.fn(),
+    }));
+
+    const pricingLabels = [{ name: "Label1" }, { name: "Label2" }, { name: "Label3" }];
+    const { listLabelsForRepo } = await import("../src/shared/label");
 
     const context = createMockContext({
       eventName: "issues.opened",
@@ -165,12 +183,22 @@ describe("AI Estimation Tests", () => {
         },
         issue,
       },
-      octokit: createMockOctokit({
-        createLabel: jest.fn(),
-        addLabels: jest.fn(),
-        removeLabel: jest.fn(),
-      }),
+      octokit: createMockOctokit(
+        {
+          createLabel: jest.fn(),
+          addLabels: jest.fn(),
+          removeLabel: jest.fn(),
+        },
+        jest.fn<() => Promise<typeof allLabels>>().mockResolvedValue(allLabels)
+      ),
     });
+
+    (listLabelsForRepo as unknown as jest.Mock<() => Promise<typeof allLabels>>).mockResolvedValue(allLabels);
+
+    context.config.labels.time = pricingLabels;
+    context.config.labels.priority = [];
+
+    const { run } = await import("../src/run");
 
     // Act
     await run(context as unknown as Context);
@@ -183,7 +211,121 @@ describe("AI Estimation Tests", () => {
     expect(context.octokit.rest.issues.createLabel).not.toHaveBeenCalled();
     expect(context.octokit.rest.issues.removeLabel).not.toHaveBeenCalled();
   }, 50000);
-  // Case 3: Create (Priority/Time/Price) Label (on issue.labeled event with trigger label)
+
+  it("Case 3: AI label creation (enabled from config)", async () => {
+    const mockEstimate = { time: "10", priority: "Priority: 5 (Emergency)" };
+    const ISSUE_ID = 2;
+
+    db.issue.update({
+      where: { id: { equals: ISSUE_ID } },
+      data: {
+        labels: [],
+      },
+    });
+    const issue = db.issue.findFirst({ where: { id: { equals: ISSUE_ID } } });
+    if (!issue) {
+      throw new Error("Repository or issue not found in the mock database");
+    }
+
+    const allLabels: Label[] = [
+      { name: "Label1", description: "" },
+      { name: "Label2", description: "" },
+      { name: "Label3", description: "" },
+    ];
+    jest.unstable_mockModule("../src/shared/label", () => ({
+      ...labelModuleFunctions,
+      listLabelsForRepo: jest.fn<() => Promise<typeof allLabels>>().mockResolvedValue(allLabels),
+    }));
+
+    jest.unstable_mockModule("../src/handlers/get-priority-time", () => ({
+      ...autoEstimationModuleFunctions,
+      getPriorityTime: jest.fn((issueDescription: string, issueTitle: string, basetenApiKey: string, basetenApiUrl: string) => {
+        expect(issueDescription).toBe(issue.body);
+        expect(issueTitle).toBe(issue.title);
+        expect(basetenApiKey).toBe("fake-key");
+        expect(basetenApiUrl).toBe("https://fake-url.com");
+        return Promise.resolve(mockEstimate);
+      }),
+    }));
+
+    const pricingLabels = [{ name: "Label1" }, { name: "Label2" }, { name: "Label3" }];
+
+    const context = createMockContext({
+      eventName: "issues.opened",
+      env: {
+        BASETEN_API_KEY: "fake-key",
+        BASETEN_API_URL: "https://fake-url.com",
+      },
+      config: {
+        labels: { time: [], priority: [] },
+        basePriceMultiplier: 1,
+        globalConfigUpdate: { excludeRepos: [] },
+        autoLabeling: {
+          enabled: true,
+          triggerLabel: "auto_price_label",
+        },
+      },
+      payload: {
+        repository: {
+          owner: { login: "owner" },
+          name: "repo",
+        },
+        issue,
+      },
+      octokit: createMockOctokit(
+        {
+          createLabel: jest.fn(),
+          addLabels: jest.fn(),
+          removeLabel: jest.fn(),
+        },
+        jest.fn<() => Promise<typeof allLabels>>().mockResolvedValue(allLabels)
+      ),
+    });
+    context.config.labels.time = pricingLabels;
+    context.config.labels.priority = [];
+
+    const { run } = await import("../src/run");
+
+    // Act
+    await run(context as unknown as Context);
+
+    // db
+    expect(context.octokit.rest.issues.addLabels).toHaveBeenCalledWith({
+      owner: "owner",
+      repo: "repo",
+      issue_number: ISSUE_ID,
+      labels: [`Time: ${mockEstimate.time} hours`],
+    });
+
+    expect(context.octokit.rest.issues.addLabels).toHaveBeenCalledWith({
+      owner: "owner",
+      repo: "repo",
+      issue_number: ISSUE_ID,
+      labels: [mockEstimate.priority],
+    });
+
+    expect(context.octokit.rest.issues.addLabels).toHaveBeenCalledWith({
+      owner: "owner",
+      repo: "repo",
+      issue_number: ISSUE_ID,
+      labels: [context.config.autoLabeling.triggerLabel],
+    });
+
+    expect(context.octokit.rest.issues.addLabels).toHaveBeenCalledWith({
+      owner: "owner",
+      repo: "repo",
+      issue_number: ISSUE_ID,
+      labels: [
+        `Price: ${autoEstimationModuleFunctions.getPricing(context.config.basePriceMultiplier, parseFloat(mockEstimate.time), mockEstimate.priority)} USD`,
+      ],
+    });
+
+    expect(context.octokit.rest.issues.createLabel).toHaveBeenCalledTimes(3);
+    expect(context.octokit.rest.issues.removeLabel).not.toHaveBeenCalled();
+    expect(context.octokit.rest.issues.updateLabel).not.toHaveBeenCalled();
+  }, 50000);
+
+  // Case 4: Create (Priority/Time/Price) Label (on issue.labeled event with trigger label)
   it("Create (Priority/Time/Price) Label (on issue.labeled event with trigger label)", async () => {
     const isUserAdminOrBillingManagerMock = jest.fn();
     isUserAdminOrBillingManagerMock.mockImplementation(() => Promise.resolve({ data: { permission: "admin" } }));
@@ -213,7 +355,7 @@ describe("AI Estimation Tests", () => {
       priority: "Priority: 1 (Normal)",
     };
     jest.unstable_mockModule("../src/handlers/get-priority-time", () => ({
-      ...allFunctions,
+      ...autoEstimationModuleFunctions,
       getPriorityTime: jest.fn((issueDescription: string, issueTitle: string, basetenApiKey: string, basetenApiUrl: string) => {
         expect(issueDescription).toBe(issue.body);
         expect(issueTitle).toBe(issue.title);
@@ -278,13 +420,13 @@ describe("AI Estimation Tests", () => {
 
     await run(context as unknown as Context);
 
-    const price = `Price: ${allFunctions.getPricing(context.config.basePriceMultiplier, parseFloat(priceEstimate.time), priceEstimate.priority)} USD`;
+    const price = `Price: ${autoEstimationModuleFunctions.getPricing(context.config.basePriceMultiplier, parseFloat(priceEstimate.time), priceEstimate.priority)} USD`;
 
     expect(context.octokit.rest.issues.addLabels).toHaveBeenCalledWith({
       owner: "ubiquity-os",
       repo: "daemon-pricing",
       issue_number: ISSUE_ID,
-      labels: [allFunctions.convertHoursLabel(priceEstimate.time)],
+      labels: [autoEstimationModuleFunctions.convertHoursLabel(priceEstimate.time)],
     });
     expect(context.octokit.rest.issues.addLabels).toHaveBeenCalledWith({
       owner: "ubiquity-os",
@@ -302,7 +444,7 @@ describe("AI Estimation Tests", () => {
     expect(context.octokit.rest.issues.createLabel).toHaveBeenCalledWith({
       owner: "ubiquity-os",
       repo: "daemon-pricing",
-      name: allFunctions.convertHoursLabel(priceEstimate.time),
+      name: autoEstimationModuleFunctions.convertHoursLabel(priceEstimate.time),
       color: "ededed",
       description: undefined,
     });
