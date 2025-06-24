@@ -1,4 +1,4 @@
-import { autoPricingHandler, checkIfLabelContainsTrigger, isValidSetupForAutoPricing, onLabelChangeAiEstimation } from "./handlers/auto-pricing.js";
+import { autoPricingHandler, checkIfLabelContainsTrigger, isValidSetupForAutoPricing, onLabelChangeAiEstimation } from "./handlers/auto-pricing";
 import { globalLabelUpdate } from "./handlers/global-config-update";
 import { onLabelChangeSetPricing } from "./handlers/pricing-label";
 import { syncPriceLabelsToConfig } from "./handlers/sync-labels-to-config";
