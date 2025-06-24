@@ -27,6 +27,8 @@ jobs:
           APP_ID: ${{ secrets.APP_ID }}
           APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
           APP_INSTALLATION_ID: ${{ secrets.APP_INSTALLATION_ID }}
+          BASETEN_API_KEY: ${{ secrets.BASETEN_API_KEY }}
+          BASETEN_API_URL: ${{ secrets.BASETEN_API_URL }}
           ACTION_REF: ${{ env.ACTION_REF }}
         with:
           token: ${{ secrets.DENO_DEPLOY_TOKEN }}
