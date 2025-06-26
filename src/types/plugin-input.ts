@@ -112,7 +112,7 @@ export const pluginSettingsSchema = T.Object(
         ),
         triggerLabel: T.String({
           default: "auto_price",
-          description: "The label that triggers automatic pricing when added to an issue.",
+          description: "Label which triggers automatic pricing when added to an issue.",
         }),
       },
       {
