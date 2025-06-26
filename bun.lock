@@ -25,7 +25,6 @@
         "@jest/globals": "^29.7.0",
         "@mswjs/data": "0.16.1",
         "@types/jest": "^29.5.14",
-        "@types/ms": "^2.1.0",
         "@types/node": "^20.11.19",
         "@typescript-eslint/eslint-plugin": "^8.20.0",
         "@typescript-eslint/parser": "^8.20.0",
@@ -822,8 +821,6 @@
     "@types/lodash": ["@types/lodash@4.17.15", "", {}, "sha512-w/P33JFeySuhN6JLkysYUK2gEmy9kHHFN7E8ro0tkfmlDOgxBDzWEZ/J8cWA+fHqFevpswDTFZnDx+R9lbL6xw=="],
 
     "@types/md5": ["@types/md5@2.3.5", "", {}, "sha512-/i42wjYNgE6wf0j2bcTX6kuowmdL/6PE4IVitMpm2eYKBUuYCprdcWVK+xEF0gcV6ufMCRhtxmReGfc6hIK7Jw=="],
-
-    "@types/ms": ["@types/ms@2.1.0", "", {}, "sha512-GsCCIZDE/p3i96vtEqx+7dBUGXrc7zeSK3wwPHIaRThS+9OhWIXRqzs4d6k1SVU8g91DrNRWxWUGhp5KXQb2VA=="],
 
     "@types/node": ["@types/node@20.17.18", "", { "dependencies": { "undici-types": "~6.19.2" } }, "sha512-9kS0opXVV3dJ+C7HPhXfDlOdMu4cjJSZhlSxlDK39IxVRxBbuiYjCkLYSO9d5UYqTd4DApxRK9T1xJiTAkfA0w=="],
 
