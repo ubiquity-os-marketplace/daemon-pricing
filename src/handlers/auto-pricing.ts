@@ -19,7 +19,7 @@ export async function autoPricingHandler(context: Context): Promise<void> {
   }
   await clearAllPriceLabelsOnIssue(context);
   const estimate = await fetchAiEstimates(context);
-  const pricingResult = await handleNoLabels(context, estimate);
+  const pricingResult = await generateMissingLabels(context, estimate);
   await setPrice(context, pricingResult);
   await addLabelToIssue(context, context.config.autoLabeling.triggerLabel);
 }
@@ -61,22 +61,22 @@ async function setPrice(context: Context, priceLabels: PricingResult, currency: 
   const { logger } = context;
   await clearAllPriceLabelsOnIssue(context);
   const priceLabelName = `Price: ${getPricing(context.config.basePriceMultiplier, priceLabels.timeLabelValue, priceLabels.priorityLabel)} ${currency}`;
-  logger.info(`Setting price label: "${priceLabelName}"`);
+  logger.debug(`Setting price label: "${priceLabelName}"`);
   await createAndAddLabel(context, priceLabelName);
 }
 
-async function handleNoLabels(context: Context, estimate: PriorityTimeEstimate): Promise<PricingResult> {
+async function generateMissingLabels(context: Context, estimate: PriorityTimeEstimate): Promise<PricingResult> {
   const { logger } = context;
-  logger.info("Estimating both time and priority with AI.");
+  logger.debug("Estimating both time and priority with AI.");
 
   const { time: timeString, priority: priorityLabel } = estimate;
   const timeInHours = parseFloat(timeString);
   const timeLabel = convertHoursLabel(timeString);
 
-  logger.info(`AI estimated time: ${timeInHours} hours. Creating label: "${timeLabel}"`);
+  logger.debug(`AI estimated time: ${timeInHours} hours. Creating label: "${timeLabel}"`);
   await createAndAddLabel(context, timeLabel);
 
-  logger.info(`AI estimated priority: "${priorityLabel}". Creating label.`);
+  logger.debug(`AI estimated priority: "${priorityLabel}". Creating label.`);
   await addLabelToIssue(context, priorityLabel);
 
   return {
@@ -96,7 +96,7 @@ async function handlePriorityLabel(context: Context, priorityLabels: Label[], es
   const timeInHours = parseFloat(estimate.time);
   const timeLabel = convertHoursLabel(estimate.time);
 
-  logger.info(`AI estimated time: ${timeInHours} hours. Creating label: "${timeLabel}"`);
+  logger.debug(`AI estimated time: ${timeInHours} hours. Creating label: "${timeLabel}"`);
   await createAndAddLabel(context, timeLabel);
 
   return {
@@ -137,7 +137,7 @@ async function handleTimeLabel(context: Context, timeLabels: Label[], estimate: 
   await retainMinimumLabels(context, timeLabels, minTimeLabel);
 
   const { priority: priorityLabel } = estimate;
-  logger.info(`AI estimated priority: "${priorityLabel}"`);
+  logger.debug(`AI estimated priority: "${priorityLabel}"`);
   await createAndAddLabel(context, priorityLabel);
   return {
     timeLabelValue: parseTimeLabel(context, minTimeLabel.name),
@@ -196,7 +196,7 @@ async function retainMinimumLabels(context: Context, labels: Label[], labelToKee
         issue_number: issue.number,
         name: label.name,
       });
-      logger.info(`Removed label: ${label.name}`);
+      logger.debug(`Removed label: ${label.name}`);
     } catch (error) {
       logger.error(`Failed to remove label ${label.name}:`, { err: error });
     }
@@ -263,7 +263,7 @@ function getMinPriorityLabel(context: Context, priorityLabels: Label[]): Label |
 
 function ignoreLabelChange(context: Context, sender: Context["payload"]["sender"], labelName: string): boolean {
   if (context.eventName == "issues.opened" && sender?.type === "Bot" && labelName == context.config.autoLabeling.triggerLabel) {
-    context.logger.info(`Ignoring label change event for "${labelName}" on issue opened.`);
+    context.logger.debug(`Ignoring label change event for "${labelName}" on issue opened.`);
     return true;
   }
   if (sender?.type === "Bot" && labelName && (labelName.startsWith("Time:") || labelName.startsWith("Priority:") || labelName.startsWith("Price:"))) {
@@ -322,7 +322,7 @@ async function processAiEstimation(context: Context, timeLabels: Label[], priori
       context.logger.warn("Auto pricing is not set up for full mode, skipping.");
       return;
     }
-    priceResult = await handleNoLabels(context, estimate);
+    priceResult = await generateMissingLabels(context, estimate);
   }
 
   if (priceResult) {

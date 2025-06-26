@@ -21,10 +21,10 @@ async function handleIssueLabelEvents(context: Context) {
   const { logger } = context;
   if (isIssueLabelEvent(context) && isWorkerOrLocalEnvironment()) {
     if (isValidSetupForAutoPricing(context, "partial") && checkIfLabelContainsTrigger(context)) {
-      logger.info("Label contains trigger, running label change AI pricing handler.");
+      logger.debug("Label contains trigger, running label change AI pricing handler.");
       await onLabelChangeAiEstimation(context);
     } else {
-      logger.info("Label does not contain trigger, running label change set pricing handler.");
+      logger.debug("Label does not contain trigger, running label change set pricing handler.");
       await onLabelChangeSetPricing(context);
     }
   }
@@ -36,10 +36,9 @@ export async function run(context: Context) {
     case "issues.opened":
     case "repository.created":
       if (isGithubOrLocalEnvironment()) {
-        console.log("Running global label update for issues opened or repository created event.");
         await syncPriceLabelsToConfig(context);
         if (isValidSetupForAutoPricing(context, "full")) {
-          logger.info("Auto pricing enabled, running auto pricing handler.");
+          logger.debug("Auto pricing enabled, running auto pricing handler.");
           await autoPricingHandler(context);
         }
       }
