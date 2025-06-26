@@ -53,11 +53,7 @@ export function getPricing(base: number, time: number, priorityLabel: string): D
     throw new Error("No priority value found");
   }
   const priorityValue = new Decimal(priority).div(10);
-  return new Decimal(base)
-    .mul(1000)
-    .mul(time * 0.125)
-    .mul(priorityValue)
-    .toDecimalPlaces(2);
+  return new Decimal(base).mul(1000).mul(time).mul(priorityValue).toDecimalPlaces(2);
 }
 
 export function convertHoursLabel(timeEstimate: string): string {
@@ -75,6 +71,10 @@ export function convertHoursLabel(timeEstimate: string): string {
     const days = +(hours / 24).toFixed(2);
     return `Time: ${days} day${days === 1 ? "" : "s"}`;
   }
-  const weeks = +(hours / 168).toFixed(2);
-  return `Time: ${weeks} week${weeks === 1 ? "" : "s"}`;
+  if (hours < 730) {
+    const weeks = +(hours / 168).toFixed(2);
+    return `Time: ${weeks} week${weeks === 1 ? "" : "s"}`;
+  }
+  const months = +(hours / 730).toFixed(2);
+  return `Time: ${months} month${months === 1 ? "" : "s"}`;
 }

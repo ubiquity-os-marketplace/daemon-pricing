@@ -7,17 +7,12 @@ import { isIssueLabelEvent } from "../types/typeguards";
 import { convertHoursLabel, getPricing, getPriorityTime, PriorityTimeEstimate } from "./get-priority-time";
 import { extractLabelPattern } from "./label-checks";
 import { onLabelChangeSetPricing } from "./pricing-label";
-import ms, { StringValue } from "ms";
 interface PricingResult {
-  timeInHours: number;
+  timeLabelValue: number;
   priorityLabel: string;
 }
 
 export async function autoPricingHandler(context: Context): Promise<void> {
-  if (!isValidSetupForAutoPricing(context, "full")) {
-    context.logger.warn("Auto pricing is not set up for full mode, skipping.");
-    return;
-  }
   const issue = getIssueFromPayload(context);
   if (!issue) {
     throw context.logger.error("No issue found in the payload.");
@@ -63,20 +58,10 @@ export async function onLabelChangeAiEstimation(context: Context) {
 }
 
 async function setPrice(context: Context, priceLabels: PricingResult, currency: string = "USD") {
-  const { logger, payload } = context;
-  const issue = getIssueFromPayload(context);
-  if (!issue) {
-    throw logger.error("No issue found in the payload.");
-  }
-  if (!payload.repository.owner || !payload.repository.name) {
-    throw logger.error("Repository owner or name is missing in the payload.");
-  }
-
+  const { logger } = context;
   await clearAllPriceLabelsOnIssue(context);
-
-  const priceLabelName = `Price: ${getPricing(context.config.basePriceMultiplier, priceLabels.timeInHours, priceLabels.priorityLabel)} ${currency}`;
+  const priceLabelName = `Price: ${getPricing(context.config.basePriceMultiplier, priceLabels.timeLabelValue, priceLabels.priorityLabel)} ${currency}`;
   logger.info(`Setting price label: "${priceLabelName}"`);
-
   await createAndAddLabel(context, priceLabelName);
 }
 
@@ -95,7 +80,7 @@ async function handleNoLabels(context: Context, estimate: PriorityTimeEstimate):
   await addLabelToIssue(context, priorityLabel);
 
   return {
-    timeInHours,
+    timeLabelValue: timeInHours,
     priorityLabel,
   };
 }
@@ -115,7 +100,7 @@ async function handlePriorityLabel(context: Context, priorityLabels: Label[], es
   await createAndAddLabel(context, timeLabel);
 
   return {
-    timeInHours,
+    timeLabelValue: timeInHours,
     priorityLabel: minPriority.name,
   };
 }
@@ -138,7 +123,7 @@ async function handleTimeAndPriorityLabels(context: Context, timeLabels: Label[]
   await retainMinimumLabels(context, priorityLabels, minPriority);
 
   return {
-    timeInHours: parseTimeLabelToHours(context, minTimeLabel.name),
+    timeLabelValue: parseTimeLabel(context, minTimeLabel.name),
     priorityLabel: minPriority.name,
   };
 }
@@ -155,7 +140,7 @@ async function handleTimeLabel(context: Context, timeLabels: Label[], estimate: 
   logger.info(`AI estimated priority: "${priorityLabel}"`);
   await createAndAddLabel(context, priorityLabel);
   return {
-    timeInHours: parseTimeLabelToHours(context, minTimeLabel.name),
+    timeLabelValue: parseTimeLabel(context, minTimeLabel.name),
     priorityLabel,
   };
 }
@@ -218,32 +203,21 @@ async function retainMinimumLabels(context: Context, labels: Label[], labelToKee
   }
 }
 
-function parseTimeLabelToHours(context: Context, timeLabel: string): number {
-  const timeLabelPattern = extractLabelPattern(context.config.labels.time);
-  if (timeLabelPattern.test(timeLabel)) {
-    const timeValue = calculateLabelValue(context, timeLabel);
-    if (timeValue === null) {
-      throw context.logger.error(`Could not calculate time from label: ${timeLabel}`);
-    }
-    return timeValue;
-  } else {
-    const regex = /(\d+(\.\d+)?)\s*?(minute|min|hour|hr|h|day|d|week|w|month)s?/gi;
-    const match = timeLabel.match(regex);
-    if (match && match.length > 0) {
-      const timeString = match[0] as StringValue;
-      try {
-        const milliseconds = ms(timeString);
-        const hours = milliseconds / (1000 * 60 * 60);
-        return hours;
-      } catch (error) {
-        context.logger.error(`Error parsing time label "${timeLabel}":`, { err: error });
-        return 0;
-      }
-    } else {
-      context.logger.warn(`Time label "${timeLabel}" does not match the expected pattern.`);
-      return 0;
-    }
+function parseTimeLabel(context: Context, label: string): number {
+  const matches = RegExp(/\d+/).exec(label);
+  if (!matches) {
+    throw context.logger.error(`Could not parse time from label: ${label}`);
   }
+  const number = parseInt(matches[0], 10);
+  if (isNaN(number)) {
+    throw context.logger.error(`Parsed time value is not a number: ${number}`);
+  }
+  if (label.toLowerCase().includes("minute")) return number * 0.002;
+  if (label.toLowerCase().includes("hour")) return number * 0.125;
+  if (label.toLowerCase().includes("day")) return 1 + (number - 1) * 0.25;
+  if (label.toLowerCase().includes("week")) return number + 1;
+  if (label.toLowerCase().includes("month")) return 5 + (number - 1) * 8;
+  return 0;
 }
 
 function getMinTimeLabel(context: Context, timeLabels: Label[]): Label | null {
@@ -252,10 +226,10 @@ function getMinTimeLabel(context: Context, timeLabels: Label[]): Label | null {
   }
 
   let minLabel = timeLabels[0];
-  let minHours = parseTimeLabelToHours(context, minLabel.name);
+  let minHours = parseTimeLabel(context, minLabel.name);
 
   for (const label of timeLabels) {
-    const hours = parseTimeLabelToHours(context, label.name);
+    const hours = parseTimeLabel(context, label.name);
     if (hours < minHours) {
       minHours = hours;
       minLabel = label;
@@ -275,7 +249,7 @@ function getMinPriorityLabel(context: Context, priorityLabels: Label[]): Label |
     throw context.logger.error(`Could not calculate priority for label: ${minLabel.name}`);
   }
   for (const label of priorityLabels) {
-    const priority = calculateLabelValue(context, minLabel.name);
+    const priority = calculateLabelValue(context, label.name);
     if (priority === null) {
       throw context.logger.error(`Could not calculate priority for label: ${label.name}`);
     }
@@ -312,7 +286,9 @@ function getIssueFromPayload(context: Context) {
   if ("issue" in context.payload && context.payload.issue) {
     return context.payload.issue;
   }
-  throw context.logger.error("No issue found in the payload.");
+
+  context.logger.debug("No issue found in the payload.");
+  return null;
 }
 
 async function processAiEstimation(context: Context, timeLabels: Label[], priorityLabels: Label[]): Promise<void> {
