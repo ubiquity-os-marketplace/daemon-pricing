@@ -35,6 +35,15 @@ export function getPrice(context: Context, timeLabel: Label, priorityLabel: Labe
   const recognizedPriorityLabels = labels.priority.find((configLabel) => configLabel.name === priorityLabel.name);
   if (!recognizedPriorityLabels) throw logger.error("Priority label is not recognized");
 
+  return calculatePrice(context, recognizedTimeLabels, recognizedPriorityLabels);
+}
+
+/*
+ * Creates the pricing label based on the time and priority values.
+ */
+export function calculatePrice(context: Context, recognizedTimeLabels: { name: string }, recognizedPriorityLabels: { name: string }): string {
+  const { logger } = context;
+
   const timeValue = calculateLabelValue(context, recognizedTimeLabels.name);
   if (timeValue === null) throw logger.error("Time value is not defined");
 

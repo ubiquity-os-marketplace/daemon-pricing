@@ -35,3 +35,5 @@ jobs:
           PLUGIN_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           KERNEL_PUBLIC_KEY: ${{ secrets.KERNEL_PUBLIC_KEY }}
           LOG_LEVEL: ${{ secrets.LOG_LEVEL || 'info' }}
+          BASETEN_API_KEY: ${{ secrets.BASETEN_API_KEY }}
+          BASETEN_API_URL: ${{ secrets.BASETEN_API_URL }}

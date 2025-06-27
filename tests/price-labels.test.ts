@@ -31,6 +31,9 @@ const mockContext: Context = {
       time: [],
       priority: [],
     },
+    autoLabeling: {
+      enabled: false,
+    },
     basePriceMultiplier: 1,
     globalConfigUpdate: { excludeRepos: [] },
   },
@@ -67,7 +70,6 @@ describe("syncPriceLabelsToConfig function", () => {
 
     mockContext.config.labels.time = pricingLabels;
     mockContext.config.labels.priority = [];
-
     await syncPriceLabelsToConfig(mockContext);
 
     expect(mockOctokit.rest.issues.updateLabel).not.toHaveBeenCalled();
@@ -79,6 +81,9 @@ describe("syncPriceLabelsToConfig function", () => {
         labels: {
           priority: [{ name: "Priority: 0 (Regression)" }],
           time: [{ name: "Time: 2 Hours" }],
+        },
+        autoLabeling: {
+          enabled: false,
         },
       },
     } as unknown as Context;

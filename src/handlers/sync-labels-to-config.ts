@@ -38,17 +38,25 @@ async function generatePriceLabels(context: Context) {
 }
 
 export async function getPriceLabels(context: Context) {
+  const { config, logger } = context;
   const { pricingLabels, priceLabels } = await generatePriceLabels(context);
 
-  // List all the labels for a repository
   const allLabels = await listLabelsForRepo(context);
 
-  const incorrectPriceLabels = allLabels.filter((label) => label.name.startsWith("Price: ") && !priceLabels.some((o) => o.name === label.name));
+  if (config.autoLabeling.enabled) {
+    logger.info("Auto-labeling is enabled, incorrect price labels will be skipped.");
+    return { incorrectPriceLabels: [], allLabels, pricingLabels };
+  }
+
+  const incorrectPriceLabels = allLabels.filter(
+    (label) => label.name.startsWith("Price: ") && !priceLabels.some((validLabel) => validLabel.name === label.name)
+  );
+
   return { incorrectPriceLabels, allLabels, pricingLabels };
 }
 
 export async function syncPriceLabelsToConfig(context: Context): Promise<void> {
-  const { logger } = context;
+  const { logger, config } = context;
   const owner = context.payload.repository.owner?.login;
 
   if (!owner) {
@@ -57,6 +65,15 @@ export async function syncPriceLabelsToConfig(context: Context): Promise<void> {
 
   const { allLabels, pricingLabels, incorrectPriceLabels } = await getPriceLabels(context);
 
+  // Check for auto-labeling trigger label
+  if (config.autoLabeling.enabled) {
+    try {
+      await checkAutoLabelingTrigger(context, allLabels, config.autoLabeling.triggerLabel);
+    } catch (error) {
+      logger.error("Error checking auto-labeling trigger label", { err: error });
+      throw error;
+    }
+  }
   const incorrectColorPriceLabels = allLabels.filter((label) => label.name.startsWith("Price: ") && label.color !== COLORS.price);
 
   // Update incorrect color labels
@@ -87,6 +104,29 @@ export async function syncPriceLabelsToConfig(context: Context): Promise<void> {
     logger.info(`Creating missing labels done`);
   } else if (incorrectPriceLabels.length > 0) {
     await deleteLabelsFromRepository(context, incorrectPriceLabels);
+  }
+}
+
+// Checks if the auto-labeling trigger label needs to be added to the repository based on the config
+async function checkAutoLabelingTrigger(context: Context, allLabels: Label[], autoPricingLabel: string) {
+  const { logger, config } = context;
+  if (config.autoLabeling.enabled) {
+    const isAutoLabelPresent = allLabels.some((label) => label.name === autoPricingLabel);
+    if (!isAutoLabelPresent) {
+      logger.info(`Auto-labeling trigger label "${autoPricingLabel}" not found, creating it.`);
+      await createLabel(context, autoPricingLabel, "default");
+    } else {
+      logger.info(`Auto-labeling trigger label "${autoPricingLabel}" already exists.`);
+    }
+  } else {
+    // Remove the auto-labeling trigger label if it exists
+    const isAutoLabelPresent = allLabels.some((label) => label.name === autoPricingLabel);
+    if (isAutoLabelPresent) {
+      await deleteLabelsFromRepository(
+        context,
+        allLabels.filter((label) => label.name === autoPricingLabel)
+      );
+    }
   }
 }
 
