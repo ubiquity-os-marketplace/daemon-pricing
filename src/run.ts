@@ -2,7 +2,8 @@ import { globalLabelUpdate } from "./handlers/global-config-update";
 import { onLabelChangeSetPricing } from "./handlers/pricing-label";
 import { syncPriceLabelsToConfig } from "./handlers/sync-labels-to-config";
 import { Context } from "./types/context";
-import { isIssueLabelEvent } from "./types/typeguards";
+import { isIssueCommentEvent, isIssueLabelEvent } from "./types/typeguards";
+import { time } from "./utils/time";
 
 export function isLocalEnvironment() {
   return process.env.NODE_ENV === "local";
@@ -20,6 +21,11 @@ export async function run(context: Context) {
   const { eventName, logger } = context;
 
   switch (eventName) {
+    case "issue_comment.created":
+      if (isWorkerOrLocalEnvironment() && isIssueCommentEvent(context)) {
+        await time(context);
+      }
+      break;
     case "issues.opened":
     case "repository.created":
       if (isGithubOrLocalEnvironment()) {

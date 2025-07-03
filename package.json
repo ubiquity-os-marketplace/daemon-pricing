@@ -19,7 +19,7 @@
     "knip-ci": "knip --no-exit-code --reporter json --config .github/knip.ts",
     "prepare": "node .husky/install.mjs",
     "test": "cross-env NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" jest --setupFiles dotenv/config --coverage",
-    "run": "bun run --watch --no-clear-screen src/worker.ts",
+    "dev": "bun --watch --no-clear-screen --port 4001 src/worker.ts",
     "start": "func start --port 4001",
     "prestart": "bun run build",
     "build": "tsup",
@@ -43,7 +43,8 @@
     "@ubiquity-os/ubiquity-os-logger": "^1.4.0",
     "decimal.js": "^10.4.3",
     "dotenv": "^16.4.5",
-    "hono": "^4.6.7"
+    "hono": "^4.6.7",
+    "ms": "^2.1.3"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.5.0",
@@ -55,6 +56,7 @@
     "@jest/globals": "^29.7.0",
     "@mswjs/data": "0.16.1",
     "@types/jest": "^29.5.14",
+    "@types/ms": "^2.1.0",
     "@types/node": "^20.11.19",
     "@typescript-eslint/eslint-plugin": "^8.20.0",
     "@typescript-eslint/parser": "^8.20.0",

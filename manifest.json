@@ -9,6 +9,21 @@
     "label.edited",
     "push"
   ],
+  "commands": {
+    "time": {
+      "ubiquity:example": "/time 1 Day",
+      "description": "Sets the time label for the given task.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "duration": {
+            "description": "The duration of the task.",
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
   "skipBotEvents": false,
   "configuration": {
     "default": {},
