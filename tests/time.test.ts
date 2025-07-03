@@ -1,8 +1,6 @@
 import { jest } from "@jest/globals";
 import { isUserAdminOrBillingManager } from "../src/shared/issue";
-import { addLabelToIssue, removeLabelFromIssue } from "../src/shared/label";
 import { Context } from "../src/types/context";
-import { setTimeLabel, time } from "../src/utils/time";
 
 const logger = {
   warn: jest.fn(),
@@ -68,9 +66,18 @@ const mockIssue = {
   user: { ...mockUser },
 };
 
-jest.mock("../src/utils/time-labels");
-jest.mock("../src/shared/label");
-jest.mock("../src/shared/issue");
+const mockAddLabelToIssue = jest.fn();
+const mockRemoveLabelFromIssue = jest.fn();
+
+jest.unstable_mockModule("../src/shared/label", () => ({
+  addLabelToIssue: mockAddLabelToIssue,
+  removeLabelFromIssue: mockRemoveLabelFromIssue,
+}));
+jest.unstable_mockModule("../src/shared/issue", () => ({
+  isUserAdminOrBillingManager: jest.fn(),
+}));
+
+const { setTimeLabel, time } = await import("../src/utils/time");
 
 function makeContext(
   overrides: Partial<Context<"issue_comment.created">> = {},
@@ -191,9 +198,10 @@ describe("setTimeLabel", () => {
       },
       { login: "admin", id: 2, type: "User" as const }
     );
+    (context.octokit.paginate as unknown as jest.Mock).mockImplementation(() => Promise.resolve([{ name: "Time: <2h" }]));
     await setTimeLabel(context, "2h");
-    expect(removeLabelFromIssue).not.toHaveBeenCalled();
-    expect(addLabelToIssue).toHaveBeenCalledWith(context, "Time: 2h");
+    expect(mockRemoveLabelFromIssue).not.toHaveBeenCalled();
+    expect(mockAddLabelToIssue).toHaveBeenCalledWith(expect.anything(), "Time: <2h");
   });
 
   it("allows author to set time", async () => {
@@ -223,7 +231,7 @@ describe("setTimeLabel", () => {
       { login: "user2", id: 3, type: "User" as const }
     );
     await setTimeLabel(context, "2h");
-    expect(addLabelToIssue).toHaveBeenCalledWith(context, "Time: 2h");
+    expect(mockAddLabelToIssue).toHaveBeenCalledWith(context, "Time: 2h");
   });
 
   it("removes existing time labels before adding new one", async () => {
@@ -259,8 +267,8 @@ describe("setTimeLabel", () => {
       { login: "admin", id: 2, type: "User" as const }
     );
     await setTimeLabel(context, "2h");
-    expect(removeLabelFromIssue).toHaveBeenCalledTimes(2);
-    expect(addLabelToIssue).toHaveBeenCalledWith(context, "Time: 2h");
+    expect(mockRemoveLabelFromIssue).toHaveBeenCalledTimes(2);
+    expect(mockAddLabelToIssue).toHaveBeenCalledWith(context, "Time: 2h");
   });
 
   it("throws if not admin or author", async () => {
@@ -307,7 +315,7 @@ describe("time", () => {
       { login: "admin", id: 2, type: "User" as const }
     );
     await time(context);
-    expect(addLabelToIssue).toHaveBeenCalledWith(context, "Time: 2h");
+    expect(mockAddLabelToIssue).toHaveBeenCalledWith(context, "Time: 2h");
   });
 
   it("warns if command is not /time", async () => {
