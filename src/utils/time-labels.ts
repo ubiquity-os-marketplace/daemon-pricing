@@ -18,6 +18,10 @@ export async function findClosestTimeLabel(context: Context, input: string): Pro
     throw logger.warn(`The provided time \`${input}\` is invalid.`, { input });
   }
 
+  if (!context.payload.repository.owner) {
+    throw logger.warn("No owner was found in the payload.");
+  }
+
   const labels = await context.octokit.paginate(context.octokit.rest.issues.listLabelsForRepo, {
     owner: context.payload.repository.owner.login,
     repo: context.payload.repository.name,
