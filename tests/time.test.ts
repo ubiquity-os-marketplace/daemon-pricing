@@ -1,5 +1,4 @@
 import { jest } from "@jest/globals";
-import { isUserAdminOrBillingManager } from "../src/shared/issue";
 import { Context } from "../src/types/context";
 
 const logger = {
@@ -74,7 +73,7 @@ jest.unstable_mockModule("../src/shared/label", () => ({
   removeLabelFromIssue: mockRemoveLabelFromIssue,
 }));
 jest.unstable_mockModule("../src/shared/issue", () => ({
-  isUserAdminOrBillingManager: jest.fn(),
+  isUserAdminOrBillingManager: jest.fn(() => "admin"),
 }));
 
 const { setTimeLabel, time } = await import("../src/utils/time");
@@ -157,8 +156,8 @@ describe("setTimeLabel", () => {
     jest.clearAllMocks();
     const { findClosestTimeLabel } = await import("../src/utils/time-labels");
     const { isUserAdminOrBillingManager } = await import("../src/shared/issue");
-    (findClosestTimeLabel as jest.Mock<() => Promise<string>>).mockResolvedValue("Time: 2h");
-    (isUserAdminOrBillingManager as jest.Mock<() => Promise<boolean>>).mockResolvedValue(false);
+    (findClosestTimeLabel as jest.Mock<() => Promise<string>>).mockResolvedValue("Time: <2h");
+    (isUserAdminOrBillingManager as jest.Mock<() => Promise<string>>).mockResolvedValue("admin");
   });
 
   it("throws if not issue comment event", async () => {
@@ -230,13 +229,14 @@ describe("setTimeLabel", () => {
       },
       { login: "user2", id: 3, type: "User" as const }
     );
+    (context.octokit.paginate as unknown as jest.Mock).mockImplementation(() => Promise.resolve([{ name: "Time: <2h" }]));
     await setTimeLabel(context, "2h");
-    expect(mockAddLabelToIssue).toHaveBeenCalledWith(context, "Time: 2h");
+    expect(mockAddLabelToIssue).toHaveBeenCalledWith(context, "Time: <2h");
   });
 
   it("removes existing time labels before adding new one", async () => {
     const { isUserAdminOrBillingManager } = await import("../src/shared/issue");
-    (isUserAdminOrBillingManager as jest.Mock<() => Promise<boolean>>).mockResolvedValue(true);
+    (isUserAdminOrBillingManager as jest.Mock<() => Promise<string>>).mockResolvedValue("admin");
     const context = makeContext(
       {
         payload: {
@@ -266,9 +266,10 @@ describe("setTimeLabel", () => {
       },
       { login: "admin", id: 2, type: "User" as const }
     );
+    (context.octokit.paginate as unknown as jest.Mock).mockImplementation(() => Promise.resolve([{ name: "Time: <2h" }]));
     await setTimeLabel(context, "2h");
     expect(mockRemoveLabelFromIssue).toHaveBeenCalledTimes(2);
-    expect(mockAddLabelToIssue).toHaveBeenCalledWith(context, "Time: 2h");
+    expect(mockAddLabelToIssue).toHaveBeenCalledWith(context, "Time: <2h");
   });
 
   it("throws if not admin or author", async () => {
@@ -279,11 +280,12 @@ describe("setTimeLabel", () => {
 
 describe("time", () => {
   beforeEach(async () => {
+    jest.clearAllMocks();
     jest.unstable_mockModule("../src/utils/time-labels", () => ({
       findClosestTimeLabel: jest.fn(),
     }));
-    jest.clearAllMocks();
     const { findClosestTimeLabel } = await import("../src/utils/time-labels");
+    const { isUserAdminOrBillingManager } = await import("../src/shared/issue");
     (findClosestTimeLabel as jest.Mock<() => Promise<string>>).mockResolvedValue("Time: 2h");
     (isUserAdminOrBillingManager as jest.Mock<() => Promise<boolean>>).mockResolvedValue(true);
   });
@@ -314,8 +316,9 @@ describe("time", () => {
       },
       { login: "admin", id: 2, type: "User" as const }
     );
+    (context.octokit.paginate as unknown as jest.Mock).mockImplementation(() => Promise.resolve([{ name: "Time: <2h" }]));
     await time(context);
-    expect(mockAddLabelToIssue).toHaveBeenCalledWith(context, "Time: 2h");
+    expect(mockAddLabelToIssue).toHaveBeenCalledWith(context, "Time: <2h");
   });
 
   it("warns if command is not /time", async () => {
