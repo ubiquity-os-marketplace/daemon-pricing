@@ -10,6 +10,12 @@ const logger = {
   error: jest.fn(),
   debug: jest.fn(),
 };
+(logger.warn as jest.Mock).mockImplementation((...args: unknown[]) => {
+  const msg = String(args[0]);
+  if (msg.includes("can only be used in issue comments") || msg.includes("Only admins or the issue author can set time estimates.")) {
+    throw new Error(msg);
+  }
+});
 
 const mockReactions = {
   "+1": 0,
@@ -73,6 +79,36 @@ function makeContext(
 ): Context<"issue_comment.created"> {
   const user = { ...mockUser, ...userOverride };
   const issue = { ...mockIssue, ...issueOverride };
+  const octokit = {
+    rest: {
+      issues: {
+        addLabels: jest.fn(),
+        removeLabel: jest.fn(),
+        createLabel: jest.fn(),
+        listLabelsForRepo: jest.fn(),
+      },
+      repos: {
+        getCollaboratorPermissionLevel: jest.fn(() => ({
+          data: {
+            permission: "admin",
+          },
+        })),
+        listForOrg: jest.fn(),
+        getCommit: jest.fn(),
+      },
+      orgs: {
+        checkMembershipForUser: jest.fn(),
+        getMembershipForUser: jest.fn(),
+      },
+      git: {
+        getRef: jest.fn(),
+        getCommit: jest.fn(),
+        createCommit: jest.fn(),
+        updateRef: jest.fn(),
+      },
+    },
+    paginate: jest.fn(),
+  };
   return {
     logger,
     payload: {
@@ -98,6 +134,7 @@ function makeContext(
         performed_via_github_app: null,
       },
     },
+    octokit,
     ...overrides,
   } as unknown as Context<"issue_comment.created">;
 }
@@ -119,7 +156,7 @@ describe("setTimeLabel", () => {
 
   it("throws if not issue comment event", async () => {
     jest.resetModules();
-    jest.doMock("../src/types/typeguards", () => ({
+    jest.unstable_mockModule("../src/types/typeguards", () => ({
       isIssueCommentEvent: () => false,
     }));
     const context = makeContext();
@@ -128,7 +165,7 @@ describe("setTimeLabel", () => {
 
   it("allows admin to set time", async () => {
     const { isUserAdminOrBillingManager } = await import("../src/shared/issue");
-    (isUserAdminOrBillingManager as jest.Mock<() => Promise<boolean>>).mockResolvedValue(true);
+    (isUserAdminOrBillingManager as jest.Mock<() => Promise<string>>).mockResolvedValue("admin");
     const context = makeContext(
       {
         payload: {
