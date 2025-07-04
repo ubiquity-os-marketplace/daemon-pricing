@@ -19,7 +19,7 @@
     "knip-ci": "knip --no-exit-code --reporter json --config .github/knip.ts",
     "prepare": "node .husky/install.mjs",
     "test": "cross-env NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" jest --setupFiles dotenv/config --coverage",
-    "dev": "bun --watch --no-clear-screen --port 4001 src/worker.ts",
+    "dev": "bun run --watch --no-clear-screen --port 4001 src/worker.ts",
     "start": "func start --port 4001",
     "prestart": "bun run build",
     "build": "tsup",
