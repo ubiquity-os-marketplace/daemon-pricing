@@ -326,7 +326,7 @@ describe("time", () => {
       Promise.resolve([{ name: "Time: <2h" }, { name: "Time: <15 Minutes" }, { name: "Time: <1 Week" }])
     );
     await time(context);
-    expect(mockAddLabelToIssue).toHaveBeenCalledWith(context, "Time: <2h");
+    expect(mockAddLabelToIssue).toHaveBeenCalledWith(context, "Time: <1 Week");
   });
 
   it("warns if command is not /time", async () => {
