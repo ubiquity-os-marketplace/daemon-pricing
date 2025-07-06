@@ -197,7 +197,9 @@ describe("setTimeLabel", () => {
       },
       { login: "admin", id: 2, type: "User" as const }
     );
-    (context.octokit.paginate as unknown as jest.Mock).mockImplementation(() => Promise.resolve([{ name: "Time: <2h" }]));
+    (context.octokit.paginate as unknown as jest.Mock).mockImplementation(() =>
+      Promise.resolve([{ name: "Time: <2h" }, { name: "Time: <15 Minutes" }, { name: "Time: <1 Week" }])
+    );
     await setTimeLabel(context, "2h");
     expect(mockRemoveLabelFromIssue).not.toHaveBeenCalled();
     expect(mockAddLabelToIssue).toHaveBeenCalledWith(expect.anything(), "Time: <2h");
@@ -229,7 +231,9 @@ describe("setTimeLabel", () => {
       },
       { login: "user2", id: 3, type: "User" as const }
     );
-    (context.octokit.paginate as unknown as jest.Mock).mockImplementation(() => Promise.resolve([{ name: "Time: <2h" }]));
+    (context.octokit.paginate as unknown as jest.Mock).mockImplementation(() =>
+      Promise.resolve([{ name: "Time: <2h" }, { name: "Time: <15 Minutes" }, { name: "Time: <1 Week" }])
+    );
     await setTimeLabel(context, "2h");
     expect(mockAddLabelToIssue).toHaveBeenCalledWith(context, "Time: <2h");
   });
@@ -266,7 +270,9 @@ describe("setTimeLabel", () => {
       },
       { login: "admin", id: 2, type: "User" as const }
     );
-    (context.octokit.paginate as unknown as jest.Mock).mockImplementation(() => Promise.resolve([{ name: "Time: <2h" }]));
+    (context.octokit.paginate as unknown as jest.Mock).mockImplementation(() =>
+      Promise.resolve([{ name: "Time: <2h" }, { name: "Time: <15 Minutes" }, { name: "Time: <1 Week" }])
+    );
     await setTimeLabel(context, "2h");
     expect(mockRemoveLabelFromIssue).toHaveBeenCalledTimes(2);
     expect(mockAddLabelToIssue).toHaveBeenCalledWith(context, "Time: <2h");
@@ -316,7 +322,9 @@ describe("time", () => {
       },
       { login: "admin", id: 2, type: "User" as const }
     );
-    (context.octokit.paginate as unknown as jest.Mock).mockImplementation(() => Promise.resolve([{ name: "Time: <2h" }]));
+    (context.octokit.paginate as unknown as jest.Mock).mockImplementation(() =>
+      Promise.resolve([{ name: "Time: <2h" }, { name: "Time: <15 Minutes" }, { name: "Time: <1 Week" }])
+    );
     await time(context);
     expect(mockAddLabelToIssue).toHaveBeenCalledWith(context, "Time: <2h");
   });
