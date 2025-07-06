@@ -4,6 +4,17 @@ import { Context } from "../types/context";
 import { isIssueCommentEvent } from "../types/typeguards";
 import { findClosestTimeLabel } from "./time-labels";
 
+async function isUserAnOrgMember(context: Context, username: string) {
+  if (!context.payload.organization) return false;
+
+  const { data: membership } = await context.octokit.rest.orgs.getMembershipForUser({
+    org: context.payload.organization.login,
+    username,
+  });
+
+  return membership.role === "member";
+}
+
 export async function setTimeLabel(context: Context, timeInput: string) {
   if (!isIssueCommentEvent(context)) {
     throw context.logger.warn("The `/time` command can only be used in issue comments.");
@@ -15,9 +26,10 @@ export async function setTimeLabel(context: Context, timeInput: string) {
   const userAssociation = await isUserAdminOrBillingManager(context, sender);
   const isAdmin = !!userAssociation;
   const isAuthor = sender === issueAuthor;
+  const isOrgMember = await isUserAnOrgMember(context, sender);
 
-  if (!isAdmin && !isAuthor) {
-    throw logger.warn("Only admins or the issue author can set time estimates.");
+  if (!isAdmin && !isAuthor && !isOrgMember) {
+    throw logger.warn("Only admins, collaborators, or the issue author can set time estimates.");
   }
 
   const timeLabel = await findClosestTimeLabel(context, timeInput);
