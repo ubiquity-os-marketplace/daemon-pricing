@@ -17,6 +17,16 @@ export function isWorkerOrLocalEnvironment() {
   return isLocalEnvironment() || !process.env.GITHUB_ACTIONS;
 }
 
+export async function handleCommand(context: Context) {
+  if (!context.command) {
+    throw new Error("No command found in the context.");
+  }
+
+  if (context.command.name === "time" && isIssueCommentEvent(context)) {
+    await time(context);
+  }
+}
+
 export async function run(context: Context) {
   const { eventName, logger } = context;
 
