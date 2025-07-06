@@ -13,7 +13,13 @@ export function parseTimeLabel(label: string): number | null {
 export async function findClosestTimeLabel(context: Context, input: string): Promise<string> {
   const { logger } = context;
 
-  const targetMs = ms(input);
+  let normalizedInput = input.trim();
+  // Accept decimals and optionally a unit (e.g., "1.5 week", "4.5")
+  // We assume "days" as the default unit if none is provided
+  if (/^\d+(\.\d+)?$/.test(normalizedInput)) {
+    normalizedInput += " days";
+  }
+  const targetMs = ms(normalizedInput);
   if (!targetMs) {
     throw logger.warn(`The provided time \`${input}\` is invalid.`, { input });
   }
