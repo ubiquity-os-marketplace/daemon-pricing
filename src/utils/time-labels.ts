@@ -39,11 +39,14 @@ export async function findClosestTimeLabel(context: Context, input: string): Pro
     throw logger.warn(`No valid time labels matching \`${input}\` was found in the repository.`, { labels });
   }
 
-  const closest = validLabels.reduce((best, current) => {
-    const currentDiff = Math.abs(current.ms - targetMs);
-    const bestDiff = Math.abs(best.ms - targetMs);
-    return currentDiff < bestDiff ? current : best;
-  }, validLabels[0]);
+  const higherOrEqualTimeLabels = validLabels.filter((l) => l.ms >= targetMs);
+  let closest;
+  if (higherOrEqualTimeLabels.length > 0) {
+    closest = higherOrEqualTimeLabels.reduce((best, current) => (current.ms < best.ms ? current : best), higherOrEqualTimeLabels[0]);
+  } else {
+    // Fallback if we do not have an equal or higher label than the user input
+    closest = validLabels.reduce((best, current) => (current.ms > best.ms ? current : best), validLabels[0]);
+  }
 
   logger.info("Selected time label", {
     input,
