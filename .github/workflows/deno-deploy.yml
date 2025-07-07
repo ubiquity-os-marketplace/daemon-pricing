@@ -23,6 +23,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ubiquity-os/deno-plugin-adapter@main
         id: adapter
+        with:
+          pluginEntry: './worker'
       - uses: ubiquity-os/deno-deploy@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
