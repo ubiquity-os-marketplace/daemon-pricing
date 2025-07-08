@@ -4,15 +4,63 @@ import { Context } from "../types/context";
 import { isIssueCommentEvent } from "../types/typeguards";
 import { findClosestTimeLabel } from "./time-labels";
 
+// These correspond to getMembershipForUser and getCollaboratorPermissionLevel for a user.
+// Anything outside these values is considered to be a contributor (external user).
+export const ADMIN_ROLES = ["admin", "owner", "billing_manager"];
+export const COLLABORATOR_ROLES = ["write", "member", "collaborator", "maintain"];
+
+export function isAdminRole(role: string) {
+  return ADMIN_ROLES.includes(role.toLowerCase());
+}
+
+export function isCollaboratorRole(role: string) {
+  return COLLABORATOR_ROLES.includes(role.toLowerCase());
+}
+
+export function getTransformedRole(role: string) {
+  role = role.toLowerCase();
+  if (isAdminRole(role)) {
+    return "admin";
+  } else if (isCollaboratorRole(role)) {
+    return "collaborator";
+  }
+  return "contributor";
+}
+
 async function isUserAnOrgMember(context: Context, username: string) {
-  if (!context.payload.organization) return false;
+  const { octokit, logger } = context;
+  const orgLogin = context.payload.organization?.login;
+  const owner = context.payload.repository.owner?.login;
 
-  const { data: membership } = await context.octokit.rest.orgs.getMembershipForUser({
-    org: context.payload.organization.login,
+  if (!orgLogin) {
+    logger.warn("No organization was found in the payload, cannot determine the user's membership.");
+    return false;
+  }
+
+  try {
+    await octokit.rest.orgs.getMembershipForUser({
+      org: orgLogin,
+      username,
+    });
+    return true;
+  } catch (err) {
+    logger.error("Could not get user membership", { err });
+  }
+
+  if (!owner) {
+    logger.warn("No owner was found in the repository, cannot determine the user's membership.");
+    return false;
+  }
+
+  // If we failed to get organization membership, narrow down to the repository role
+  const permissionLevel = await octokit.rest.repos.getCollaboratorPermissionLevel({
     username,
+    owner,
+    repo: context.payload.repository.name,
   });
-
-  return membership.role === "member";
+  const role = permissionLevel.data.role_name?.toLowerCase();
+  logger.info(`Retrieved the role for ${username}: ${role}`);
+  return getTransformedRole(role) !== "contributor";
 }
 
 export async function setTimeLabel(context: Context, timeInput: string) {
