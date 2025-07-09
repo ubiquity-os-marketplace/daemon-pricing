@@ -1,4 +1,3 @@
-import { isUserAdminOrBillingManager } from "../shared/issue";
 import { addLabelToIssue, removeLabelFromIssue } from "../shared/label";
 import { Context } from "../types/context";
 import { isIssueCommentEvent } from "../types/typeguards";
@@ -71,12 +70,10 @@ export async function setTimeLabel(context: Context, timeInput: string) {
 
   const sender = payload.sender.login;
   const issueAuthor = payload.issue.user.login;
-  const userAssociation = await isUserAdminOrBillingManager(context, sender);
-  const isAdmin = !!userAssociation;
   const isAuthor = sender === issueAuthor;
   const isOrgMember = await isUserAnOrgMember(context, sender);
 
-  if (!isAdmin && !isAuthor && !isOrgMember) {
+  if (!isAuthor && !isOrgMember) {
     throw logger.warn("Only admins, collaborators, or the issue author can set time estimates.");
   }
 
