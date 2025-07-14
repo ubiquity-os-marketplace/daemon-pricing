@@ -31,19 +31,16 @@ async function isUserAnOrgMember(context: Context, username: string) {
   const orgLogin = context.payload.organization?.login;
   const owner = context.payload.repository.owner?.login;
 
-  if (!orgLogin) {
-    logger.warn("No organization was found in the payload, cannot determine the user's membership.");
-    return false;
-  }
-
-  try {
-    await octokit.rest.orgs.getMembershipForUser({
-      org: orgLogin,
-      username,
-    });
-    return true;
-  } catch (err) {
-    logger.error("Could not get user membership", { err });
+  if (orgLogin) {
+    try {
+      await octokit.rest.orgs.getMembershipForUser({
+        org: orgLogin,
+        username,
+      });
+      return true;
+    } catch (err) {
+      logger.error("Could not get user membership", { err });
+    }
   }
 
   if (!owner) {

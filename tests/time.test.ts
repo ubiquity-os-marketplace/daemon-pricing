@@ -97,6 +97,7 @@ function makeContext(
         getCollaboratorPermissionLevel: jest.fn(() => ({
           data: {
             permission: "admin",
+            role_name: "write",
           },
         })),
         listForOrg: jest.fn(),
