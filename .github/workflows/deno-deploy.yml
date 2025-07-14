@@ -9,14 +9,6 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     name: Deploy
-    environment: >-
-      ${{
-        (github.event.ref == "refs/heads/main" || 
-         github.ref == "refs/heads/main" || 
-         github.event.workflow_run.head_branch == "main") && 
-        "main" || 
-        "development"
-      }}
     permissions:
       contents: write
       id-token: write
