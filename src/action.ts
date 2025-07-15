@@ -1,11 +1,12 @@
 import { createActionsPlugin } from "@ubiquity-os/plugin-sdk";
 import { LOG_LEVEL, LogLevel } from "@ubiquity-os/ubiquity-os-logger";
 import { run } from "./run";
+import { Command } from "./types/command";
 import { SupportedEvents } from "./types/context";
 import { Env, envSchema } from "./types/env";
 import { AssistivePricingSettings, pluginSettingsSchema } from "./types/plugin-input";
 
-createActionsPlugin<AssistivePricingSettings, Env, null, SupportedEvents>(
+createActionsPlugin<AssistivePricingSettings, Env, Command, SupportedEvents>(
   (context) => {
     return run(context);
   },

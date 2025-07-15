@@ -1,13 +1,14 @@
 import { createAppAuth } from "@octokit/auth-app";
 import { Octokit } from "@octokit/rest";
 import { createPlugin } from "@ubiquity-os/plugin-sdk";
-import { customOctokit } from "@ubiquity-os/plugin-sdk/octokit";
 import { Manifest } from "@ubiquity-os/plugin-sdk/manifest";
+import { customOctokit } from "@ubiquity-os/plugin-sdk/octokit";
 import { LOG_LEVEL, LogLevel } from "@ubiquity-os/ubiquity-os-logger";
 import { Hono } from "hono";
 import { handle } from "hono/vercel";
 import manifest from "../manifest.json" with { type: "json" };
 import { isLocalEnvironment, run } from "../src/run";
+import { Command } from "../src/types/command";
 import { Context, SupportedEvents } from "../src/types/context";
 import { Env, envSchema } from "../src/types/env";
 import { AssistivePricingSettings, pluginSettingsSchema } from "../src/types/plugin-input";
@@ -75,7 +76,7 @@ async function startAction(context: Context, inputs: Record<string, unknown>) {
 // eslint-disable-next-line func-style
 export const POST = (request: Request) => {
   const responseClone = request.clone();
-  const pluginApp = createPlugin<AssistivePricingSettings, Env, null, SupportedEvents>(
+  const pluginApp = createPlugin<AssistivePricingSettings, Env, Command, SupportedEvents>(
     async (context) => {
       switch (context.eventName) {
         case "issues.opened":

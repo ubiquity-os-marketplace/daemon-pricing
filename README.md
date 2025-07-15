@@ -11,14 +11,12 @@ The daemon-pricing service is a Cloudflare Workers-based application that automa
 ### Core Components
 
 1. **Plugin System**
-
    - Built on `@ubiquity-os/plugin-sdk` for standardized plugin architecture
    - Handles GitHub webhook events using `@octokit/webhooks`
    - Supports environment-specific configurations through `envSchema`
    - Implements error handling with automatic issue commenting
 
 2. **Label Management System**
-
    - Automated pricing label creation and management
    - Supports time-based and priority-based labeling
    - Implements hierarchical label organization
@@ -26,7 +24,6 @@ The daemon-pricing service is a Cloudflare Workers-based application that automa
    - Automatic price calculation based on time and priority labels
 
 3. **Permission System**
-
    - Fine-grained access control for label management
    - Collaborator-specific label permissions
    - Public access control configuration

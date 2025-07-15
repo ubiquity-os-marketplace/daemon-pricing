@@ -8,7 +8,8 @@ import type { ExecutionContext } from "hono";
 import { env as honoEnv } from "hono/adapter";
 import manifest from "../manifest.json";
 import { getPricing, getPriorityTime } from "./handlers/get-priority-time";
-import { isLocalEnvironment, run } from "./run";
+import { handleCommand, isLocalEnvironment, run } from "./run";
+import { Command } from "./types/command";
 import { Context, SupportedEvents } from "./types/context";
 import { Env, envSchema } from "./types/env";
 import { AssistivePricingSettings, pluginSettingsSchema } from "./types/plugin-input";
@@ -76,8 +77,11 @@ export default {
     // It is important to clone the request because the body is read within createPlugin as well
     const responseClone = request.clone();
 
-    const app = createPlugin<AssistivePricingSettings, Env, null, SupportedEvents>(
+    const app = createPlugin<AssistivePricingSettings, Env, Command, SupportedEvents>(
       async (context) => {
+        if (context.command) {
+          return handleCommand(context);
+        }
         switch (context.eventName) {
           case "issues.opened":
           case "repository.created":
@@ -105,7 +109,7 @@ export default {
         settingsSchema: pluginSettingsSchema,
         logLevel: (env.LOG_LEVEL as LogLevel) || LOG_LEVEL.INFO,
         kernelPublicKey: env.KERNEL_PUBLIC_KEY as string,
-        bypassSignatureVerification: env.NODE_ENV === "local",
+        bypassSignatureVerification: process.env.NODE_ENV === "local",
       }
     );
 
