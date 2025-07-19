@@ -1,5 +1,35 @@
 # Changelog
 
+## [4.4.0](https://github.com/ubiquity-os-marketplace/daemon-pricing/compare/v4.3.0...v4.4.0) (2025-06-03)
+
+
+### Features
+
+* added deno support ([2c0606c](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/2c0606c3297c035476a360fb451e46f1c33c574f))
+* deno ([e002504](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/e002504015fe024aaa994797efbc4dc6caa6b02e))
+
+## [4.3.0](https://github.com/ubiquity-os-marketplace/daemon-pricing/compare/v4.2.0...v4.3.0) (2025-05-16)
+
+
+### Features
+
+* add api auto pricing ([00b6d03](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/00b6d031d8a1fb047ca0bbf531cc3e1399cd244d))
+* add api auto pricing ([12dad3d](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/12dad3de4b62a6d79a72485de56c36110f8f4739))
+* add api auto pricing ([5efa302](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/5efa3020ba425a0d6fa71819afe03b0b728e0acf))
+* azure deploy ([324af09](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/324af09d8d05b9da666e357cd8ad4ac50d16fae3))
+
+
+### Bug Fixes
+
+* **ci:** remove excluded ACTIONS_ prefix from secrets filter ([3b114b3](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/3b114b3c0ffe2e8ebdaadfbf1bd956043bc69a7c))
+* fixed environment for Azure and Husky ([ab7e113](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/ab7e11340b461e04d7dc0e12493c3b25cc78754e))
+* **husky:** comment out unused Husky script import ([1941b86](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/1941b86baac8ac8c1ea3fc6c3c0bfffc409973fa))
+* remove paraphrasing comments & apiUrl -&gt; basetenApiUrl ([7ecaf04](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/7ecaf04a972ed5b7da42d8bb4902891185e91bab))
+* remove paraphrasing comments & apiUrl -&gt; basetenApiUrl ([c3e474b](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/c3e474bb21e55b0c80a511d4a294480244fef810))
+* require BASTEN_API_URL ([aaf5199](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/aaf5199e346c3b064016a381ac40bc81eed0a0d2))
+* require BASTEN_API_URL ([6c43ef4](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/6c43ef4086b5385e67ef81d166416406b1d9bdbf))
+* **vercel-deploy:** handle multiple environments dynamically ([54370e4](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/54370e4836fbaf0d32699dca24c513a8ea3d1b17))
+
 ## [4.2.0](https://github.com/ubiquity-os-marketplace/daemon-pricing/compare/v4.1.1...v4.2.0) (2025-04-20)
 
 
