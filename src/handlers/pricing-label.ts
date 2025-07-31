@@ -10,6 +10,7 @@ import { extractLabelPattern } from "./label-checks";
 
 async function removeUnauthorizedLabel(context: Context) {
   if (!isIssueLabelEvent(context)) {
+    context.logger.debug("The event is not an issue label event, cannot remove unauthorized labels.");
     return;
   }
   const owner = context.payload.repository.owner?.login;
