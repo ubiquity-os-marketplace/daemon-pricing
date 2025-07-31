@@ -25,7 +25,7 @@ async function removeUnauthorizedLabel(context: Context) {
         name: labelToRemove,
       });
       context.logger.info("Removed unauthorized label from issue", { label: labelToRemove });
-    } catch (err: unknown) {
+    } catch (err) {
       context.logger.error("Failed to remove unauthorized label from issue", { err, label: labelToRemove });
     }
   }

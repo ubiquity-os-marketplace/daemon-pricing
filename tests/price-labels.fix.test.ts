@@ -38,22 +38,11 @@ describe("Pricing labels", () => {
         },
         sender: { type: "User" },
         label: { name: "" },
-      } as unknown as Context["payload"],
+      },
       eventName: "issues.labeled",
       commentHandler: {
-        // _lastCommentId: null,
-        // _updateIssueComment: jest.fn(),
-        // _updateReviewComment: jest.fn(),
-        // _createNewComment: jest.fn(),
-        // _createNewReviewComment: jest.fn(),
-        // _createReaction: jest.fn(),
-        // _deleteComment: jest.fn(),
-        // _deleteReaction: jest.fn(),
-        // _getComments: jest.fn(),
-        // _getReviewComments: jest.fn(),
-        // _getReactions: jest.fn(),
         postComment: jest.fn(async () => null),
-      } as unknown as Context["commentHandler"],
+      },
       octokit: {
         rest: {
           issues: {
@@ -62,8 +51,8 @@ describe("Pricing labels", () => {
           },
         },
         paginate: jest.fn(async () => []),
-      } as unknown as Context["octokit"],
-    };
+      },
+    } as unknown as Context;
     return { ...(base as Context), ...(overrides as Context) };
   }
 
@@ -106,12 +95,12 @@ describe("Pricing labels", () => {
       eventName: "issues.labeled",
       payload: {
         repository: { owner: { login: "owner" }, name: "repo", html_url: "https://github.com/owner/repo" },
-        organization: { login: "some-org" } as unknown as Context["payload"]["organization"],
+        organization: { login: "some-org" },
         issue: { number: 11, body: "Body", labels: [{ name: "Priority: 1 (Normal)" } as Label] },
         label: { name: "Priority: 1 (Normal)" },
         sender: { type: "User", login: "someone" },
-      } as unknown as Context["payload"],
-      commentHandler: { postComment } as unknown as Context["commentHandler"],
+      },
+      commentHandler: { postComment },
       octokit: {
         rest: {
           issues: {
@@ -128,8 +117,8 @@ describe("Pricing labels", () => {
             })),
           },
         },
-      } as unknown as Context["octokit"],
-    });
+      },
+    } as unknown as Context);
 
     await run(context);
 
