@@ -1,12 +1,36 @@
 import { addLabelToIssue, clearAllPriceLabelsOnIssue, createLabel, listLabelsForRepo, removeLabelFromIssue } from "../shared/label";
 import { labelAccessPermissionsCheck } from "../shared/permissions";
-import { Label, UserType } from "../types/github";
 import { getPrice } from "../shared/pricing";
-import { handleParentIssue, isParentIssue, sortLabelsByValue } from "./handle-parent-issue";
+import { Context } from "../types/context";
+import { Label, UserType } from "../types/github";
 import { AssistivePricingSettings } from "../types/plugin-input";
 import { isIssueLabelEvent } from "../types/typeguards";
-import { Context } from "../types/context";
+import { handleParentIssue, isParentIssue, sortLabelsByValue } from "./handle-parent-issue";
 import { extractLabelPattern } from "./label-checks";
+
+async function removeUnauthorizedLabel(context: Context) {
+  if (!isIssueLabelEvent(context)) {
+    context.logger.debug("The event is not an issue label event, cannot remove unauthorized labels.");
+    return;
+  }
+  const owner = context.payload.repository.owner?.login;
+  const repo = context.payload.repository.name;
+  const issueNumber = context.payload.issue.number;
+  const labelToRemove = context.payload.label?.name;
+  if (labelToRemove && owner) {
+    try {
+      await context.octokit.rest.issues.removeLabel({
+        owner,
+        repo,
+        issue_number: issueNumber,
+        name: labelToRemove,
+      });
+      context.logger.info("Removed unauthorized label from issue", { label: labelToRemove });
+    } catch (err) {
+      context.logger.error("Failed to remove unauthorized label from issue", { err, label: labelToRemove });
+    }
+  }
+}
 
 export async function onLabelChangeSetPricing(context: Context): Promise<void> {
   if (!isIssueLabelEvent(context)) {
@@ -36,6 +60,7 @@ export async function onLabelChangeSetPricing(context: Context): Promise<void> {
   if (!hasPermission) {
     if (context.eventName === "issues.labeled" && context.payload.sender?.type !== "Bot") {
       await context.commentHandler.postComment(context, logger.warn("You are not allowed to set labels."));
+      await removeUnauthorizedLabel(context);
     }
     return;
   }
