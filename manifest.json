@@ -1,14 +1,7 @@
 {
   "name": "Assistive pricing",
   "description": "Handles assistive pricing, and allows for users to modify labels.",
-  "ubiquity:listeners": [
-    "repository.created",
-    "issues.opened",
-    "issues.labeled",
-    "issues.unlabeled",
-    "label.edited",
-    "push"
-  ],
+  "ubiquity:listeners": ["repository.created", "issues.opened", "issues.labeled", "issues.unlabeled", "label.edited", "push"],
   "commands": {
     "time": {
       "ubiquity:example": "/time 1 Day",
@@ -34,10 +27,7 @@
         "type": "object",
         "properties": {
           "excludeRepos": {
-            "examples": [
-              "repo-name",
-              "no-owner-required"
-            ],
+            "examples": ["repo-name", "no-owner-required"],
             "description": "List of repositories to exclude from being updated",
             "type": "array",
             "items": {
@@ -45,9 +35,7 @@
             }
           }
         },
-        "required": [
-          "excludeRepos"
-        ]
+        "required": ["excludeRepos"]
       },
       "labels": {
         "default": {},
@@ -86,18 +74,13 @@
               "type": "object",
               "properties": {
                 "name": {
-                  "examples": [
-                    "Time: <2 Hours",
-                    "Time: <1 Week"
-                  ],
+                  "examples": ["Time: <2 Hours", "Time: <1 Week"],
                   "description": "The display name of the label representing estimated task length",
                   "pattern": "^Time:\\s<?\\d+\\s\\S+$",
                   "type": "string"
                 }
               },
-              "required": [
-                "name"
-              ]
+              "required": ["name"]
             }
           },
           "priority": {
@@ -133,10 +116,7 @@
               "type": "object",
               "properties": {
                 "name": {
-                  "examples": [
-                    "Priority: 1 (Normal)",
-                    "Priority: 5 (Emergency)"
-                  ],
+                  "examples": ["Priority: 1 (Normal)", "Priority: 5 (Emergency)"],
                   "description": "The display name of the label representing task priority",
                   "type": "string"
                 },
@@ -146,17 +126,13 @@
                   "type": "boolean"
                 }
               },
-              "required": [
-                "name"
-              ]
+              "required": ["name"]
             }
           }
         }
       },
       "basePriceMultiplier": {
-        "examples": [
-          1.5
-        ],
+        "examples": [1.5],
         "default": 1,
         "description": "The base price multiplier for all tasks",
         "type": "number"
@@ -168,5 +144,5 @@
       }
     }
   },
-  "homepage_url": "https://daemon-pricing-main.deno.dev"
+  "homepage_url": "https://daemon-pricing-development.deno.dev"
 }
