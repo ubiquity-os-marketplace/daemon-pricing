@@ -1,0 +1,64 @@
+diff --git a/dist/compression.js b/dist/compression.js
+index 5893d9f5f7267f11c5d23316f6cec26f376c8bd4..8fa5c703cb16d476416e82235184c586d5ead4f0 100644
+--- a/dist/compression.js
++++ b/dist/compression.js
+@@ -26,6 +26,7 @@ __export(compression_exports, {
+ module.exports = __toCommonJS(compression_exports);
+ var import_brotli = require("brotli");
+ function compressString(str) {
++  console.log("==> received string: ", str)
+   const input = Buffer.from(str, "utf8");
+   const compressed = (0, import_brotli.compress)(input);
+   return Buffer.from(compressed).toString("base64");
+diff --git a/dist/compression.mjs b/dist/compression.mjs
+index 0bed52553f04e87a3619a490befd35b97d3d1ae7..2914baa47cc6ec7806de1eef3a75f0e5033c2877 100644
+--- a/dist/compression.mjs
++++ b/dist/compression.mjs
+@@ -1,6 +1,7 @@
+ // src/helpers/compression.ts
+ import { compress, decompress } from "brotli";
+ function compressString(str) {
++  console.log("==> MJS received string: ", str)
+   const input = Buffer.from(str, "utf8");
+   const compressed = compress(input);
+   return Buffer.from(compressed).toString("base64");
+diff --git a/dist/index.js b/dist/index.js
+index 2e281c39447d008effdeca276064e567b342fb07..3b64fca2d0967d34593b5d9a1bb875294a9c1eaf 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -527,6 +527,7 @@ async function createActionsPlugin(handler, options) {
+   try {
+     const result = await handler(context2);
+     core.setOutput("result", result);
++    console.log(">>>>> outputs: ", result);
+     await returnDataToKernel(pluginGithubToken, inputs.stateId, result);
+   } catch (error) {
+     await handleError(context2, pluginOptions, error);
+@@ -534,6 +535,7 @@ async function createActionsPlugin(handler, options) {
+ }
+ async function returnDataToKernel(repoToken, stateId, output) {
+   const octokit = new customOctokit({ auth: repoToken });
++  console.log(">>>>> outputs2: ", result);
+   await octokit.rest.repos.createDispatchEvent({
+     owner: github2.context.repo.owner,
+     repo: github2.context.repo.repo,
+diff --git a/dist/index.mjs b/dist/index.mjs
+index 4272976aa73423b4e0035bac0127591c0098b24b..89f08726fdb4e131328801b339ac565b4afe2181 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -489,6 +489,7 @@ async function createActionsPlugin(handler, options) {
+   try {
+     const result = await handler(context2);
+     core.setOutput("result", result);
++    console.log(">>>>> outputs: ", result);
+     await returnDataToKernel(pluginGithubToken, inputs.stateId, result);
+   } catch (error) {
+     await handleError(context2, pluginOptions, error);
+@@ -496,6 +497,7 @@ async function createActionsPlugin(handler, options) {
+ }
+ async function returnDataToKernel(repoToken, stateId, output) {
+   const octokit = new customOctokit({ auth: repoToken });
++  console.log(">>>>> outputs2: ", result);
+   await octokit.rest.repos.createDispatchEvent({
+     owner: github2.context.repo.owner,
+     repo: github2.context.repo.repo,

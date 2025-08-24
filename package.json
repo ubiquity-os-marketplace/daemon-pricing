@@ -95,5 +95,8 @@
     "extends": [
       "@commitlint/config-conventional"
     ]
+  },
+  "patchedDependencies": {
+    "@ubiquity-os/plugin-sdk@3.2.1": "patches/@ubiquity-os%2Fplugin-sdk@3.2.1.patch"
   }
 }
