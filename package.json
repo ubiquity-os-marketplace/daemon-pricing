@@ -39,7 +39,7 @@
     "@octokit/auth-app": "^7.1.4",
     "@octokit/rest": "^20.1.0",
     "@sinclair/typebox": "0.34.3",
-    "@ubiquity-os/plugin-sdk": "^3.2.1",
+    "@ubiquity-os/plugin-sdk": "^3.2.2",
     "@ubiquity-os/ubiquity-os-logger": "^1.4.0",
     "decimal.js": "^10.4.3",
     "dotenv": "^16.4.5",
@@ -95,8 +95,5 @@
     "extends": [
       "@commitlint/config-conventional"
     ]
-  },
-  "patchedDependencies": {
-    "@ubiquity-os/plugin-sdk@3.2.1": "patches/@ubiquity-os%2Fplugin-sdk@3.2.1.patch"
   }
 }
