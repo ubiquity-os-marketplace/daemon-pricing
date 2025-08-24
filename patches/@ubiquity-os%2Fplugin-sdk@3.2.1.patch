@@ -1,3 +1,6 @@
+diff --git a/node_modules/@ubiquity-os/plugin-sdk/.bun-tag-2f3164b4fab72c5c b/.bun-tag-2f3164b4fab72c5c
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
 diff --git a/dist/compression.js b/dist/compression.js
 index 5893d9f5f7267f11c5d23316f6cec26f376c8bd4..8fa5c703cb16d476416e82235184c586d5ead4f0 100644
 --- a/dist/compression.js
@@ -23,7 +26,7 @@ index 0bed52553f04e87a3619a490befd35b97d3d1ae7..2914baa47cc6ec7806de1eef3a75f0e5
    const compressed = compress(input);
    return Buffer.from(compressed).toString("base64");
 diff --git a/dist/index.js b/dist/index.js
-index 2e281c39447d008effdeca276064e567b342fb07..3b64fca2d0967d34593b5d9a1bb875294a9c1eaf 100644
+index 2e281c39447d008effdeca276064e567b342fb07..63ab5406aadb8b7f80c6e1312d74b5eed9ff4574 100644
 --- a/dist/index.js
 +++ b/dist/index.js
 @@ -527,6 +527,7 @@ async function createActionsPlugin(handler, options) {
@@ -38,19 +41,19 @@ index 2e281c39447d008effdeca276064e567b342fb07..3b64fca2d0967d34593b5d9a1bb87529
  }
  async function returnDataToKernel(repoToken, stateId, output) {
    const octokit = new customOctokit({ auth: repoToken });
-+  console.log(">>>>> outputs2: ", result);
++  console.log(">>>>> outputs2: ", output);
    await octokit.rest.repos.createDispatchEvent({
      owner: github2.context.repo.owner,
      repo: github2.context.repo.repo,
 diff --git a/dist/index.mjs b/dist/index.mjs
-index 4272976aa73423b4e0035bac0127591c0098b24b..89f08726fdb4e131328801b339ac565b4afe2181 100644
+index 4272976aa73423b4e0035bac0127591c0098b24b..f1ef03b04be3a1166feb190cff70e2c4dfd071aa 100644
 --- a/dist/index.mjs
 +++ b/dist/index.mjs
 @@ -489,6 +489,7 @@ async function createActionsPlugin(handler, options) {
    try {
      const result = await handler(context2);
      core.setOutput("result", result);
-+    console.log(">>>>> outputs: ", result);
++    console.log(">>>>> MJS outputs: ", result);
      await returnDataToKernel(pluginGithubToken, inputs.stateId, result);
    } catch (error) {
      await handleError(context2, pluginOptions, error);
@@ -58,7 +61,7 @@ index 4272976aa73423b4e0035bac0127591c0098b24b..89f08726fdb4e131328801b339ac565b
  }
  async function returnDataToKernel(repoToken, stateId, output) {
    const octokit = new customOctokit({ auth: repoToken });
-+  console.log(">>>>> outputs2: ", result);
++  console.log(">>>>> outputs2: ", output);
    await octokit.rest.repos.createDispatchEvent({
      owner: github2.context.repo.owner,
      repo: github2.context.repo.repo,
