@@ -1,6 +1,9 @@
 diff --git a/node_modules/@ubiquity-os/plugin-sdk/.bun-tag-2f3164b4fab72c5c b/.bun-tag-2f3164b4fab72c5c
 new file mode 100644
 index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/node_modules/@ubiquity-os/plugin-sdk/.bun-tag-8211c6dcfe806cdf b/.bun-tag-8211c6dcfe806cdf
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
 diff --git a/dist/compression.js b/dist/compression.js
 index 5893d9f5f7267f11c5d23316f6cec26f376c8bd4..8fa5c703cb16d476416e82235184c586d5ead4f0 100644
 --- a/dist/compression.js
@@ -46,10 +49,18 @@ index 2e281c39447d008effdeca276064e567b342fb07..63ab5406aadb8b7f80c6e1312d74b5ee
      owner: github2.context.repo.owner,
      repo: github2.context.repo.repo,
 diff --git a/dist/index.mjs b/dist/index.mjs
-index 4272976aa73423b4e0035bac0127591c0098b24b..f1ef03b04be3a1166feb190cff70e2c4dfd071aa 100644
+index 4272976aa73423b4e0035bac0127591c0098b24b..8b01f5a7a0b111811c77ba2e766fe66b34e7bdd7 100644
 --- a/dist/index.mjs
 +++ b/dist/index.mjs
-@@ -489,6 +489,7 @@ async function createActionsPlugin(handler, options) {
+@@ -318,6 +318,7 @@ function getCommand(inputs, pluginOptions) {
+ // src/helpers/compression.ts
+ import { compress, decompress } from "brotli";
+ function compressString(str) {
++  console.log("Received string MJS: ", str);
+   const input = Buffer.from(str, "utf8");
+   const compressed = compress(input);
+   return Buffer.from(compressed).toString("base64");
+@@ -489,6 +490,7 @@ async function createActionsPlugin(handler, options) {
    try {
      const result = await handler(context2);
      core.setOutput("result", result);
@@ -57,11 +68,11 @@ index 4272976aa73423b4e0035bac0127591c0098b24b..f1ef03b04be3a1166feb190cff70e2c4
      await returnDataToKernel(pluginGithubToken, inputs.stateId, result);
    } catch (error) {
      await handleError(context2, pluginOptions, error);
-@@ -496,6 +497,7 @@ async function createActionsPlugin(handler, options) {
+@@ -496,6 +498,7 @@ async function createActionsPlugin(handler, options) {
  }
  async function returnDataToKernel(repoToken, stateId, output) {
    const octokit = new customOctokit({ auth: repoToken });
-+  console.log(">>>>> outputs2: ", output);
++  console.log(">>>>> outputs2: ", output, JSON.stringify(output));
    await octokit.rest.repos.createDispatchEvent({
      owner: github2.context.repo.owner,
      repo: github2.context.repo.repo,
