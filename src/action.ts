@@ -7,8 +7,11 @@ import { Env, envSchema } from "./types/env";
 import { AssistivePricingSettings, pluginSettingsSchema } from "./types/plugin-input";
 
 createActionsPlugin<AssistivePricingSettings, Env, Command, SupportedEvents>(
-  (context) => {
-    return run(context);
+  async (context) => {
+    const result = await run(context);
+    console.log("/=====/");
+    console.log(result);
+    return result;
   },
   {
     envSchema: envSchema,
