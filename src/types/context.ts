@@ -10,6 +10,7 @@ export type SupportedEvents =
   | "issues.opened"
   | "label.edited"
   | "issue_comment.created"
-  | "push";
+  | "push"
+  | "issues.transferred";
 
 export type Context<T extends SupportedEvents = SupportedEvents> = PluginContext<AssistivePricingSettings, Env, Command, T>;

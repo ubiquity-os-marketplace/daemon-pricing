@@ -4,7 +4,7 @@ import { getPrice } from "../shared/pricing";
 import { Context } from "../types/context";
 import { Label, UserType } from "../types/github";
 import { AssistivePricingSettings } from "../types/plugin-input";
-import { isIssueLabelEvent } from "../types/typeguards";
+import { isIssueLabelEvent, isIssueTransferEvent } from "../types/typeguards";
 import { handleParentIssue, isParentIssue, sortLabelsByValue } from "./handle-parent-issue";
 import { extractLabelPattern } from "./label-checks";
 
@@ -32,26 +32,36 @@ async function removeUnauthorizedLabel(context: Context) {
   }
 }
 
-export async function onLabelChangeSetPricing(context: Context): Promise<void> {
-  if (!isIssueLabelEvent(context)) {
-    context.logger.debug("Not an issue event");
-    return;
-  }
-  const config = context.config;
-  const logger = context.logger;
-  const payload = context.payload;
-  const owner = payload.repository.owner?.login;
-  if (!owner) {
-    logger.error("No owner found in the repository");
-    return;
-  }
-  const labels = payload.issue.labels;
-  if (!labels) {
-    logger.info(`No labels to calculate price`);
+export async function onIssueTransferredUpdatePricing(context: Context) {
+  if (!isIssueTransferEvent(context)) {
+    context.logger.warn("Not an issue transfer event");
     return;
   }
 
-  if (payload.issue.body && isParentIssue(payload.issue.body)) {
+  const newIssue = context.payload.changes.new_issue;
+  const labels = newIssue.labels;
+
+  if (!labels?.length) {
+    context.logger.warn("No labels were found to calculate the issue's price.");
+    return;
+  }
+  await updateLabels(context, labels, newIssue);
+}
+
+async function updateLabels(
+  context: Context,
+  labels: Label[],
+  issue: Context<"issues.transferred" | "issues.labeled" | "issues.unlabeled">["payload"]["issue"],
+  label?: Label
+) {
+  const { payload, logger, config } = context;
+
+  if (!payload.repository.owner?.login) {
+    logger.warn("No owner was found in the repository.");
+    return;
+  }
+
+  if (issue.body && isParentIssue(issue.body)) {
     await handleParentIssue(context, labels);
     return;
   }
@@ -66,7 +76,7 @@ export async function onLabelChangeSetPricing(context: Context): Promise<void> {
   }
 
   // here we should make an exception if it was a price label that was just set to just skip this action
-  const isPayloadToSetPrice = payload.label?.name.includes("Price: ");
+  const isPayloadToSetPrice = label?.name.includes("Price: ");
   if (isPayloadToSetPrice) {
     logger.info("This is setting the price label directly so skipping the rest of the action.");
 
@@ -79,9 +89,9 @@ export async function onLabelChangeSetPricing(context: Context): Promise<void> {
     if (smallestPriceLabelName) {
       for (const label of sortedPriceLabels) {
         await context.octokit.rest.issues.removeLabel({
-          owner,
+          owner: payload.repository.owner?.login,
           repo: payload.repository.name,
-          issue_number: payload.issue.number,
+          issue_number: issue.number,
           name: label.name,
         });
       }
@@ -91,6 +101,26 @@ export async function onLabelChangeSetPricing(context: Context): Promise<void> {
   }
 
   await setPriceLabel(context, labels, config);
+}
+
+export async function onLabelChangeSetPricing(context: Context): Promise<void> {
+  if (!isIssueLabelEvent(context)) {
+    context.logger.debug("Not an issue event");
+    return;
+  }
+  const logger = context.logger;
+  const payload = context.payload;
+  const owner = payload.repository.owner?.login;
+  if (!owner) {
+    logger.error("No owner found in the repository");
+    return;
+  }
+  const labels = payload.issue.labels;
+  if (!labels) {
+    logger.info(`No labels to calculate price`);
+    return;
+  }
+  await updateLabels(context, labels, payload.issue, payload.label);
 }
 
 export async function setPriceLabel(context: Context, issueLabels: Label[], config: AssistivePricingSettings) {
