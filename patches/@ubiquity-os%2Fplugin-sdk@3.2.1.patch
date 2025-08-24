@@ -1,6 +1,9 @@
 diff --git a/node_modules/@ubiquity-os/plugin-sdk/.bun-tag-2f3164b4fab72c5c b/.bun-tag-2f3164b4fab72c5c
 new file mode 100644
 index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/node_modules/@ubiquity-os/plugin-sdk/.bun-tag-7ffbe7f3c78882e6 b/.bun-tag-7ffbe7f3c78882e6
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
 diff --git a/node_modules/@ubiquity-os/plugin-sdk/.bun-tag-8211c6dcfe806cdf b/.bun-tag-8211c6dcfe806cdf
 new file mode 100644
 index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
@@ -49,18 +52,22 @@ index 2e281c39447d008effdeca276064e567b342fb07..63ab5406aadb8b7f80c6e1312d74b5ee
      owner: github2.context.repo.owner,
      repo: github2.context.repo.repo,
 diff --git a/dist/index.mjs b/dist/index.mjs
-index 4272976aa73423b4e0035bac0127591c0098b24b..8b01f5a7a0b111811c77ba2e766fe66b34e7bdd7 100644
+index 4272976aa73423b4e0035bac0127591c0098b24b..dc67d043129023b1b6da7e8d3ba63268179450ae 100644
 --- a/dist/index.mjs
 +++ b/dist/index.mjs
-@@ -318,6 +318,7 @@ function getCommand(inputs, pluginOptions) {
+@@ -318,8 +318,11 @@ function getCommand(inputs, pluginOptions) {
  // src/helpers/compression.ts
  import { compress, decompress } from "brotli";
  function compressString(str) {
 +  console.log("Received string MJS: ", str);
    const input = Buffer.from(str, "utf8");
++  console.log("Received string MJS 2: ", input);
    const compressed = compress(input);
++  console.log("Received string MJS 3: ", compressed);
    return Buffer.from(compressed).toString("base64");
-@@ -489,6 +490,7 @@ async function createActionsPlugin(handler, options) {
+ }
+ function decompressString(compressed) {
+@@ -489,6 +492,7 @@ async function createActionsPlugin(handler, options) {
    try {
      const result = await handler(context2);
      core.setOutput("result", result);
@@ -68,7 +75,7 @@ index 4272976aa73423b4e0035bac0127591c0098b24b..8b01f5a7a0b111811c77ba2e766fe66b
      await returnDataToKernel(pluginGithubToken, inputs.stateId, result);
    } catch (error) {
      await handleError(context2, pluginOptions, error);
-@@ -496,6 +498,7 @@ async function createActionsPlugin(handler, options) {
+@@ -496,6 +500,7 @@ async function createActionsPlugin(handler, options) {
  }
  async function returnDataToKernel(repoToken, stateId, output) {
    const octokit = new customOctokit({ auth: repoToken });
