@@ -4,7 +4,7 @@ import { getPrice } from "../shared/pricing";
 import { Context } from "../types/context";
 import { Label, UserType } from "../types/github";
 import { AssistivePricingSettings } from "../types/plugin-input";
-import { isIssueLabelEvent, isIssueTransferEvent } from "../types/typeguards";
+import { isIssueLabelEvent, isIssueOpenedEvent } from "../types/typeguards";
 import { handleParentIssue, isParentIssue, sortLabelsByValue } from "./handle-parent-issue";
 import { extractLabelPattern } from "./label-checks";
 
@@ -33,12 +33,12 @@ async function removeUnauthorizedLabel(context: Context) {
 }
 
 export async function onIssueTransferredUpdatePricing(context: Context) {
-  if (!isIssueTransferEvent(context)) {
+  if (!isIssueOpenedEvent(context)) {
     context.logger.warn("Not an issue transfer event");
     return;
   }
 
-  const newIssue = context.payload.changes.new_issue;
+  const newIssue = context.payload.issue;
   const labels = newIssue.labels;
 
   if (!labels?.length) {
@@ -51,7 +51,7 @@ export async function onIssueTransferredUpdatePricing(context: Context) {
 async function updateLabels(
   context: Context,
   labels: Label[],
-  issue: Context<"issues.transferred" | "issues.labeled" | "issues.unlabeled">["payload"]["issue"],
+  issue: Context<"issues.opened" | "issues.labeled" | "issues.unlabeled">["payload"]["issue"],
   label?: Label
 ) {
   const { payload, logger, config } = context;

@@ -36,15 +36,16 @@ export async function run(context: Context) {
         await time(context);
       }
       break;
-    case "issues.opened":
+    case "issues.opened": {
+      if (isGithubOrLocalEnvironment()) {
+        await syncPriceLabelsToConfig(context);
+        await onIssueTransferredUpdatePricing(context);
+      }
+      break;
+    }
     case "repository.created":
       if (isGithubOrLocalEnvironment()) {
         await syncPriceLabelsToConfig(context);
-      }
-      break;
-    case "issues.transferred":
-      if (isWorkerOrLocalEnvironment()) {
-        await onIssueTransferredUpdatePricing(context);
       }
       break;
     case "issues.labeled":
