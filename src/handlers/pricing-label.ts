@@ -163,10 +163,13 @@ export async function setPriceLabel(context: Context, issueLabels: Label[], conf
 
   if (targetPriceLabel) {
     await handleTargetPriceLabel(context, { name: targetPriceLabel, description: null }, labelNames);
-    await clearAllPriceLabelsOnIssue(context);
     logger.info(`Skipping action...`, {
       repo: context.payload.repository.html_url,
+      targetPriceLabel,
     });
+  } else {
+    await clearAllPriceLabelsOnIssue(context);
+    logger.info("Cleared all price labels because target price label is missing.");
   }
 }
 

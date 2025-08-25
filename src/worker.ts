@@ -93,6 +93,7 @@ export default {
               return startAction(context, text);
             }
           }
+          case "issues.transferred":
           case "issues.labeled":
           case "issues.unlabeled": {
             return run(context);

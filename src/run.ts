@@ -36,7 +36,7 @@ export async function run(context: Context) {
         await time(context);
       }
       break;
-    // case "issues.opened":
+    case "issues.opened":
     case "repository.created":
       if (isGithubOrLocalEnvironment()) {
         await syncPriceLabelsToConfig(context);
