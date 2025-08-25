@@ -32,7 +32,7 @@ async function removeUnauthorizedLabel(context: Context) {
   }
 }
 
-export async function onIssueTransferredUpdatePricing(context: Context) {
+export async function onIssueOpenedUpdatePricing(context: Context) {
   if (!isIssueOpenedEvent(context)) {
     context.logger.warn("Not an issue transfer event");
     return;
