@@ -7,7 +7,7 @@ import { Env, envSchema } from "./types/env";
 import { AssistivePricingSettings, pluginSettingsSchema } from "./types/plugin-input";
 
 createActionsPlugin<AssistivePricingSettings, Env, Command, SupportedEvents>(
-  async (context) => {
+  (context) => {
     return run(context);
   },
   {
