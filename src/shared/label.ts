@@ -91,6 +91,9 @@ export async function clearAllPriceLabelsOnIssue(context: Context) {
 export async function addLabelToIssue(context: Context, labelName: string) {
   const payload = context.payload;
   if (!("issue" in payload) || !payload.issue) {
+    context.logger.warn("No issue was found in the payload.", {
+      event: context.eventName,
+    });
     return;
   }
 
