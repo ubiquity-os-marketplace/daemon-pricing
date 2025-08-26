@@ -20,11 +20,13 @@ jobs:
           branch_name=$(echo '${{ github.event.ref || github.event.workflow_run.head_branch || github.ref }}' | sed 's#refs/heads/##')
           echo "ACTION_REF=${GITHUB_REPOSITORY}@${branch_name}" >> $GITHUB_ENV
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+
       - uses: ubiquity-os/deno-plugin-adapter@main
         id: adapter
         with:
           pluginEntry: "./worker"
+
       - uses: ubiquity-os/deno-deploy@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -33,6 +35,7 @@ jobs:
           APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
           APP_INSTALLATION_ID: ${{ secrets.APP_INSTALLATION_ID }}
           ACTION_REF: ${{ env.ACTION_REF }}
+          LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
         with:
           token: ${{ secrets.DENO_DEPLOY_TOKEN }}
           action: ${{ github.event_name == 'delete' && 'delete' || 'deploy' }}
