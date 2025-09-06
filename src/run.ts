@@ -1,5 +1,5 @@
 import { globalLabelUpdate } from "./handlers/global-config-update";
-import { onLabelChangeSetPricing } from "./handlers/pricing-label";
+import { onIssueOpenedUpdatePricing, onLabelChangeSetPricing } from "./handlers/pricing-label";
 import { syncPriceLabelsToConfig } from "./handlers/sync-labels-to-config";
 import { Context } from "./types/context";
 import { isIssueCommentEvent, isIssueLabelEvent } from "./types/typeguards";
@@ -36,7 +36,13 @@ export async function run(context: Context) {
         await time(context);
       }
       break;
-    case "issues.opened":
+    case "issues.opened": {
+      if (isGithubOrLocalEnvironment()) {
+        await syncPriceLabelsToConfig(context);
+        await onIssueOpenedUpdatePricing(context);
+      }
+      break;
+    }
     case "repository.created":
       if (isGithubOrLocalEnvironment()) {
         await syncPriceLabelsToConfig(context);

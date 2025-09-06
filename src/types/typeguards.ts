@@ -9,6 +9,10 @@ export function isIssueLabelEvent(context: Context): context is Context & {
   return context.eventName === "issues.labeled" || context.eventName === "issues.unlabeled";
 }
 
+export function isIssueOpenedEvent(context: Context): context is Context<"issues.opened"> {
+  return context.eventName === "issues.opened";
+}
+
 export function isIssueCommentEvent(context: Context): context is Context<"issue_comment.created"> {
   return "issue" in context.payload;
 }

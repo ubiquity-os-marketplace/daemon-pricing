@@ -78,6 +78,9 @@ describe("Pricing labels", () => {
       isIssueLabelEvent: function isIssueLabelEvent() {
         return true;
       },
+      isIssueOpenedEvent: function isIssueOpenedEvent() {
+        return true;
+      },
     }));
     jest.unstable_mockModule("../src/handlers/handle-parent-issue", () => ({
       isParentIssue: function isParentIssue() {
