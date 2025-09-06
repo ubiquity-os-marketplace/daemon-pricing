@@ -1,10 +1,14 @@
 import { extractLabelPattern } from "../handlers/label-checks";
 import { Context } from "../types/context";
 import { UserType } from "../types/github";
-import { isIssueLabelEvent } from "../types/typeguards";
+import { isIssueLabelEvent, isIssueOpenedEvent } from "../types/typeguards";
 import { isUserAdminOrBillingManager } from "./issue";
 
 export async function labelAccessPermissionsCheck(context: Context) {
+  // On transfer, there is no specific label in the payload, so we can just check user status
+  if (isIssueOpenedEvent(context)) {
+    return isUserAdminOrBillingManager(context, context.payload.sender?.login);
+  }
   if (!isIssueLabelEvent(context)) {
     context.logger.debug("Not an issue event");
     return false;
