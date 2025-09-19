@@ -87,7 +87,8 @@ async function getUserRank(context: Context<"issue_comment.created">, username: 
 interface IssueEvent {
   event: string;
   label?: { name?: string } | null;
-  actor?: { login?: string } | null;
+  actor?: { login?: string; type?: string } | null;
+  created_at?: string;
 }
 
 async function getLastTimeLabelSetter(context: Context<"issue_comment.created">): Promise<{ user?: string; rank?: Rank } | null> {
@@ -108,8 +109,35 @@ async function getLastTimeLabelSetter(context: Context<"issue_comment.created">)
   if (!last) return null;
   const user = last.actor?.login as string | undefined;
   if (!user) return { user: undefined, rank: undefined };
-  const rank = await getUserRank(context, user);
-  return { user, rank };
+  const isBot = last.actor?.type === "Bot";
+  if (!isBot) {
+    const rank = await getUserRank(context, user);
+    return { user, rank };
+  }
+
+  // If a bot applied the label, try to infer the human initiator by scanning the latest '/time' comment before this event
+  try {
+    const comments = (await context.octokit.paginate(context.octokit.rest.issues.listComments, {
+      owner,
+      repo,
+      issue_number: issueNumber,
+      per_page: 100,
+    })) as Array<{ body?: string; user?: { login?: string }; created_at?: string }>;
+    const lastEventTime = last.created_at ? new Date(last.created_at).getTime() : Number.POSITIVE_INFINITY;
+    const timeCmdRegex = /^\s*\/time\b/i;
+    const initiator = comments
+      .filter((c) => c.body && timeCmdRegex.test(c.body) && (!c.created_at || new Date(c.created_at).getTime() <= lastEventTime))
+      .slice(-1)[0];
+    if (initiator?.user?.login) {
+      const rank = await getUserRank(context, initiator.user.login);
+      return { user: initiator.user.login, rank };
+    }
+  } catch {
+    // ignore and fallback
+  }
+
+  // Fallback: treat bot as the highest rank
+  return { user, rank: "admin" };
 }
 
 export async function setTimeLabel(context: Context, timeInput: string) {
