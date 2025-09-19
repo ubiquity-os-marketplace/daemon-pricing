@@ -107,7 +107,7 @@ async function getLastTimeLabelSetter(context: Context<"issue_comment.created">)
     .reverse();
   const last = labeledEvents[0];
   if (!last) return null;
-  const user = last.actor?.login as string | undefined;
+  const user = last.actor?.login;
   if (!user) return { user: undefined, rank: undefined };
   const isBot = last.actor?.type === "Bot";
   if (!isBot) {
@@ -162,7 +162,7 @@ export async function setTimeLabel(context: Context, timeInput: string) {
       const last = await getLastTimeLabelSetter(ctx);
       if (last?.user && last.user === sender) return;
       if (last?.rank !== undefined && rankWeight("author") > rankWeight(last.rank)) return;
-      throw context.logger.warn("Author cannot change time set by a higher or equal rank.");
+      throw context.logger.warn("The issue's author cannot change time set by a higher or equal rank.");
     }
     throw context.logger.warn("Contributors cannot change an existing time estimate.");
   }
