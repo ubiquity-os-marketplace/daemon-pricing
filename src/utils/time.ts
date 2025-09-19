@@ -7,7 +7,7 @@ import { findClosestTimeLabel } from "./time-labels";
 // These correspond to getMembershipForUser and getCollaboratorPermissionLevel for a user.
 // Anything outside these values is considered to be a contributor (external user).
 export const ADMIN_ROLES = ["admin", "owner", "billing_manager"];
-export const COLLABORATOR_ROLES = ["write", "member", "collaborator"];
+export const COLLABORATOR_ROLES = ["write", "member", "collaborator", "maintain"];
 
 export function isAdminRole(role: string) {
   return ADMIN_ROLES.includes(role.toLowerCase());
