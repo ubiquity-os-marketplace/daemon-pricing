@@ -11,7 +11,7 @@ const logger = {
   const msg = String(args[0]);
   if (
     msg.includes("The `/time` command can only be used in issue comments.") ||
-    msg.includes("Author cannot change time set by a higher or equal rank.") ||
+    msg.includes("The issue's author cannot change time set by a higher or equal rank.") ||
     msg.includes("Contributors cannot change an existing time estimate.")
   ) {
     throw new Error(msg);
@@ -199,7 +199,7 @@ describe("time label permissions hierarchy", () => {
       events: [{ event: "labeled", label: { name: "Time: <1h" }, actor: { login: "collab" } }],
     });
     await expect(setTimeLabel(ctx as unknown as Context<"issue_comment.created">, "2h")).rejects.toThrow(
-      "Author cannot change time set by a higher or equal rank."
+      "The issue's author cannot change time set by a higher or equal rank."
     );
   });
 
@@ -209,11 +209,11 @@ describe("time label permissions hierarchy", () => {
       authorLogin: "author",
       issueLabels: ["Time: <1h"],
       events: [
-        { event: "labeled", label: { name: "Time: <1h" }, actor: { login: "pricing-bot[bot]" as unknown as string } as unknown as { login: string } },
+        { event: "labeled", label: { name: "Time: <1h" }, actor: { login: "pricing-bot", type: "Bot" } as unknown as { login: string; type: string } },
       ] as unknown as Array<{ event: string; label?: { name: string }; actor?: { login: string; type: string } }>,
     });
     await expect(setTimeLabel(ctx as unknown as Context<"issue_comment.created">, "2h")).rejects.toThrow(
-      "Author cannot change time set by a higher or equal rank."
+      "The issue's author cannot change time set by a higher or equal rank."
     );
   });
 
