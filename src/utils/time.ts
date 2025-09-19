@@ -60,19 +60,12 @@ async function isUserAnOrgMember(context: Context, username: string) {
   return getTransformedRole(role) !== "contributor";
 }
 
-type Rank = "admin" | "collaborator" | "author" | "contributor";
+// Last in the array is the highest rank
+const RANK_ORDER = ["contributor", "author", "collaborator", "admin"] as const;
+type Rank = (typeof RANK_ORDER)[number];
 
 function rankWeight(rank: Rank) {
-  switch (rank) {
-    case "admin":
-      return 3;
-    case "collaborator":
-      return 2;
-    case "author":
-      return 1;
-    default:
-      return 0;
-  }
+  return RANK_ORDER.indexOf(rank);
 }
 
 async function getUserRank(context: Context<"issue_comment.created">, username: string): Promise<Rank> {
@@ -108,7 +101,9 @@ async function getLastTimeLabelSetter(context: Context<"issue_comment.created">)
     issue_number: issueNumber,
     per_page: 100,
   });
-  const labeledEvents = (events as IssueEvent[]).filter((e) => e.event === "labeled" && e.label?.name && String(e.label.name).startsWith("Time:")).reverse();
+  const labeledEvents = (events as IssueEvent[])
+    .filter((e) => e.event === "labeled" && e.label?.name && String(e.label.name).toLowerCase().startsWith("time:"))
+    .reverse();
   const last = labeledEvents[0];
   if (!last) return null;
   const user = last.actor?.login as string | undefined;
@@ -127,28 +122,27 @@ export async function setTimeLabel(context: Context, timeInput: string) {
   const sender = payload.sender.login;
 
   const currentLabels = payload.issue.labels.map((label) => label.name);
-  const existingTimeLabels = currentLabels.filter((label: string) => label.startsWith("Time:"));
+  const existingTimeLabels = currentLabels.filter((label: string) => label.toLowerCase().startsWith("time:"));
 
-  async function canSetTimeLabel(): Promise<true | Error> {
+  async function assertCanSetTimeLabel(): Promise<void> {
     if (existingTimeLabels.length === 0) {
-      return true;
+      return;
     }
     const senderRank = await getUserRank(ctx, sender);
-    if (senderRank === "admin" || senderRank === "collaborator") return true;
+    if (senderRank === "admin" || senderRank === "collaborator") return;
     if (senderRank === "author") {
       const last = await getLastTimeLabelSetter(ctx);
-      if (last?.user && last.user === sender) return true;
-      if (last?.rank !== undefined && rankWeight("author") > rankWeight(last.rank)) return true;
-      return new Error("Author cannot change time set by a higher or equal rank.");
+      if (last?.user && last.user === sender) return;
+      if (last?.rank !== undefined && rankWeight("author") > rankWeight(last.rank)) return;
+      throw context.logger.warn("Author cannot change time set by a higher or equal rank.");
     }
-    return new Error("Contributors cannot change an existing time estimate.");
+    throw context.logger.warn("Contributors cannot change an existing time estimate.");
   }
 
-  const permission = await canSetTimeLabel();
-  if (permission instanceof Error) throw permission;
+  await assertCanSetTimeLabel();
 
   const timeLabel = await findClosestTimeLabel(ctx, timeInput);
-  const timeLabels = currentLabels.filter((label: string) => label.startsWith("Time:"));
+  const timeLabels = currentLabels.filter((label: string) => label.toLowerCase().startsWith("time:"));
 
   for (const label of timeLabels) {
     await removeLabelFromIssue(ctx, label);
