@@ -162,9 +162,23 @@ export async function setTimeLabel(context: Context, timeInput: string) {
       const last = await getLastTimeLabelSetter(ctx);
       if (last?.user && last.user === sender) return;
       if (last?.rank !== undefined && rankWeight("author") > rankWeight(last.rank)) return;
-      throw context.logger.warn("The issue's author cannot change time set by a higher or equal rank.");
+      throw context.logger.warn("Insufficient permissions to change the time estimate.", {
+        reason: "author-higher-rank",
+        sender,
+        senderRank,
+        lastSetter: last?.user,
+        lastSetterRank: last?.rank,
+        existingTimeLabels,
+        requestedTimeInput: timeInput,
+      });
     }
-    throw context.logger.warn("Contributors cannot change an existing time estimate.");
+    throw context.logger.warn("Insufficient permissions to change the time estimate.", {
+      reason: "contributor-restriction",
+      sender,
+      senderRank,
+      existingTimeLabels,
+      requestedTimeInput: timeInput,
+    });
   }
 
   await assertCanSetTimeLabel();

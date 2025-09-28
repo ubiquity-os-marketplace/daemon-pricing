@@ -7,13 +7,10 @@ const logger = {
   error: jest.fn(),
   debug: jest.fn(),
 };
+const warnThrowMessages = ["The `/time` command can only be used in issue comments.", "Insufficient permissions to change the time estimate."];
 (logger.warn as jest.Mock).mockImplementation((...args: unknown[]) => {
   const msg = String(args[0]);
-  if (
-    msg.includes("The `/time` command can only be used in issue comments.") ||
-    msg.includes("The issue's author cannot change time set by a higher or equal rank.") ||
-    msg.includes("Contributors cannot change an existing time estimate.")
-  ) {
+  if (warnThrowMessages.some((text) => msg.includes(text))) {
     throw new Error(msg);
   }
 });
@@ -199,7 +196,19 @@ describe("time label permissions hierarchy", () => {
       events: [{ event: "labeled", label: { name: "Time: <1h" }, actor: { login: "collab" } }],
     });
     await expect(setTimeLabel(ctx as unknown as Context<"issue_comment.created">, "2h")).rejects.toThrow(
-      "The issue's author cannot change time set by a higher or equal rank."
+      "Insufficient permissions to change the time estimate."
+    );
+    expect(logger.warn).toHaveBeenCalledWith(
+      "Insufficient permissions to change the time estimate.",
+      expect.objectContaining({
+        reason: "author-higher-rank",
+        sender: "author",
+        senderRank: "author",
+        lastSetter: "collab",
+        lastSetterRank: "collaborator",
+        existingTimeLabels: expect.arrayContaining(["Time: <1h"]),
+        requestedTimeInput: "2h",
+      })
     );
   });
 
@@ -213,7 +222,19 @@ describe("time label permissions hierarchy", () => {
       ] as unknown as Array<{ event: string; label?: { name: string }; actor?: { login: string; type: string } }>,
     });
     await expect(setTimeLabel(ctx as unknown as Context<"issue_comment.created">, "2h")).rejects.toThrow(
-      "The issue's author cannot change time set by a higher or equal rank."
+      "Insufficient permissions to change the time estimate."
+    );
+    expect(logger.warn).toHaveBeenCalledWith(
+      "Insufficient permissions to change the time estimate.",
+      expect.objectContaining({
+        reason: "author-higher-rank",
+        sender: "author",
+        senderRank: "author",
+        lastSetter: "pricing-bot",
+        lastSetterRank: "admin",
+        existingTimeLabels: expect.arrayContaining(["Time: <1h"]),
+        requestedTimeInput: "2h",
+      })
     );
   });
 
@@ -237,7 +258,17 @@ describe("time label permissions hierarchy", () => {
       events: [{ event: "labeled", label: { name: "Time: <1h" }, actor: { login: "author" } }],
     });
     await expect(setTimeLabel(ctx as unknown as Context<"issue_comment.created">, "2h")).rejects.toThrow(
-      "Contributors cannot change an existing time estimate."
+      "Insufficient permissions to change the time estimate."
+    );
+    expect(logger.warn).toHaveBeenCalledWith(
+      "Insufficient permissions to change the time estimate.",
+      expect.objectContaining({
+        reason: "contributor-restriction",
+        sender: "outsider",
+        senderRank: "contributor",
+        existingTimeLabels: expect.arrayContaining(["Time: <1h"]),
+        requestedTimeInput: "2h",
+      })
     );
   });
 });
