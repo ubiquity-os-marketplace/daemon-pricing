@@ -1,3 +1,4 @@
+import { isUserAdminOrBillingManager } from "../shared/issue";
 import { addLabelToIssue, removeLabelFromIssue } from "../shared/label";
 import { Context } from "../types/context";
 import { isIssueCommentEvent } from "../types/typeguards";
@@ -59,29 +60,136 @@ async function isUserAnOrgMember(context: Context, username: string) {
   return getTransformedRole(role) !== "contributor";
 }
 
+// Last in the array is the highest rank
+const RANK_ORDER = ["contributor", "author", "collaborator", "admin"] as const;
+type Rank = (typeof RANK_ORDER)[number];
+
+function rankWeight(rank: Rank) {
+  return RANK_ORDER.indexOf(rank);
+}
+
+async function getUserRank(context: Context<"issue_comment.created">, username: string): Promise<Rank> {
+  const author = context.payload.issue.user.login;
+  if (username === author) {
+    return "author";
+  }
+  const admin = await isUserAdminOrBillingManager(context, username);
+  if (admin) {
+    return "admin";
+  }
+  const isMember = await isUserAnOrgMember(context, username);
+  if (isMember) {
+    return "collaborator";
+  }
+  return "contributor";
+}
+
+interface IssueEvent {
+  event: string;
+  label?: { name?: string } | null;
+  actor?: { login?: string; type?: string } | null;
+  created_at?: string;
+}
+
+async function getLastTimeLabelSetter(context: Context<"issue_comment.created">): Promise<{ user?: string; rank?: Rank } | null> {
+  const owner = context.payload.repository.owner?.login;
+  const repo = context.payload.repository.name;
+  const issueNumber = context.payload.issue.number;
+  if (!owner) return null;
+  const events = await context.octokit.paginate(context.octokit.rest.issues.listEvents, {
+    owner,
+    repo,
+    issue_number: issueNumber,
+    per_page: 100,
+  });
+  const labeledEvents = (events as IssueEvent[])
+    .filter((e) => e.event === "labeled" && e.label?.name && String(e.label.name).toLowerCase().startsWith("time:"))
+    .reverse();
+  const last = labeledEvents[0];
+  if (!last) return null;
+  const user = last.actor?.login;
+  if (!user) return { user: undefined, rank: undefined };
+  const isBot = last.actor?.type === "Bot";
+  if (!isBot) {
+    const rank = await getUserRank(context, user);
+    return { user, rank };
+  }
+
+  // If a bot applied the label, try to infer the human initiator by scanning the latest '/time' comment before this event
+  try {
+    const comments = (await context.octokit.paginate(context.octokit.rest.issues.listComments, {
+      owner,
+      repo,
+      issue_number: issueNumber,
+      per_page: 100,
+    })) as Array<{ body?: string; user?: { login?: string }; created_at?: string }>;
+    const lastEventTime = last.created_at ? new Date(last.created_at).getTime() : Number.POSITIVE_INFINITY;
+    const timeCmdRegex = /^\s*\/time\b/i;
+    const initiator = comments
+      .filter((c) => c.body && timeCmdRegex.test(c.body) && (!c.created_at || new Date(c.created_at).getTime() <= lastEventTime))
+      .slice(-1)[0];
+    if (initiator?.user?.login) {
+      const rank = await getUserRank(context, initiator.user.login);
+      return { user: initiator.user.login, rank };
+    }
+  } catch {
+    // ignore and fallback
+  }
+
+  // Fallback: treat bot as the highest rank
+  return { user, rank: "admin" };
+}
+
 export async function setTimeLabel(context: Context, timeInput: string) {
   if (!isIssueCommentEvent(context)) {
     throw context.logger.warn("The `/time` command can only be used in issue comments.");
   }
-  const { logger, payload } = context;
+  const ctx = context;
+  const { payload } = context;
 
   const sender = payload.sender.login;
-  const issueAuthor = payload.issue.user.login;
-  const isAuthor = sender === issueAuthor;
-  const isOrgMember = await isUserAnOrgMember(context, sender);
 
-  if (!isAuthor && !isOrgMember) {
-    throw logger.warn("Only admins, collaborators, or the issue author can set time estimates.");
+  const currentLabels = payload.issue.labels.map((label) => label.name);
+  const existingTimeLabels = currentLabels.filter((label: string) => label.toLowerCase().startsWith("time:"));
+
+  async function assertCanSetTimeLabel(): Promise<void> {
+    if (existingTimeLabels.length === 0) {
+      return;
+    }
+    const senderRank = await getUserRank(ctx, sender);
+    if (senderRank === "admin" || senderRank === "collaborator") return;
+    if (senderRank === "author") {
+      const last = await getLastTimeLabelSetter(ctx);
+      if (last?.user && last.user === sender) return;
+      if (last?.rank !== undefined && rankWeight("author") > rankWeight(last.rank)) return;
+      throw context.logger.warn("Insufficient permissions to change the time estimate.", {
+        reason: "author-higher-rank",
+        sender,
+        senderRank,
+        lastSetter: last?.user,
+        lastSetterRank: last?.rank,
+        existingTimeLabels,
+        requestedTimeInput: timeInput,
+      });
+    }
+    throw context.logger.warn("Insufficient permissions to change the time estimate.", {
+      reason: "contributor-restriction",
+      sender,
+      senderRank,
+      existingTimeLabels,
+      requestedTimeInput: timeInput,
+    });
   }
 
-  const timeLabel = await findClosestTimeLabel(context, timeInput);
-  const currentLabels = payload.issue.labels.map((label) => label.name);
-  const timeLabels = currentLabels.filter((label: string) => label.startsWith("Time:"));
+  await assertCanSetTimeLabel();
+
+  const timeLabel = await findClosestTimeLabel(ctx, timeInput);
+  const timeLabels = currentLabels.filter((label: string) => label.toLowerCase().startsWith("time:"));
 
   for (const label of timeLabels) {
-    await removeLabelFromIssue(context, label);
+    await removeLabelFromIssue(ctx, label);
   }
-  await addLabelToIssue(context, timeLabel);
+  await addLabelToIssue(ctx, timeLabel);
 }
 
 export async function time(context: Context<"issue_comment.created">) {
