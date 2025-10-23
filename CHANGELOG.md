@@ -1,5 +1,27 @@
 # Changelog
 
+## [4.5.0](https://github.com/ubiquity-os-marketplace/daemon-pricing/compare/v4.4.0...v4.5.0) (2025-10-23)
+
+
+### Features
+
+* add `/time` command support ([b3582c5](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/b3582c52ed2db0de442f55bbc24c3867e986aef2))
+* add `/time` command support ([7cbb128](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/7cbb1282e850e628a05873063b32f6d43df8070a))
+* add support for handling `issues.transferred` events ([b5b06ae](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/b5b06ae92ab3813e7faf13f0f94cc2ef795c0cf4))
+* add support for handling `issues.transferred` events ([918536a](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/918536a43b1e850c266d3e620f830b07f4f714fb))
+
+
+### Bug Fixes
+
+* add "maintain" to collaborator roles ([12eea37](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/12eea373b670ffc6bf54a62ee2f4ed51f030511b))
+* add unit tests for `/time` label permissions ([8166c3d](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/8166c3d69e68e1563cf2678a532301607147bf44))
+* handle bot-applied `/time` labels correctly ([e58f350](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/e58f350b11b7ab4ada0c4e9f19336c27a0005aea))
+* **labels:** remove unauthorized labels after permission warning (fix [#126](https://github.com/ubiquity-os-marketplace/daemon-pricing/issues/126)) ([4f6e064](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/4f6e064ba2edb66e808fc0b95119c5ab9638c6e1))
+* release please issue permission ([09f1515](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/09f1515499bfb4f6eb7f30dca90be96e619f7d05))
+* release please issue permission ([42ca404](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/42ca40494dd9bb3f7b52874350a27c87bb62e1ca))
+* set environment main for main branch and tags ([26d1f68](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/26d1f686f219bc698ad5a66af19f164c2b18251d))
+* set environment main for main branch and tags ([8f82ec9](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/8f82ec9f08fd6359c87845e207ffe80eae43413a))
+
 ## [4.4.0](https://github.com/ubiquity-os-marketplace/daemon-pricing/compare/v4.3.0...v4.4.0) (2025-06-03)
 
 
