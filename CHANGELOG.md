@@ -1,5 +1,17 @@
 # Changelog
 
+## [4.6.0](https://github.com/ubiquity-os-marketplace/daemon-pricing/compare/v4.5.0...v4.6.0) (2025-12-15)
+
+
+### Features
+
+* migrate to action.yml entry point ([e060c76](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/e060c76b4ea53be2fb831e620fcba7b839a4e795))
+
+
+### Bug Fixes
+
+* update workflow_id to action.yml in startAction function ([7c39383](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/7c3938302a9f933937e300da8b28ae08703c6ee0))
+
 ## [4.5.0](https://github.com/ubiquity-os-marketplace/daemon-pricing/compare/v4.4.0...v4.5.0) (2025-10-23)
 
 
