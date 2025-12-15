@@ -1,5 +1,22 @@
 name: "Delegate Compute"
 description: "UbiquityOS Delegated Compute Action"
+inputs:
+  stateId:
+    description: "State Id to keep track on the Kernel side"
+  eventName:
+    description: "Event Name that triggered the run"
+  eventPayload:
+    description: "Event Payload for the plugin"
+  settings:
+    description: "Settings for the plugin"
+  authToken:
+    description: "Auth Token to auth as the Kernel"
+  ref:
+    description: "GitHub branch reference for the run"
+  signature:
+    description: "The kernel signature"
+  command:
+    description: "Command"
 outputs:
   result:
     description: "The result of a event handler"
