@@ -68,7 +68,7 @@ async function startAction(context: Context, inputs: Record<string, unknown>) {
     repo,
     inputs,
     ref,
-    workflow_id: "compute.yml",
+    workflow_id: "action.yml",
   });
 }
 
