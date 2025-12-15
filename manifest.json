@@ -144,6 +144,6 @@
       }
     }
   },
-  "homepage_url": "https://daemon-pricing-main.deno.dev",
-  "short_name": "ubiquity-os-marketplace/daemon-pricing@fix/action-entry"
+  "homepage_url": "https://daemon-pricing-fix-action.deno.dev",
+  "short_name": "ubiquity-os-marketplace/daemon-pricing@main"
 }
