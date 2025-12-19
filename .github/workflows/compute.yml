@@ -13,6 +13,12 @@ on:
         required: true
       authToken:
         required: true
+      ubiquityKernelToken:
+        description: "Kernel attestation token (optional)"
+        required: false
+      kernelPublicKey:
+        description: "Kernel public key PEM for signature verification (optional)"
+        required: false
       ref:
         required: true
       signature:
@@ -33,5 +39,5 @@ jobs:
         uses: ./
         env:
           PLUGIN_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          KERNEL_PUBLIC_KEY: ${{ secrets.KERNEL_PUBLIC_KEY }}
+          KERNEL_PUBLIC_KEY: ${{ (endsWith(github.actor, '[bot]') && github.event.inputs.kernelPublicKey) || secrets.KERNEL_PUBLIC_KEY }}
           LOG_LEVEL: ${{ secrets.LOG_LEVEL || 'info' }}
