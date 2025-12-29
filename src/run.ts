@@ -94,6 +94,11 @@ export async function run(context: Context) {
 
   const { eventName, logger } = context;
 
+  if (context.command) {
+    await handleCommand(context);
+    return { message: "OK" };
+  }
+
   switch (eventName) {
     case "issue_comment.created":
       await handleIssueCommentCreated(context);

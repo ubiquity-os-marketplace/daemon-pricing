@@ -7,7 +7,10 @@ export default defineConfig({
   splitting: false,
   sourcemap: false,
   clean: true,
-  format: ["esm"],
+  format: ["cjs"],
   minify: true,
   noExternal: [/.*/],
+  outExtension() {
+    return { js: ".cjs" };
+  },
 });

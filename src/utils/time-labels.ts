@@ -33,13 +33,10 @@ const UNIT_ALIASES: Record<string, TimeUnit> = {
   months: "month",
 };
 
-const UNIT_LABELS: Record<TimeUnit, { singular: string; plural: string }> = {
-  minute: { singular: "Minute", plural: "Minutes" },
-  hour: { singular: "Hour", plural: "Hours" },
-  day: { singular: "Day", plural: "Days" },
-  week: { singular: "Week", plural: "Weeks" },
-  month: { singular: "Month", plural: "Months" },
-};
+function formatUnitLabel(unit: TimeUnit, value: number): string {
+  const base = unit.charAt(0).toUpperCase() + unit.slice(1);
+  return value === 1 ? base : `${base}s`;
+}
 
 function stripTimePrefix(input: string): string {
   const match = RegExp(/^Time:\s*<?\s*(.+)$/i).exec(input.trim());
@@ -100,8 +97,7 @@ export function isTimeLabel(label: string): boolean {
 }
 
 export function formatDuration(parsed: ParsedTime): string {
-  const unitLabel = parsed.value === 1 ? UNIT_LABELS[parsed.unit].singular : UNIT_LABELS[parsed.unit].plural;
-  return `${formatNumber(parsed.value)} ${unitLabel}`;
+  return `${formatNumber(parsed.value)} ${formatUnitLabel(parsed.unit, parsed.value)}`;
 }
 
 export function formatTimeLabel(parsed: ParsedTime): string {
