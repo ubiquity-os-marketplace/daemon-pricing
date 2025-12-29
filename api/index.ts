@@ -12,6 +12,7 @@ import { Command } from "../src/types/command";
 import { Context, SupportedEvents } from "../src/types/context";
 import { Env, envSchema } from "../src/types/env";
 import { AssistivePricingSettings, pluginSettingsSchema } from "../src/types/plugin-input";
+import { dispatchDeepEstimate } from "../src/utils/deep-estimate-dispatch";
 
 async function startAction(context: Context, inputs: Record<string, unknown>) {
   const { payload, logger } = context;
@@ -86,7 +87,19 @@ export const POST = (request: Request) => {
             return run(context);
           } else {
             const text = (await responseClone.json()) as Record<string, unknown>;
-            return startAction(context, text);
+            await startAction(context, text);
+            if (context.eventName === "issues.opened") {
+              try {
+                await dispatchDeepEstimate(context, {
+                  trigger: "issues.opened",
+                  forceOverride: false,
+                  initiator: context.payload.sender?.login,
+                });
+              } catch (err) {
+                context.logger.warn("Failed to dispatch deep time estimate for new issue.", { err });
+              }
+            }
+            return { message: "OK" };
           }
         }
         case "issues.labeled":

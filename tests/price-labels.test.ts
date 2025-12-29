@@ -8,6 +8,7 @@ import { Context } from "../src/types/context";
 interface Label {
   name: string;
   description: string | undefined;
+  color?: string;
 }
 
 const mockLogger = {
@@ -28,7 +29,6 @@ const mockOctokit = {
 const mockContext: Context = {
   config: {
     labels: {
-      time: [],
       priority: [],
     },
     basePriceMultiplier: 1,
@@ -50,27 +50,41 @@ describe("syncPriceLabelsToConfig function", () => {
     jest.resetModules();
   });
 
-  it("should not update labels if descriptions match the collaboratorOnly criteria", async () => {
+  it("updates price label colors when incorrect", async () => {
     const allLabels: Label[] = [
-      { name: "Label1", description: "" },
-      { name: "Label2", description: "" },
-      { name: "Label3", description: "" },
+      { name: "Priority: 1 (Normal)", description: "", color: "ededed" },
+      { name: "Priority: 2 (Medium)", description: "", color: "ededed" },
+      { name: "Price: 10 USD", description: "", color: "000000" },
     ];
-    jest.unstable_mockModule("../src/shared/label", () => ({
-      listLabelsForRepo: jest.fn(),
-    }));
+    const labelModule = await import("../src/shared/label");
+    jest.spyOn(labelModule, "listLabelsForRepo").mockResolvedValue(allLabels);
+    jest.spyOn(labelModule, "createLabel").mockResolvedValue();
 
-    const pricingLabels = [{ name: "Label1" }, { name: "Label2" }, { name: "Label3" }];
-    const { listLabelsForRepo } = await import("../src/shared/label");
-    (listLabelsForRepo as unknown as jest.Mock<() => Promise<typeof allLabels>>).mockResolvedValue(allLabels);
-    (mockOctokit.paginate as unknown as jest.Mock<() => Promise<typeof allLabels>>).mockResolvedValue(allLabels);
-
-    mockContext.config.labels.time = pricingLabels;
-    mockContext.config.labels.priority = [];
+    mockContext.config.labels.priority = [{ name: "Priority: 1 (Normal)" }, { name: "Priority: 2 (Medium)" }];
 
     await syncPriceLabelsToConfig(mockContext);
 
-    expect(mockOctokit.rest.issues.updateLabel).not.toHaveBeenCalled();
+    expect(mockOctokit.rest.issues.updateLabel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Price: 10 USD",
+        color: "1f883d",
+      })
+    );
+  }, 15000);
+
+  it("creates missing priority labels", async () => {
+    const allLabels: Label[] = [];
+    const labelModule = await import("../src/shared/label");
+    const createLabelSpy = jest.spyOn(labelModule, "createLabel").mockResolvedValue();
+    jest.spyOn(labelModule, "listLabelsForRepo").mockResolvedValue(allLabels);
+
+    mockContext.config.labels.priority = [{ name: "Priority: 1 (Normal)" }, { name: "Priority: 2 (Medium)" }];
+
+    await syncPriceLabelsToConfig(mockContext);
+
+    expect(createLabelSpy).toHaveBeenCalledTimes(2);
+    expect(createLabelSpy).toHaveBeenCalledWith(expect.anything(), "Priority: 1 (Normal)", "default");
+    expect(createLabelSpy).toHaveBeenCalledWith(expect.anything(), "Priority: 2 (Medium)", "default");
   }, 15000);
 
   it("Should properly handle 0 priority label", () => {
@@ -78,7 +92,6 @@ describe("syncPriceLabelsToConfig function", () => {
       config: {
         labels: {
           priority: [{ name: "Priority: 0 (Regression)" }],
-          time: [{ name: "Time: 2 Hours" }],
         },
       },
     } as unknown as Context;

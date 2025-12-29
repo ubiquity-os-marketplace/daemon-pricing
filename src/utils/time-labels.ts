@@ -1,65 +1,109 @@
 import ms from "ms";
-import { Context } from "../types/context";
-import { Label } from "../types/github";
 
-export function parseTimeLabel(label: string): number | null {
-  const match = RegExp(/^Time:\s*<?\s*(.+)$/i).exec(label);
-  if (!match) return null;
-  const timePart = match[1].trim();
+export type TimeUnit = "minute" | "hour" | "day" | "week" | "month";
 
-  return ms(timePart);
+export type ParsedTime = {
+  value: number;
+  unit: TimeUnit;
+};
+
+const UNIT_ALIASES: Record<string, TimeUnit> = {
+  m: "minute",
+  min: "minute",
+  mins: "minute",
+  minute: "minute",
+  minutes: "minute",
+  h: "hour",
+  hr: "hour",
+  hrs: "hour",
+  hour: "hour",
+  hours: "hour",
+  d: "day",
+  day: "day",
+  days: "day",
+  w: "week",
+  wk: "week",
+  wks: "week",
+  week: "week",
+  weeks: "week",
+  mo: "month",
+  mon: "month",
+  mons: "month",
+  month: "month",
+  months: "month",
+};
+
+const UNIT_LABELS: Record<TimeUnit, { singular: string; plural: string }> = {
+  minute: { singular: "Minute", plural: "Minutes" },
+  hour: { singular: "Hour", plural: "Hours" },
+  day: { singular: "Day", plural: "Days" },
+  week: { singular: "Week", plural: "Weeks" },
+  month: { singular: "Month", plural: "Months" },
+};
+
+function stripTimePrefix(input: string): string {
+  const match = RegExp(/^Time:\s*<?\s*(.+)$/i).exec(input.trim());
+  return match ? match[1].trim() : input.trim();
 }
 
-export async function findClosestTimeLabel(context: Context, input: string): Promise<string> {
-  const { logger } = context;
+function normalizeUnit(rawUnit: string): TimeUnit | null {
+  const key = rawUnit.toLowerCase();
+  return UNIT_ALIASES[key] ?? null;
+}
 
-  let normalizedInput = input.trim();
-  // Accept decimals and optionally a unit (e.g., "1.5 week", "4.5")
-  // We assume "days" as the default unit if none is provided
-  if (/^\d+(\.\d+)?$/.test(normalizedInput)) {
-    normalizedInput += " days";
-  }
-  const targetMs = ms(normalizedInput);
-  if (!targetMs) {
-    throw logger.warn(`The provided time \`${input}\` is invalid.`, { input });
-  }
+function extractNumberAndUnit(input: string): ParsedTime | null {
+  const match = /(\d+(?:\.\d+)?)\s*([a-zA-Z]+)\b/.exec(input);
+  if (!match) return null;
+  const value = Number.parseFloat(match[1]);
+  if (!Number.isFinite(value)) return null;
+  const unit = normalizeUnit(match[2]);
+  if (!unit) return null;
+  return { value, unit };
+}
 
-  if (!context.payload.repository.owner) {
-    throw logger.warn("No owner was found in the payload.");
-  }
+function formatNumber(value: number): string {
+  if (Number.isInteger(value)) return value.toString();
+  return Number(value.toFixed(2)).toString();
+}
 
-  const labels = await context.octokit.paginate(context.octokit.rest.issues.listLabelsForRepo, {
-    owner: context.payload.repository.owner.login,
-    repo: context.payload.repository.name,
-    per_page: 100,
-  });
+export function parseTimeInput(input: string): ParsedTime | null {
+  if (!input) return null;
+  let trimmed = stripTimePrefix(input);
+  trimmed = trimmed.replace(/^</, "").trim();
+  if (!trimmed) return null;
 
-  const validLabels = labels
-    .map((label: Label) => ({
-      name: label.name,
-      ms: parseTimeLabel(label.name),
-    }))
-    .filter((item): item is { name: string; ms: number } => item.ms !== null && item.name.startsWith("Time:"));
-
-  if (validLabels.length === 0) {
-    throw logger.warn(`No valid time labels matching \`${input}\` was found in the repository.`, { labels });
+  if (/^\d+(\.\d+)?$/.test(trimmed)) {
+    return { value: Number.parseFloat(trimmed), unit: "day" };
   }
 
-  const higherOrEqualTimeLabels = validLabels.filter((l) => l.ms >= targetMs);
-  let closest;
-  if (higherOrEqualTimeLabels.length > 0) {
-    closest = higherOrEqualTimeLabels.reduce((best, current) => (current.ms < best.ms ? current : best), higherOrEqualTimeLabels[0]);
-  } else {
-    // Fallback if we do not have an equal or higher label than the user input
-    closest = validLabels.reduce((best, current) => (current.ms > best.ms ? current : best), validLabels[0]);
+  const direct = extractNumberAndUnit(trimmed);
+  if (direct) return direct;
+
+  const msValue = ms(trimmed);
+  if (typeof msValue === "number" && msValue > 0) {
+    const longForm = ms(msValue, { long: true });
+    if (typeof longForm === "string") {
+      return extractNumberAndUnit(longForm);
+    }
   }
 
-  logger.info("Selected time label", {
-    input,
-    targetMs,
-    selectedLabel: closest.name,
-    selectedMs: closest.ms,
-  });
+  return null;
+}
 
-  return closest.name;
+export function parseTimeLabel(label: string): ParsedTime | null {
+  if (!/^Time:/i.test(label.trim())) return null;
+  return parseTimeInput(label);
+}
+
+export function isTimeLabel(label: string): boolean {
+  return parseTimeLabel(label) !== null;
+}
+
+export function formatDuration(parsed: ParsedTime): string {
+  const unitLabel = parsed.value === 1 ? UNIT_LABELS[parsed.unit].singular : UNIT_LABELS[parsed.unit].plural;
+  return `${formatNumber(parsed.value)} ${unitLabel}`;
+}
+
+export function formatTimeLabel(parsed: ParsedTime): string {
+  return `Time: ${formatDuration(parsed)}`;
 }

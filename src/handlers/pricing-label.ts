@@ -5,6 +5,7 @@ import { Context } from "../types/context";
 import { Label, UserType } from "../types/github";
 import { AssistivePricingSettings } from "../types/plugin-input";
 import { isIssueLabelEvent, isIssueOpenedEvent } from "../types/typeguards";
+import { parseTimeLabel } from "../utils/time-labels";
 import { handleParentIssue, isParentIssue, sortLabelsByValue } from "./handle-parent-issue";
 import { extractLabelPattern } from "./label-checks";
 
@@ -127,9 +128,8 @@ export async function setPriceLabel(context: Context, issueLabels: Label[], conf
   const logger = context.logger;
   const labelNames = issueLabels.map((i) => i.name);
   const recognizedLabels = getRecognizedLabels(issueLabels, config);
-  const timePattern = extractLabelPattern(context.config.labels.time);
   const priorityPattern = extractLabelPattern(context.config.labels.priority);
-  const isPricingAttempt = issueLabels.filter((o) => timePattern.test(o.name) || priorityPattern.test(o.name)).length >= 2;
+  const isPricingAttempt = issueLabels.filter((label) => parseTimeLabel(label.name) !== null || priorityPattern.test(label.name)).length >= 2;
 
   if (!recognizedLabels.time.length || !recognizedLabels.priority.length) {
     const message = logger.error("No recognized labels were found to set the price of this task.", {
@@ -174,23 +174,9 @@ export async function setPriceLabel(context: Context, issueLabels: Label[], conf
 }
 
 function getRecognizedLabels(labels: Label[], settings: AssistivePricingSettings) {
-  function isRecognizedLabel(label: Label, configLabels: string[]) {
-    return (typeof label === "string" || typeof label === "object") && configLabels.some((configLabel) => configLabel === label.name);
-  }
+  const recognizedTimeLabels: Label[] = labels.filter((label: Label) => parseTimeLabel(label.name) !== null);
 
-  const recognizedTimeLabels: Label[] = labels.filter((label: Label) =>
-    isRecognizedLabel(
-      label,
-      settings.labels.time.map((o) => o.name)
-    )
-  );
-
-  const recognizedPriorityLabels: Label[] = labels.filter((label: Label) =>
-    isRecognizedLabel(
-      label,
-      settings.labels.priority.map((o) => o.name)
-    )
-  );
+  const recognizedPriorityLabels: Label[] = labels.filter((label: Label) => settings.labels.priority.some((configLabel) => configLabel.name === label.name));
 
   return { time: recognizedTimeLabels, priority: recognizedPriorityLabels };
 }

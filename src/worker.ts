@@ -5,14 +5,13 @@ import { Manifest } from "@ubiquity-os/plugin-sdk/manifest";
 import { customOctokit } from "@ubiquity-os/plugin-sdk/octokit";
 import { LOG_LEVEL, LogLevel } from "@ubiquity-os/ubiquity-os-logger";
 import type { ExecutionContext } from "hono";
-import { env as honoEnv } from "hono/adapter";
 import manifest from "../manifest.json";
-import { getPricing, getPriorityTime } from "./handlers/get-priority-time";
 import { handleCommand, isLocalEnvironment, run } from "./run";
 import { Command } from "./types/command";
 import { Context, SupportedEvents } from "./types/context";
 import { Env, envSchema } from "./types/env";
 import { AssistivePricingSettings, pluginSettingsSchema } from "./types/plugin-input";
+import { dispatchDeepEstimate } from "./utils/deep-estimate-dispatch";
 
 async function startAction(context: Context, inputs: Record<string, unknown>) {
   const { payload, logger, env } = context;
@@ -90,7 +89,19 @@ export default {
               return run(context);
             } else {
               const text = (await responseClone.json()) as Record<string, unknown>;
-              return startAction(context, text);
+              await startAction(context, text);
+              if (context.eventName === "issues.opened") {
+                try {
+                  await dispatchDeepEstimate(context, {
+                    trigger: "issues.opened",
+                    forceOverride: false,
+                    initiator: context.payload.sender?.login,
+                  });
+                } catch (err) {
+                  context.logger.warn("Failed to dispatch deep time estimate for new issue.", { err });
+                }
+              }
+              return { message: "OK" };
             }
           }
           case "issues.labeled":
@@ -112,38 +123,6 @@ export default {
         bypassSignatureVerification: process.env.NODE_ENV === "local",
       }
     );
-
-    // /time endpoint
-    app.post("/time", async (c) => {
-      const env = honoEnv(c);
-      const { BASETEN_API_KEY, BASE_PRICE_MULTIPLIER, BASETEN_API_URL } = env;
-      if (!BASETEN_API_KEY) {
-        return c.json({ error: "BASETEN_API_KEY is not set" }, 500);
-      } else if (!BASETEN_API_URL) {
-        return c.json({ error: "BASETEN_API_URL is not set" }, 500);
-      }
-      const body = await c.req.json();
-      const { issue_description, issue_title } = body as {
-        issue_description: string;
-        issue_title: string;
-      };
-
-      const priorityTimeEstimate = await getPriorityTime(issue_description, issue_title, BASETEN_API_KEY as string, BASETEN_API_URL as string);
-
-      if (!priorityTimeEstimate) {
-        return c.json({ error: "No priority time estimate" }, 500);
-      }
-
-      const { time, priority } = priorityTimeEstimate;
-
-      const price = getPricing(parseFloat(BASE_PRICE_MULTIPLIER as string), parseFloat(time), priority);
-
-      return c.json({
-        time: time,
-        priority: priority,
-        price: price.toString(),
-      });
-    });
 
     return app.fetch(request, env, executionCtx);
   },

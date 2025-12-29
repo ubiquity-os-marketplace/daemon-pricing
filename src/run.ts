@@ -3,7 +3,8 @@ import { onIssueOpenedUpdatePricing, onLabelChangeSetPricing } from "./handlers/
 import { syncPriceLabelsToConfig } from "./handlers/sync-labels-to-config";
 import { Context } from "./types/context";
 import { isIssueCommentEvent, isIssueLabelEvent } from "./types/typeguards";
-import { time } from "./utils/time";
+import { dispatchDeepEstimate } from "./utils/deep-estimate-dispatch";
+import { ensureTimeLabelOnIssueOpened, time } from "./utils/time";
 
 export function isLocalEnvironment() {
   return process.env.NODE_ENV === "local";
@@ -24,6 +25,15 @@ export async function handleCommand(context: Context) {
 
   if (context.command.name === "time" && isIssueCommentEvent(context)) {
     await time(context);
+    try {
+      await dispatchDeepEstimate(context, {
+        trigger: "issue_comment.created",
+        forceOverride: true,
+        initiator: context.payload.sender?.login,
+      });
+    } catch (err) {
+      context.logger.warn("Failed to dispatch deep time estimate after /time.", { err });
+    }
   }
 }
 
@@ -39,6 +49,7 @@ export async function run(context: Context) {
     case "issues.opened": {
       if (isGithubOrLocalEnvironment()) {
         await syncPriceLabelsToConfig(context);
+        await ensureTimeLabelOnIssueOpened(context);
         await onIssueOpenedUpdatePricing(context);
       }
       break;

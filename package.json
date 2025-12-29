@@ -20,8 +20,6 @@
     "prepare": "node .husky/install.mjs",
     "test": "cross-env NODE_OPTIONS=\"$NODE_OPTIONS --experimental-vm-modules\" jest --setupFiles dotenv/config --coverage",
     "dev": "bun run --watch --no-clear-screen --port 4001 src/worker.ts",
-    "start": "func start --port 4001",
-    "prestart": "bun run build",
     "build": "tsup",
     "build:watch": "tsup --watch",
     "prebuild": "rimraf dist"
@@ -34,8 +32,6 @@
     "open-source"
   ],
   "dependencies": {
-    "@azure/functions": "^4.7.0",
-    "@marplex/hono-azurefunc-adapter": "^1.0.1",
     "@octokit/auth-app": "^7.1.4",
     "@octokit/rest": "^20.1.0",
     "@sinclair/typebox": "0.34.3",
@@ -59,7 +55,6 @@
     "@types/ms": "0.7.34",
     "@typescript-eslint/eslint-plugin": "^8.20.0",
     "@typescript-eslint/parser": "^8.20.0",
-    "azure-functions-core-tools": "^4.0.7030",
     "cross-env": "7.0.3",
     "cspell": "^8.4.0",
     "eslint": "^9.18.0",

@@ -1,7 +1,9 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/functions/*.ts"],
+  entry: {
+    index: "src/action.ts",
+  },
   splitting: false,
   sourcemap: false,
   clean: true,

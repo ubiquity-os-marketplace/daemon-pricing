@@ -29,7 +29,6 @@ export function getBaseRateChanges(changeAmt: number, withChanges = true, withPl
       ? `
     with: 
       labels:
-        time: []
 @ -40,115 +36,124 @@
         assistivePricing: true
   `
@@ -137,7 +136,7 @@ export async function setupTests() {
     number: 3,
     labels: [
       {
-        name: "Time: <1 Hour",
+        name: "Time: 1 Hour",
       },
       {
         name: "Priority: 1 (Normal)",

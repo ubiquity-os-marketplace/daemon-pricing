@@ -1,0 +1,479 @@
+name: Deep Time Estimate
+
+on:
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: "Target repo (owner/name)"
+        required: true
+      issueNumber:
+        description: "Issue number"
+        required: true
+      authToken:
+        description: "GitHub auth token"
+        required: true
+      ubiquityKernelToken:
+        description: "Kernel attestation token (optional)"
+        required: false
+      installationId:
+        description: "GitHub installation id (optional)"
+        required: false
+      forceOverride:
+        description: "Override human-set time label"
+        required: false
+      trigger:
+        description: "Trigger event"
+        required: false
+      initiator:
+        description: "Triggering user"
+        required: false
+
+jobs:
+  estimate:
+    runs-on: ubuntu-latest
+    permissions: write-all
+    timeout-minutes: 60
+    environment: ${{ (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')) && 'main' || 'development' }}
+
+    steps:
+      - name: Mask tokens
+        run: |
+          echo "::add-mask::${{ inputs.authToken }}"
+          echo "::add-mask::${{ inputs.ubiquityKernelToken }}"
+
+      - name: Parse repo owner/name
+        id: repo
+        run: |
+          repo="${{ inputs.repo }}"
+          owner="${repo%%/*}"
+          name="${repo#*/}"
+          echo "owner=$owner" >> "$GITHUB_OUTPUT"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout target repo
+        uses: actions/checkout@v5
+        with:
+          token: ${{ inputs.authToken }}
+          repository: ${{ inputs.repo }}
+          fetch-depth: 0
+          persist-credentials: false
+          path: target_repo
+
+      - name: Build Codex prompt
+        env:
+          GH_TOKEN: ${{ inputs.authToken }}
+          REPO: ${{ inputs.repo }}
+          ISSUE_NUMBER: ${{ inputs.issueNumber }}
+          INITIATOR: ${{ inputs.initiator }}
+          TRIGGER: ${{ inputs.trigger }}
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const path = require("node:path");
+
+          const repo = String(process.env.REPO || "").trim();
+          const issueNumber = Number.parseInt(String(process.env.ISSUE_NUMBER || "0"), 10);
+          const token = String(process.env.GH_TOKEN || "").trim();
+          const initiator = String(process.env.INITIATOR || "").trim();
+          const trigger = String(process.env.TRIGGER || "").trim();
+
+          const MAX_BODY_CHARS = 4000;
+          const MAX_COMMENT_CHARS = 800;
+          const MAX_RECENT_COMMENTS = 10;
+
+          if (!repo || !Number.isFinite(issueNumber) || issueNumber <= 0 || !token) {
+            console.error("Missing repo, issue number, or auth token.");
+            process.exit(1);
+          }
+
+          const headers = {
+            Authorization: `token ${token}`,
+            Accept: "application/vnd.github+json",
+          };
+
+          async function fetchJson(url) {
+            const res = await fetch(url, { headers });
+            if (!res.ok) {
+              const text = await res.text().catch(() => "");
+              throw new Error(`GitHub API error ${res.status}: ${text || res.statusText}`);
+            }
+            return await res.json();
+          }
+
+          const issueUrl = `https://api.github.com/repos/${repo}/issues/${issueNumber}`;
+          const issue = await fetchJson(issueUrl);
+          const title = String(issue.title || "").trim();
+          const body = String(issue.body || "").trim();
+          const trimmedBody = body.length > MAX_BODY_CHARS ? `${body.slice(0, MAX_BODY_CHARS)}...` : body;
+
+          const commentCount = Number(issue.comments || 0);
+          let comments = [];
+          if (commentCount > 0) {
+            const perPage = Math.min(MAX_RECENT_COMMENTS, 100);
+            const page = Math.max(1, Math.ceil(commentCount / perPage));
+            const commentsUrl = `https://api.github.com/repos/${repo}/issues/${issueNumber}/comments?per_page=${perPage}&page=${page}`;
+            const data = await fetchJson(commentsUrl);
+            comments = Array.isArray(data) ? data : [];
+          }
+
+          const commandRegex = /^\s*\/time\b/i;
+          const recentComments = comments
+            .filter((comment) => comment?.user?.type === "User")
+            .filter((comment) => !commandRegex.test(String(comment.body || "")))
+            .slice(-MAX_RECENT_COMMENTS)
+            .map((comment) => {
+              const author = String(comment.user?.login || "unknown");
+              const rawBody = String(comment.body || "").trim();
+              const trimmed = rawBody.length > MAX_COMMENT_CHARS ? `${rawBody.slice(0, MAX_COMMENT_CHARS)}...` : rawBody;
+              return `- ${author}: ${trimmed}`;
+            })
+            .filter(Boolean);
+
+          const commentsSection = recentComments.length
+            ? `Recent human comments (latest ${recentComments.length}):\n${recentComments.join("\n")}`
+            : "";
+          const triggerLine = trigger || initiator ? `Trigger: ${trigger || "unknown"}${initiator ? ` by ${initiator}` : ""}` : "";
+
+          const promptParts = [
+            "You are estimating effort for a GitHub issue using the checked-out repository.",
+            "Inspect code as needed. Do not modify files.",
+            "Reply with a single duration using minutes, hours, days, weeks, or months.",
+            "Use digits and one unit. No extra text.",
+            "Examples: 30 minutes, 2 hours, 1 day, 3 days, 1 week, 1 month.",
+            "",
+            triggerLine,
+            "",
+            `Issue title:\n${title || "(missing)"}`,
+            "",
+            `Issue body:\n${trimmedBody || "(missing)"}`,
+            commentsSection ? `\n${commentsSection}` : "",
+          ]
+            .filter((part) => part !== "")
+            .join("\n");
+
+          const promptPath = path.join("target_repo", ".codex.prompt.txt");
+          fs.writeFileSync(promptPath, `${promptParts.trim()}\n`, "utf8");
+          NODE
+
+      - name: Start ai.ubq.fi Responses forwarder
+        env:
+          AUTH_TOKEN: ${{ inputs.authToken }}
+          KERNEL_TOKEN: ${{ inputs.ubiquityKernelToken }}
+          GH_OWNER: ${{ steps.repo.outputs.owner }}
+          GH_REPO: ${{ steps.repo.outputs.name }}
+          GH_INSTALLATION_ID: ${{ inputs.installationId }}
+          PORT: "4010"
+        run: |
+          set -euo pipefail
+
+          cat > "$RUNNER_TEMP/ubq-responses-forwarder.js" <<'NODE'
+          const http = require("node:http");
+          const { Readable } = require("node:stream");
+
+          const port = Number.parseInt(process.env.PORT || "4010", 10);
+          const baseUrl = process.env.AI_BASE_URL || "https://ai-ubq-fi.deno.dev";
+
+          const tokenFile = String(process.env.UOS_TOKEN_FILE || "").trim();
+          const initialAuthToken = String(process.env.AUTH_TOKEN || "").trim();
+          const initialKernelToken = String(process.env.KERNEL_TOKEN || "").trim();
+          const owner = String(process.env.GH_OWNER || "").trim();
+          const repo = String(process.env.GH_REPO || "").trim();
+          const installationId = String(process.env.GH_INSTALLATION_ID || "").trim();
+
+          if (!owner || !repo) {
+            console.error("Missing GH_OWNER/GH_REPO");
+            process.exit(1);
+          }
+
+          const readTokens = () => {
+            if (tokenFile) {
+              try {
+                const raw = require("node:fs").readFileSync(tokenFile, "utf8");
+                const data = JSON.parse(raw);
+                const authToken = typeof data.authToken === "string" ? data.authToken.trim() : "";
+                const kernelToken = typeof data.kernelToken === "string" ? data.kernelToken.trim() : "";
+                if (authToken) return { authToken, kernelToken };
+              } catch {
+                // ignore and fall back to initial
+              }
+            }
+            return { authToken: initialAuthToken, kernelToken: initialKernelToken };
+          };
+
+          const server = http.createServer(async (req, res) => {
+            try {
+              const url = new URL(req.url || "/", "http://127.0.0.1");
+              if (req.method === "GET" && url.pathname === "/health") {
+                res.writeHead(200, { "Content-Type": "text/plain" });
+                res.end("ok");
+                return;
+              }
+
+              const chunks = [];
+              for await (const chunk of req) chunks.push(chunk);
+              const body = Buffer.concat(chunks);
+
+              const upstreamUrl = new URL(url.pathname + url.search, baseUrl);
+
+              const { authToken, kernelToken } = readTokens();
+              if (!authToken) {
+                res.statusCode = 401;
+                res.setHeader("Content-Type", "text/plain");
+                res.end("Missing auth token");
+                return;
+              }
+              if (authToken.startsWith("gh") && !kernelToken) {
+                res.statusCode = 401;
+                res.setHeader("Content-Type", "text/plain");
+                res.end("Missing kernel token");
+                return;
+              }
+
+              const headers = {
+                Authorization: `Bearer ${authToken}`,
+                "Content-Type": req.headers["content-type"] || "application/json",
+                "X-GitHub-Owner": owner,
+                "X-GitHub-Repo": repo,
+              };
+              if (installationId) headers["X-GitHub-Installation-Id"] = installationId;
+              if (kernelToken) headers["X-Ubiquity-Kernel-Token"] = kernelToken;
+
+              const upstream = await fetch(upstreamUrl, {
+                method: req.method || "POST",
+                headers,
+                body: body.length ? body : undefined,
+              });
+
+              res.statusCode = upstream.status;
+
+              const passthroughHeaders = ["content-type", "cache-control", "x-request-id", "x-ubq-upstream"];
+              for (const key of passthroughHeaders) {
+                const value = upstream.headers.get(key);
+                if (value) res.setHeader(key, value);
+              }
+
+              if (!upstream.body) {
+                const text = await upstream.text().catch(() => "");
+                res.end(text);
+                return;
+              }
+
+              Readable.fromWeb(upstream.body).pipe(res);
+            } catch (error) {
+              res.statusCode = 502;
+              res.setHeader("Content-Type", "text/plain");
+              res.end(String(error?.message || error || "upstream error"));
+            }
+          });
+
+          server.listen(port, "127.0.0.1", () => {
+            process.stdout.write(`ubq-responses-forwarder listening on 127.0.0.1:${port}\n`);
+          });
+          NODE
+
+          node "$RUNNER_TEMP/ubq-responses-forwarder.js" &
+          echo "$!" > "$RUNNER_TEMP/ubq_responses_forwarder.pid"
+
+          for _ in {1..30}; do
+            if curl -fsS "http://127.0.0.1:${PORT}/health" >/dev/null 2>&1; then
+              echo "Forwarder ready."
+              exit 0
+            fi
+            sleep 0.2
+          done
+
+          echo "Forwarder failed to start" >&2
+          exit 1
+
+      - name: Run Codex (deep estimate)
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: "ubq-forwarder"
+          responses-api-endpoint: "http://127.0.0.1:4010/v1/responses"
+          allow-bots: "true"
+          prompt-file: target_repo/.codex.prompt.txt
+          output-file: target_repo/.codex.last-message.md
+          working-directory: target_repo
+          sandbox: read-only
+          safety-strategy: read-only
+          model: gpt-5.1-codex-mini
+
+      - name: Stop ai.ubq.fi Responses forwarder
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/ubq_responses_forwarder.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/ubq_responses_forwarder.pid")" 2>/dev/null || true
+          fi
+
+      - name: Apply time label
+        env:
+          GH_TOKEN: ${{ inputs.authToken }}
+          REPO: ${{ inputs.repo }}
+          ISSUE_NUMBER: ${{ inputs.issueNumber }}
+          FORCE_OVERRIDE: ${{ inputs.forceOverride }}
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+
+          const repo = String(process.env.REPO || "").trim();
+          const issueNumber = Number.parseInt(String(process.env.ISSUE_NUMBER || "0"), 10);
+          const token = String(process.env.GH_TOKEN || "").trim();
+          const forceOverride = String(process.env.FORCE_OVERRIDE || "").toLowerCase() === "true";
+
+          if (!repo || !Number.isFinite(issueNumber) || issueNumber <= 0 || !token) {
+            console.error("Missing repo, issue number, or auth token.");
+            process.exit(1);
+          }
+
+          const headers = {
+            Authorization: `token ${token}`,
+            Accept: "application/vnd.github+json",
+            "Content-Type": "application/json",
+          };
+
+          async function fetchJson(url, options = {}) {
+            const res = await fetch(url, { ...options, headers });
+            if (!res.ok) {
+              const text = await res.text().catch(() => "");
+              throw new Error(`GitHub API error ${res.status}: ${text || res.statusText}`);
+            }
+            if (res.status === 204) return null;
+            const text = await res.text().catch(() => "");
+            if (!text) return null;
+            return JSON.parse(text);
+          }
+
+          const outputPath = "target_repo/.codex.last-message.md";
+          if (!fs.existsSync(outputPath)) {
+            console.error("Missing Codex output file.");
+            process.exit(1);
+          }
+          const raw = fs.readFileSync(outputPath, "utf8").trim();
+          const line = raw.split(/\r?\n/).find((l) => l.trim()) || "";
+          const cleaned = line.replace(/[`*_]/g, "").trim();
+
+          const UNIT_ALIASES = {
+            m: "minute",
+            min: "minute",
+            mins: "minute",
+            minute: "minute",
+            minutes: "minute",
+            h: "hour",
+            hr: "hour",
+            hrs: "hour",
+            hour: "hour",
+            hours: "hour",
+            d: "day",
+            day: "day",
+            days: "day",
+            w: "week",
+            wk: "week",
+            wks: "week",
+            week: "week",
+            weeks: "week",
+            mo: "month",
+            mon: "month",
+            mons: "month",
+            month: "month",
+            months: "month",
+          };
+
+          function parseTimeInput(input) {
+            const trimmed = String(input || "").trim().replace(/^Time:\s*<?\s*/i, "").replace(/^</, "").trim();
+            if (!trimmed) return null;
+            if (/^\d+(\.\d+)?$/.test(trimmed)) {
+              return { value: Number.parseFloat(trimmed), unit: "day" };
+            }
+            const match = /(\d+(?:\.\d+)?)\s*([a-zA-Z]+)\b/.exec(trimmed);
+            if (!match) return null;
+            const value = Number.parseFloat(match[1]);
+            if (!Number.isFinite(value)) return null;
+            const unit = UNIT_ALIASES[match[2].toLowerCase()];
+            if (!unit) return null;
+            return { value, unit };
+          }
+
+          function formatNumber(value) {
+            if (Number.isInteger(value)) return value.toString();
+            return Number(value.toFixed(2)).toString();
+          }
+
+          function formatDuration(parsed) {
+            const unitBase = parsed.unit.charAt(0).toUpperCase() + parsed.unit.slice(1);
+            const unitLabel = parsed.value === 1 ? unitBase : `${unitBase}s`;
+            return `${formatNumber(parsed.value)} ${unitLabel}`;
+          }
+
+          const parsed = parseTimeInput(cleaned);
+          if (!parsed) {
+            console.error(`Invalid time estimate from Codex: ${cleaned || "(empty)"}`);
+            process.exit(1);
+          }
+
+          const timeLabel = `Time: ${formatDuration(parsed)}`;
+
+          if (!forceOverride) {
+            const eventsUrl = `https://api.github.com/repos/${repo}/issues/${issueNumber}/events?per_page=100`;
+            let page = 1;
+            let lastActorType = null;
+            let lastCreatedAt = 0;
+            while (true) {
+              const pageUrl = `${eventsUrl}&page=${page}`;
+              const events = await fetchJson(pageUrl);
+              if (!Array.isArray(events) || events.length === 0) break;
+              const labeled = events.filter(
+                (event) => event?.event === "labeled" && event?.label?.name && /^time:/i.test(String(event.label.name))
+              );
+              for (const event of labeled) {
+                const createdAt = Date.parse(String(event?.created_at || "")) || 0;
+                if (createdAt >= lastCreatedAt) {
+                  lastCreatedAt = createdAt;
+                  lastActorType = event?.actor?.type ?? null;
+                }
+              }
+              if (events.length < 100) break;
+              page += 1;
+            }
+            if (lastActorType === "User") {
+              console.log("Skipping label update because the last time label was set by a human.");
+              process.exit(0);
+            }
+          }
+
+          const labelsUrl = `https://api.github.com/repos/${repo}/issues/${issueNumber}/labels?per_page=100`;
+          const issueLabels = await fetchJson(labelsUrl);
+          const timeLabels = Array.isArray(issueLabels)
+            ? issueLabels.filter((label) => /^time:/i.test(String(label.name))).map((label) => String(label.name))
+            : [];
+
+          if (timeLabels.length === 1 && timeLabels[0] === timeLabel) {
+            console.log("Time label already up to date.");
+            process.exit(0);
+          }
+
+          try {
+            await fetchJson(`https://api.github.com/repos/${repo}/labels`, {
+              method: "POST",
+              body: JSON.stringify({ name: timeLabel, color: "ededed" }),
+            });
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            if (!message.includes("422")) {
+              console.warn("Could not create label (likely already exists).", { err: message });
+            }
+          }
+
+          for (const label of timeLabels) {
+            const encoded = encodeURIComponent(label);
+            await fetchJson(`https://api.github.com/repos/${repo}/issues/${issueNumber}/labels/${encoded}`, {
+              method: "DELETE",
+            });
+          }
+
+          await fetchJson(`https://api.github.com/repos/${repo}/issues/${issueNumber}/labels`, {
+            method: "POST",
+            body: JSON.stringify({ labels: [timeLabel] }),
+          });
+
+          console.log(`Applied deep-estimate label: ${timeLabel}`);
+          NODE

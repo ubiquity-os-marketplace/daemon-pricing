@@ -1,6 +1,6 @@
 import { AssistivePricingSettings } from "../types/plugin-input";
 
-type Labels = AssistivePricingSettings["labels"]["priority" | "time"];
+type Labels = AssistivePricingSettings["labels"]["priority"];
 
 function extractCommonPattern(labels: Labels): string {
   const labelParts = labels.map((label) => {

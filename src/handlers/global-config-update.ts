@@ -8,7 +8,7 @@ import { isPushEvent } from "../types/typeguards";
 import { isConfigModified } from "./check-modified-base-rate";
 import { getLabelsChanges } from "./get-label-changes";
 import { setPriceLabel } from "./pricing-label";
-import { getPriceLabels, syncPriceLabelsToConfig } from "./sync-labels-to-config";
+import { syncPriceLabelsToConfig } from "./sync-labels-to-config";
 
 type Repositories = Awaited<ReturnType<typeof listOrgRepos>>;
 
@@ -101,22 +101,9 @@ export async function globalLabelUpdate(context: Context) {
     return;
   }
 
-  const { incorrectPriceLabels, allLabels, pricingLabels } = await getPriceLabels(context);
-  const missingLabels = [...new Set(pricingLabels.filter((label) => !allLabels.map((i) => i.name).includes(label.name)).map((o) => o.name))];
-
-  if (incorrectPriceLabels.length <= 0 && missingLabels.length <= 0) {
-    logger.info("No incorrect price label to delete and no labels are missing, skipping.", {
-      url: context.payload.repository.html_url,
-    });
-    return;
-  }
-
   const repository = context.payload.repository;
 
-  logger.info(`Updating pricing labels in ${repository.html_url}`, {
-    incorrectPriceLabels,
-    missingLabels,
-  });
+  logger.info(`Updating pricing labels in ${repository.html_url}`);
 
   const owner = repository.owner?.login;
   const repo = repository.name;

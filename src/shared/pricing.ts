@@ -1,5 +1,6 @@
 import { Decimal } from "decimal.js";
 import { determinePriorityOrder, extractLabelPattern } from "../handlers/label-checks";
+import { parseTimeLabel } from "../utils/time-labels";
 import { Label } from "../types/github";
 import { Context } from "../types/context";
 
@@ -29,13 +30,10 @@ export function getPrice(context: Context, timeLabel: Label, priorityLabel: Labe
 
   if (!timeLabel || !priorityLabel) throw logger.error("Time or priority label is not defined");
 
-  const recognizedTimeLabels = labels.time.find((configLabel) => configLabel.name === timeLabel.name);
-  if (!recognizedTimeLabels) throw logger.error("Time label is not recognized");
-
   const recognizedPriorityLabels = labels.priority.find((configLabel) => configLabel.name === priorityLabel.name);
   if (!recognizedPriorityLabels) throw logger.error("Priority label is not recognized");
 
-  const timeValue = calculateLabelValue(context, recognizedTimeLabels.name);
+  const timeValue = calculateLabelValue(context, timeLabel.name);
   if (timeValue === null) throw logger.error("Time value is not defined");
 
   const priorityValue = calculateLabelValue(context, recognizedPriorityLabels.name);
@@ -49,19 +47,29 @@ export function getPrice(context: Context, timeLabel: Label, priorityLabel: Labe
  * Gets the value associated to the label. Returns null if the value of the label couldn't be extracted.
  */
 export function calculateLabelValue(context: Context, label: string): number | null {
-  const matches = label.match(/\d+/);
-  if (!matches?.length) return null;
-  const number = parseInt(matches[0]);
   const priorityRegex = extractLabelPattern(context.config.labels.priority);
-  const timeRegex = extractLabelPattern(context.config.labels.time);
   if (priorityRegex.test(label)) {
-    return number;
-  } else if (timeRegex.test(label)) {
-    if (label.toLowerCase().includes("minute")) return number * 0.002;
-    if (label.toLowerCase().includes("hour")) return number * 0.125;
-    if (label.toLowerCase().includes("day")) return 1 + (number - 1) * 0.25;
-    if (label.toLowerCase().includes("week")) return number + 1;
-    if (label.toLowerCase().includes("month")) return 5 + (number - 1) * 8;
+    const matches = label.match(/\d+(?:\.\d+)?/);
+    if (!matches?.length) return null;
+    return Number.parseFloat(matches[0]);
   }
-  return null;
+
+  const parsed = parseTimeLabel(label);
+  if (!parsed) return null;
+
+  const number = parsed.value;
+  switch (parsed.unit) {
+    case "minute":
+      return number * 0.002;
+    case "hour":
+      return number * 0.125;
+    case "day":
+      return 1 + (number - 1) * 0.25;
+    case "week":
+      return number + 1;
+    case "month":
+      return 5 + (number - 1) * 8;
+    default:
+      return null;
+  }
 }
