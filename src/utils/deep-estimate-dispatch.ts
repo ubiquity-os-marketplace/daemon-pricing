@@ -2,6 +2,7 @@ import { createAppAuth } from "@octokit/auth-app";
 import { Octokit } from "@octokit/rest";
 import { customOctokit } from "@ubiquity-os/plugin-sdk/octokit";
 import { Context } from "../types/context";
+import { normalizeMultilineSecret } from "./secrets";
 
 const ACTION_REF_REGEX = /^([\w-]+)\/([\w.-]+)@([\w./-]+)$/;
 const DEEP_ESTIMATE_WORKFLOW = "deep-estimate.yml";
@@ -13,8 +14,9 @@ type DeepEstimateOptions = {
 };
 
 async function getDispatchOctokit(context: Context, owner: string, repo: string): Promise<InstanceType<typeof customOctokit> | Octokit> {
-  const { APP_ID, APP_PRIVATE_KEY } = context.env;
-  if (!APP_ID || !APP_PRIVATE_KEY) {
+  const appId = context.env.APP_ID?.trim() ?? "";
+  const appPrivateKey = normalizeMultilineSecret(context.env.APP_PRIVATE_KEY);
+  if (!appId || !appPrivateKey) {
     const pluginToken = process.env.PLUGIN_GITHUB_TOKEN?.trim();
     if (pluginToken) {
       context.logger.debug("APP_ID or APP_PRIVATE_KEY missing; using PLUGIN_GITHUB_TOKEN for workflow dispatch.");
@@ -26,15 +28,15 @@ async function getDispatchOctokit(context: Context, owner: string, repo: string)
 
   const appOctokit = new customOctokit({
     authStrategy: createAppAuth,
-    auth: { appId: APP_ID, privateKey: APP_PRIVATE_KEY },
+    auth: { appId, privateKey: appPrivateKey },
   });
 
   const installation = await appOctokit.rest.apps.getRepoInstallation({ owner, repo });
   return new Octokit({
     authStrategy: createAppAuth,
     auth: {
-      appId: APP_ID,
-      privateKey: APP_PRIVATE_KEY,
+      appId,
+      privateKey: appPrivateKey,
       installationId: installation.data.id,
     },
   });

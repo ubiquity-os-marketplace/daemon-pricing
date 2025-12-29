@@ -13,6 +13,7 @@ import { Context, SupportedEvents } from "./types/context";
 import { Env, envSchema } from "./types/env";
 import { AssistivePricingSettings, pluginSettingsSchema } from "./types/plugin-input";
 import { dispatchDeepEstimate } from "./utils/deep-estimate-dispatch";
+import { normalizeMultilineSecret } from "./utils/secrets";
 
 async function startAction(context: Context, inputs: Record<string, unknown>) {
   const { payload, logger, env } = context;
@@ -37,16 +38,18 @@ async function startAction(context: Context, inputs: Record<string, unknown>) {
 
   logger.info(`Will try to dispatch a workflow at ${owner}/${repo}@${ref}`);
 
+  const appPrivateKey = normalizeMultilineSecret(context.env.APP_PRIVATE_KEY);
+
   const appOctokit = new customOctokit({
     authStrategy: createAppAuth,
     auth: {
       appId: context.env.APP_ID,
-      privateKey: context.env.APP_PRIVATE_KEY,
+      privateKey: appPrivateKey,
     },
   });
 
   let authOctokit;
-  if (!env.APP_ID || !env.APP_PRIVATE_KEY) {
+  if (!env.APP_ID || !appPrivateKey) {
     logger.debug("APP_ID or APP_PRIVATE_KEY are missing from the env, will use the default Octokit instance.");
     authOctokit = context.octokit;
   } else {
@@ -58,7 +61,7 @@ async function startAction(context: Context, inputs: Record<string, unknown>) {
       authStrategy: createAppAuth,
       auth: {
         appId: context.env.APP_ID,
-        privateKey: context.env.APP_PRIVATE_KEY,
+        privateKey: appPrivateKey,
         installationId: installation.data.id,
       },
     });
