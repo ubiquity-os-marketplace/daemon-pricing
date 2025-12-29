@@ -1,6 +1,7 @@
 import { globalLabelUpdate } from "./handlers/global-config-update";
 import { onIssueOpenedUpdatePricing, onLabelChangeSetPricing } from "./handlers/pricing-label";
 import { syncPriceLabelsToConfig } from "./handlers/sync-labels-to-config";
+import { logByStatus } from "./shared/logging";
 import { Context } from "./types/context";
 import { isIssueCommentEvent, isIssueLabelEvent } from "./types/typeguards";
 import { dispatchDeepEstimate } from "./utils/deep-estimate-dispatch";
@@ -14,7 +15,7 @@ async function maybeDispatchDeepEstimate(context: Context, options: Parameters<t
   try {
     await dispatchDeepEstimate(context, options);
   } catch (err) {
-    context.logger.warn(message, { err });
+    logByStatus(context.logger, message, err);
   }
 }
 
@@ -81,7 +82,7 @@ export async function handleCommand(context: Context) {
         initiator: context.payload.sender?.login,
       });
     } catch (err) {
-      context.logger.warn("Failed to dispatch deep time estimate after /time.", { err });
+      logByStatus(context.logger, "Failed to dispatch deep time estimate after /time.", err);
     }
   }
 }
@@ -119,7 +120,7 @@ export async function run(context: Context) {
       }
       break;
     default:
-      logger.error(`Event ${eventName} is not supported`);
+      logger.warn(`Event ${eventName} is not supported`);
   }
   return { message: "OK" };
 }

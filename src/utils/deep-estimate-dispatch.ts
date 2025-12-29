@@ -108,7 +108,7 @@ export async function dispatchDeepEstimate(context: Context, options: DeepEstima
     inputs,
   });
 
-  logger.info("Dispatched deep time estimate workflow.", {
+  logger.ok("Dispatched deep time estimate workflow.", {
     workflow: DEEP_ESTIMATE_WORKFLOW,
     targetRepo,
     issueNumber,

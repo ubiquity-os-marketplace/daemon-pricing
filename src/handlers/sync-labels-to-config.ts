@@ -11,7 +11,7 @@ export async function syncPriceLabelsToConfig(context: Context): Promise<void> {
   const owner = context.payload.repository.owner?.login;
 
   if (!owner) {
-    throw logger.error(NO_OWNER_FOUND);
+    throw logger.warn(NO_OWNER_FOUND);
   }
 
   const allLabels = await listLabelsForRepo(context);
@@ -31,7 +31,7 @@ export async function syncPriceLabelsToConfig(context: Context): Promise<void> {
         })
       )
     );
-    logger.info(`Updating incorrect color labels done`);
+    logger.ok("Updating incorrect color labels done");
   }
 
   const priorityLabels = context.config.labels.priority.map((label) => label.name);
@@ -42,6 +42,6 @@ export async function syncPriceLabelsToConfig(context: Context): Promise<void> {
       missingPriorityLabels,
     });
     await Promise.allSettled(missingPriorityLabels.map((label) => createLabel(context, label, "default")));
-    logger.info(`Creating missing priority labels done`);
+    logger.ok("Creating missing priority labels done");
   }
 }

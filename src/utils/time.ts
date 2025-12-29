@@ -2,6 +2,7 @@ import { callLlm, sanitizeLlmResponse } from "@ubiquity-os/plugin-sdk";
 import type { ChatCompletion } from "openai/resources/chat/completions";
 import { isUserAdminOrBillingManager } from "../shared/issue";
 import { addLabelToIssue, createLabel, removeLabelFromIssue } from "../shared/label";
+import { logByStatus } from "../shared/logging";
 import { Context } from "../types/context";
 import { isIssueCommentEvent } from "../types/typeguards";
 import { formatDuration, formatTimeLabel, isTimeLabel, parseTimeInput } from "./time-labels";
@@ -44,7 +45,7 @@ async function isUserAnOrgMember(context: Context, username: string) {
       });
       return true;
     } catch (err) {
-      logger.error("Could not get user membership", { err });
+      logByStatus(logger, "Could not get user membership", err);
     }
   }
 
@@ -60,7 +61,7 @@ async function isUserAnOrgMember(context: Context, username: string) {
     repo: context.payload.repository.name,
   });
   const role = permissionLevel.data.role_name?.toLowerCase();
-  logger.info(`Retrieved the role for ${username}: ${role}`);
+  logger.ok(`Retrieved the role for ${username}: ${role}`);
   return getTransformedRole(role) !== "contributor";
 }
 
@@ -119,7 +120,7 @@ function extractLlmDuration(raw: string): string {
 function normalizeEstimatedDuration(raw: string, logger: Context["logger"]): string {
   const trimmed = raw.trim();
   if (!trimmed) {
-    throw logger.warn("LLM returned an empty time estimate.");
+    throw logger.error("LLM returned an empty time estimate.");
   }
 
   const cleaned = trimmed.replace(/[`*_]/g, "").trim();
@@ -128,7 +129,7 @@ function normalizeEstimatedDuration(raw: string, logger: Context["logger"]): str
     return formatDuration(parsed);
   }
 
-  throw logger.warn("LLM returned an invalid time estimate.", { estimate: raw });
+  throw logger.error("LLM returned an invalid time estimate.", { estimate: raw });
 }
 
 function getExistingTimeLabels(labels: Array<{ name: string }> | undefined): string[] {
@@ -184,7 +185,7 @@ async function estimateTimeInput(context: IssueContext): Promise<string> {
   try {
     recentComments = await getRecentHumanComments(context);
   } catch (err) {
-    logger.warn("Failed to fetch recent human comments for time estimation.", { err });
+    logByStatus(logger, "Failed to fetch recent human comments for time estimation.", err);
   }
   const commentsSection = recentComments.length
     ? `Recent human comments (latest ${recentComments.length}):\n${recentComments.map((comment) => `- ${comment.author}: ${comment.body}`).join("\n")}`
@@ -213,16 +214,16 @@ async function estimateTimeInput(context: IssueContext): Promise<string> {
       context
     );
   } catch (err) {
-    throw logger.warn("Failed to estimate time with LLM. Provide a duration like `/time 2 hours`.", { err });
+    throw logByStatus(logger, "Failed to estimate time with LLM. Provide a duration like `/time 2 hours`.", err);
   }
 
   if (isAsyncIterable(result)) {
-    throw logger.warn("LLM returned an unexpected streaming response.");
+    throw logger.error("LLM returned an unexpected streaming response.");
   }
 
   const content = extractLlmDuration((result as ChatCompletion).choices?.[0]?.message?.content ?? "");
   const normalized = normalizeEstimatedDuration(content, logger);
-  logger.info("Estimated time input from LLM", { estimate: content, normalized });
+  logger.ok("Estimated time input from LLM", { estimate: content, normalized });
   return normalized;
 }
 
@@ -366,7 +367,7 @@ export async function ensureTimeLabelOnIssueOpened(context: Context<"issues.open
   const existingTimeLabels = getExistingTimeLabels(issue.labels);
 
   if (existingTimeLabels.length > 0) {
-    logger.info("Skipping time estimation because a time label already exists.", { labels: existingTimeLabels });
+    logger.debug("Skipping time estimation because a time label already exists.", { labels: existingTimeLabels });
     return;
   }
 
@@ -374,14 +375,14 @@ export async function ensureTimeLabelOnIssueOpened(context: Context<"issues.open
     const estimatedInput = await estimateTimeInput(context);
     const parsedInput = parseTimeInput(estimatedInput);
     if (!parsedInput) {
-      throw logger.warn("LLM returned an invalid time estimate.", { estimate: estimatedInput });
+      throw logger.error("LLM returned an invalid time estimate.", { estimate: estimatedInput });
     }
     const timeLabel = formatTimeLabel(parsedInput);
     await ensureTimeLabelExists(context, timeLabel);
     await addLabelToIssue(context, timeLabel);
-    logger.info("Added estimated time label to new issue.", { timeLabel, estimate: estimatedInput });
+    logger.ok("Added estimated time label to new issue.", { timeLabel, estimate: estimatedInput });
   } catch (err) {
-    logger.warn("Failed to auto-estimate a time label for the new issue.", { err });
+    logByStatus(logger, "Failed to auto-estimate a time label for the new issue.", err);
   }
 }
 

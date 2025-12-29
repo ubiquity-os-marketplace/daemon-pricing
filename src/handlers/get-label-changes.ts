@@ -19,7 +19,7 @@ export async function getLabelsChanges(context: Context) {
   const owner = repository.owner?.login;
 
   if (!owner) {
-    throw logger.error("No owner found in the repository");
+    throw logger.warn("No owner found in the repository");
   }
 
   try {
@@ -32,7 +32,7 @@ export async function getLabelsChanges(context: Context) {
       },
     });
   } catch (err: unknown) {
-    logger.debug("Commit sha error.", { err });
+    logger.warn("Commit sha error.", { err });
   }
 
   if (!commitData) {
@@ -49,7 +49,7 @@ export async function getLabelsChanges(context: Context) {
   const previousLabels = extractLabels(changes, oldLabelsRegex);
 
   if (!previousLabels && !newLabels) {
-    logger.error("No label changes found in the diff");
+    logger.debug("No label changes found in the diff");
   }
 
   return !!previousLabels?.length || !!newLabels?.length;

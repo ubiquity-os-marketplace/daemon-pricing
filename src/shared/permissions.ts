@@ -17,7 +17,7 @@ export async function labelAccessPermissionsCheck(context: Context) {
   const { logger, payload } = context;
   const { shouldFundContributorClosedIssue } = context.config;
   if (!payload.label?.name) {
-    logger.debug("The label has no name.");
+    logger.warn("The label has no name.");
     return false;
   }
 
@@ -32,7 +32,7 @@ export async function labelAccessPermissionsCheck(context: Context) {
 
   const sender = payload.sender?.login;
   if (!sender) {
-    throw logger.error("No sender found in the payload");
+    throw logger.warn("No sender found in the payload");
   }
 
   const repo = payload.repository;

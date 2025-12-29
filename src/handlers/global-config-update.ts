@@ -1,6 +1,7 @@
 import { CONFIG_ORG_REPO } from "@ubiquity-os/plugin-sdk/constants";
 import { pushEmptyCommit } from "../shared/commits";
 import { isUserAdminOrBillingManager, listOrgRepos, listRepoIssues } from "../shared/issue";
+import { logByStatus } from "../shared/logging";
 import { COMMIT_MESSAGE } from "../types/constants";
 import { Context } from "../types/context";
 import { Label } from "../types/github";
@@ -28,13 +29,13 @@ async function isAuthed(context: Context): Promise<boolean> {
   const isSenderAuthed = await isUserAdminOrBillingManager(context, sender);
 
   if (!isPusherAuthed) {
-    logger.error("Pusher is not an admin or billing manager", {
+    logger.warn("Pusher is not an admin or billing manager", {
       login: pusher,
     });
   }
 
   if (!isSenderAuthed) {
-    logger.error("Sender is not an admin or billing manager", {
+    logger.warn("Sender is not an admin or billing manager", {
       login: sender,
     });
   }
@@ -71,7 +72,7 @@ async function sendEmptyCommits(context: Context<"push">) {
       // Pushing an empty commit will trigger a label update on the repository using its local configuration.
       await pushEmptyCommit(ctx);
     } catch (err) {
-      logger.warn(`Could not push an empty commit to ${repository.html_url}`, { err });
+      logByStatus(logger, `Could not push an empty commit to ${repository.html_url}`, err);
     }
   }
 }
@@ -85,7 +86,7 @@ export async function globalLabelUpdate(context: Context) {
   const { logger } = context;
 
   if (!(await isAuthed(context))) {
-    logger.error("Changes should be pushed and triggered by an admin or billing manager.");
+    logger.warn("Changes should be pushed and triggered by an admin or billing manager.");
     return;
   }
 
@@ -95,7 +96,7 @@ export async function globalLabelUpdate(context: Context) {
     await sendEmptyCommits(context as Context<"push">);
     return;
   } else if (context.payload.head_commit?.message !== COMMIT_MESSAGE) {
-    logger.info("The commit name does not match the label update commit message, won't update labels.", {
+    logger.debug("The commit name does not match the label update commit message, won't update labels.", {
       url: context.payload.repository.html_url,
     });
     return;
@@ -109,7 +110,7 @@ export async function globalLabelUpdate(context: Context) {
   const repo = repository.name;
 
   if (!owner) {
-    throw logger.error("No owner was found in the payload.");
+    throw logger.warn("No owner was found in the payload.");
   }
 
   await syncPriceLabelsToConfig(context);

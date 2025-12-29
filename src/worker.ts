@@ -7,6 +7,7 @@ import { LOG_LEVEL, LogLevel } from "@ubiquity-os/ubiquity-os-logger";
 import type { ExecutionContext } from "hono";
 import manifest from "../manifest.json";
 import { handleCommand, isLocalEnvironment, run } from "./run";
+import { logByStatus } from "./shared/logging";
 import { Command } from "./types/command";
 import { Context, SupportedEvents } from "./types/context";
 import { Env, envSchema } from "./types/env";
@@ -98,7 +99,7 @@ export default {
                     initiator: context.payload.sender?.login,
                   });
                 } catch (err) {
-                  context.logger.warn("Failed to dispatch deep time estimate for new issue.", { err });
+                  logByStatus(context.logger, "Failed to dispatch deep time estimate for new issue.", err);
                 }
               }
               return { message: "OK" };

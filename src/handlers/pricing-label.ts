@@ -1,4 +1,5 @@
 import { addLabelToIssue, clearAllPriceLabelsOnIssue, createLabel, listLabelsForRepo, removeLabelFromIssue } from "../shared/label";
+import { logByStatus } from "../shared/logging";
 import { labelAccessPermissionsCheck } from "../shared/permissions";
 import { getPrice } from "../shared/pricing";
 import { Context } from "../types/context";
@@ -26,16 +27,16 @@ async function removeUnauthorizedLabel(context: Context) {
         issue_number: issueNumber,
         name: labelToRemove,
       });
-      context.logger.info("Removed unauthorized label from issue", { label: labelToRemove });
+      context.logger.ok("Removed unauthorized label from issue", { label: labelToRemove });
     } catch (err) {
-      context.logger.error("Failed to remove unauthorized label from issue", { err, label: labelToRemove });
+      logByStatus(context.logger, "Failed to remove unauthorized label from issue", err, { label: labelToRemove });
     }
   }
 }
 
 export async function onIssueOpenedUpdatePricing(context: Context) {
   if (!isIssueOpenedEvent(context)) {
-    context.logger.warn("Not an issue transfer event");
+    context.logger.debug("Not an issue transfer event");
     return;
   }
 
@@ -79,7 +80,7 @@ async function updateLabels(
   // here we should make an exception if it was a price label that was just set to just skip this action
   const isPayloadToSetPrice = label?.name.includes("Price: ");
   if (isPayloadToSetPrice) {
-    logger.info("This is setting the price label directly so skipping the rest of the action.");
+    logger.debug("This is setting the price label directly so skipping the rest of the action.");
 
     // make sure to clear all other price labels except for the smallest price label.
 
@@ -113,12 +114,12 @@ export async function onLabelChangeSetPricing(context: Context): Promise<void> {
   const payload = context.payload;
   const owner = payload.repository.owner?.login;
   if (!owner) {
-    logger.error("No owner found in the repository");
+    logger.warn("No owner found in the repository");
     return;
   }
   const labels = payload.issue.labels;
   if (!labels) {
-    logger.info(`No labels to calculate price`);
+    logger.debug("No labels to calculate price");
     return;
   }
   await updateLabels(context, labels, payload.issue, payload.label);
@@ -132,7 +133,7 @@ export async function setPriceLabel(context: Context, issueLabels: Label[], conf
   const isPricingAttempt = issueLabels.filter((label) => parseTimeLabel(label.name) !== null || priorityPattern.test(label.name)).length >= 2;
 
   if (!recognizedLabels.time.length || !recognizedLabels.priority.length) {
-    const message = logger.error("No recognized labels were found to set the price of this task.", {
+    const message = logger.warn("No recognized labels were found to set the price of this task.", {
       repo: context.payload.repository.html_url,
       recognizedLabels,
     });
@@ -147,7 +148,7 @@ export async function setPriceLabel(context: Context, issueLabels: Label[], conf
   const minLabels = getMinLabels(context, recognizedLabels);
 
   if (!minLabels.time || !minLabels.priority) {
-    logger.error("No label to calculate price", {
+    logger.warn("No label to calculate price", {
       repo: context.payload.repository.html_url,
     });
     return;
@@ -163,13 +164,13 @@ export async function setPriceLabel(context: Context, issueLabels: Label[], conf
 
   if (targetPriceLabel) {
     await handleTargetPriceLabel(context, { name: targetPriceLabel, description: null }, labelNames);
-    logger.info(`Skipping action...`, {
+    logger.debug("Skipping action...", {
       repo: context.payload.repository.html_url,
       targetPriceLabel,
     });
   } else {
     await clearAllPriceLabelsOnIssue(context);
-    logger.info("Cleared all price labels because target price label is missing.");
+    logger.warn("Cleared all price labels because target price label is missing.");
   }
 }
 
@@ -209,13 +210,13 @@ async function handleTargetPriceLabel(context: Context, targetPriceLabel: Pick<L
 async function handleExistingPriceLabel(context: Context, targetPriceLabel: string) {
   const logger = context.logger;
   let labeledEvents = await getAllLabeledEvents(context);
-  if (!labeledEvents) return logger.error("No labeled events found");
+  if (!labeledEvents) return logger.warn("No labeled events found");
 
   labeledEvents = labeledEvents.filter((event) => "label" in event && event.label.name.includes("Price"));
-  if (!labeledEvents.length) return logger.error("No price labeled events found");
+  if (!labeledEvents.length) return logger.warn("No price labeled events found");
 
   if (labeledEvents[labeledEvents.length - 1].actor?.type == UserType.User) {
-    logger.info(`Skipping... already exists`);
+    logger.debug("Skipping... already exists");
   } else {
     await addPriceLabelToIssue(context, targetPriceLabel);
   }
@@ -246,7 +247,7 @@ async function getAllIssueEvents(context: Context) {
       per_page: 100,
     });
   } catch (err: unknown) {
-    context.logger.error("Failed to fetch lists of events", { err });
+    logByStatus(context.logger, "Failed to fetch lists of events", err);
     return [];
   }
 }
