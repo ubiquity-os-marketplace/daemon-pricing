@@ -12,7 +12,7 @@ export function getErrorStatus(err: unknown): number | null {
     if (Number.isFinite(parsed)) return parsed;
   }
   if (err instanceof Error) {
-    const match = err.message.match(/LLM API error:\s*(\d{3})/i);
+    const match = /LLM API error:\s*(\d{3})/i.exec(err.message);
     if (match) {
       const parsed = Number.parseInt(match[1], 10);
       if (Number.isFinite(parsed)) return parsed;
@@ -22,27 +22,37 @@ export function getErrorStatus(err: unknown): number | null {
 }
 
 export function logByStatus(
-  logger: Pick<Logs, "warn" | "error">,
+  logger: Pick<Logs, "info" | "ok" | "debug" | "warn" | "error">,
   message: string,
   err: unknown,
   metadata: Record<string, unknown> = {}
 ) {
   if (err && typeof err === "object" && "logMessage" in err) {
     const logType = (err as { logMessage?: { type?: string } }).logMessage?.type;
-    if (logType === "warn") {
-      return logger.warn(message, { err, ...metadata });
-    }
-    if (logType === "error") {
-      return logger.error(message, { err, ...metadata });
+    const logTypeMap: Record<string, keyof typeof logger> = {
+      info: "info",
+      ok: "ok",
+      debug: "debug",
+      warn: "warn",
+      error: "error",
+    };
+    const method = logType ? logTypeMap[logType] : undefined;
+    if (method) {
+      return logger[method](message, { err, ...metadata });
     }
   }
   const status = getErrorStatus(err);
   const payload = { err, ...metadata, ...(status ? { status } : {}) };
-  if (status && status >= 500) {
-    return logger.error(message, payload);
-  }
-  if (status && status >= 400) {
-    return logger.warn(message, payload);
+  const statusMap: Array<{ min: number; method: keyof typeof logger }> = [
+    { min: 500, method: "error" },
+    { min: 400, method: "warn" },
+    { min: 300, method: "debug" },
+    { min: 200, method: "ok" },
+    { min: 100, method: "info" },
+  ];
+  const match = status ? statusMap.find((entry) => status >= entry.min) : undefined;
+  if (match) {
+    return logger[match.method](message, payload);
   }
   return logger.error(message, payload);
 }
