@@ -9,4 +9,5 @@ export default defineConfig({
   clean: true,
   format: ["esm"],
   minify: true,
+  noExternal: [/.*/],
 });
