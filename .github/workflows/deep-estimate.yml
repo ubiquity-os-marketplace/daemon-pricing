@@ -67,7 +67,7 @@ jobs:
           INITIATOR: ${{ inputs.initiator }}
           TRIGGER: ${{ inputs.trigger }}
         run: |
-          node <<'NODE'
+          node --input-type=commonjs <<'NODE'
           const fs = require("node:fs");
           const path = require("node:path");
 
@@ -166,7 +166,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          cat > "$RUNNER_TEMP/ubq-responses-forwarder.js" <<'NODE'
+          cat > "$RUNNER_TEMP/ubq-responses-forwarder.cjs" <<'NODE'
           const http = require("node:http");
           const { Readable } = require("node:stream");
 
@@ -271,7 +271,7 @@ jobs:
           });
           NODE
 
-          node "$RUNNER_TEMP/ubq-responses-forwarder.js" &
+          node "$RUNNER_TEMP/ubq-responses-forwarder.cjs" &
           echo "$!" > "$RUNNER_TEMP/ubq_responses_forwarder.pid"
 
           for _ in {1..30}; do
@@ -312,7 +312,7 @@ jobs:
           ISSUE_NUMBER: ${{ inputs.issueNumber }}
           FORCE_OVERRIDE: ${{ inputs.forceOverride }}
         run: |
-          node <<'NODE'
+          node --input-type=commonjs <<'NODE'
           const fs = require("node:fs");
 
           const repo = String(process.env.REPO || "").trim();
