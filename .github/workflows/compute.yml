@@ -41,3 +41,4 @@ jobs:
           PLUGIN_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           KERNEL_PUBLIC_KEY: ${{ (endsWith(github.actor, '[bot]') && github.event.inputs.kernelPublicKey) || secrets.KERNEL_PUBLIC_KEY }}
           LOG_LEVEL: ${{ secrets.LOG_LEVEL || 'info' }}
+          ACTION_REF: ${{ github.repository }}@${{ github.ref_name }}
