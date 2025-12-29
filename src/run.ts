@@ -6,6 +6,55 @@ import { isIssueCommentEvent, isIssueLabelEvent } from "./types/typeguards";
 import { dispatchDeepEstimate } from "./utils/deep-estimate-dispatch";
 import { ensureTimeLabelOnIssueOpened, time } from "./utils/time";
 
+function isTimeSlashCommand(body: string | null | undefined): boolean {
+  return /^\s*\/time\b/i.test(body ?? "");
+}
+
+async function maybeDispatchDeepEstimate(context: Context, options: Parameters<typeof dispatchDeepEstimate>[1], message: string) {
+  try {
+    await dispatchDeepEstimate(context, options);
+  } catch (err) {
+    context.logger.warn(message, { err });
+  }
+}
+
+async function handleIssueCommentCreated(context: Context) {
+  if (!isWorkerOrLocalEnvironment() || !isIssueCommentEvent(context)) {
+    return;
+  }
+  if (!isTimeSlashCommand(context.payload.comment?.body)) {
+    return;
+  }
+  await time(context);
+  await maybeDispatchDeepEstimate(
+    context,
+    {
+      trigger: "issue_comment.created",
+      forceOverride: true,
+      initiator: context.payload.sender?.login,
+    },
+    "Failed to dispatch deep time estimate after /time."
+  );
+}
+
+async function handleIssuesOpened(context: Context) {
+  if (!isGithubOrLocalEnvironment()) {
+    return;
+  }
+  await syncPriceLabelsToConfig(context);
+  await ensureTimeLabelOnIssueOpened(context);
+  await maybeDispatchDeepEstimate(
+    context,
+    {
+      trigger: "issues.opened",
+      forceOverride: false,
+      initiator: context.payload.sender?.login,
+    },
+    "Failed to dispatch deep time estimate for new issue."
+  );
+  await onIssueOpenedUpdatePricing(context);
+}
+
 export function isLocalEnvironment() {
   return process.env.NODE_ENV === "local";
 }
@@ -42,16 +91,10 @@ export async function run(context: Context) {
 
   switch (eventName) {
     case "issue_comment.created":
-      if (isWorkerOrLocalEnvironment() && isIssueCommentEvent(context)) {
-        await time(context);
-      }
+      await handleIssueCommentCreated(context);
       break;
     case "issues.opened": {
-      if (isGithubOrLocalEnvironment()) {
-        await syncPriceLabelsToConfig(context);
-        await ensureTimeLabelOnIssueOpened(context);
-        await onIssueOpenedUpdatePricing(context);
-      }
+      await handleIssuesOpened(context);
       break;
     }
     case "repository.created":

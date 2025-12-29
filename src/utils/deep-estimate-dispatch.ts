@@ -15,6 +15,11 @@ type DeepEstimateOptions = {
 async function getDispatchOctokit(context: Context, owner: string, repo: string): Promise<InstanceType<typeof customOctokit> | Octokit> {
   const { APP_ID, APP_PRIVATE_KEY } = context.env;
   if (!APP_ID || !APP_PRIVATE_KEY) {
+    const pluginToken = process.env.PLUGIN_GITHUB_TOKEN?.trim();
+    if (pluginToken) {
+      context.logger.debug("APP_ID or APP_PRIVATE_KEY missing; using PLUGIN_GITHUB_TOKEN for workflow dispatch.");
+      return new Octokit({ auth: pluginToken });
+    }
     context.logger.debug("APP_ID or APP_PRIVATE_KEY is missing; using default Octokit instance for workflow dispatch.");
     return context.octokit;
   }
@@ -43,26 +48,39 @@ function getTargetRepoFullName(context: Context): string {
   return owner && name ? `${owner}/${name}` : "";
 }
 
+function getActionRefParts(actionRef: string): { owner: string; repo: string; ref: string } | null {
+  const match = ACTION_REF_REGEX.exec(actionRef);
+  if (!match) return null;
+  const [, owner, repo, ref] = match;
+  return { owner, repo, ref };
+}
+
+function getDefaultActionRefFromEnv(): { owner: string; repo: string; ref: string } | null {
+  const repository = process.env.GITHUB_REPOSITORY?.trim();
+  const ref = process.env.GITHUB_REF_NAME?.trim();
+  if (!repository || !ref) return null;
+  const [owner, repo] = repository.split("/");
+  if (!owner || !repo) return null;
+  return { owner, repo, ref };
+}
+
 export async function dispatchDeepEstimate(context: Context, options: DeepEstimateOptions): Promise<void> {
   const { logger, env } = context;
   if (context.authToken.startsWith("gh") && !context.ubiquityKernelToken) {
     logger.warn("Missing ubiquityKernelToken; skipping deep time estimate dispatch.");
     return;
   }
-  if (!env.ACTION_REF) {
-    logger.debug("ACTION_REF is missing; skipping deep-estimate dispatch.");
-    return;
-  }
-
-  const match = ACTION_REF_REGEX.exec(env.ACTION_REF);
-  if (!match) {
-    logger.warn("ACTION_REF is not in the proper format (owner/repo@ref); skipping deep-estimate dispatch.", {
+  const actionRefParts = (env.ACTION_REF ? getActionRefParts(env.ACTION_REF) : null) ?? getDefaultActionRefFromEnv();
+  if (!actionRefParts) {
+    logger.warn("No valid ACTION_REF or GitHub Actions ref found; skipping deep-estimate dispatch.", {
       actionRef: env.ACTION_REF,
+      githubRepository: process.env.GITHUB_REPOSITORY,
+      githubRefName: process.env.GITHUB_REF_NAME,
     });
     return;
   }
 
-  const [, owner, repo, ref] = match;
+  const { owner, repo, ref } = actionRefParts;
   const targetRepo = getTargetRepoFullName(context);
   const issueNumber = "issue" in context.payload ? context.payload.issue?.number : undefined;
   if (!targetRepo || !issueNumber) {
