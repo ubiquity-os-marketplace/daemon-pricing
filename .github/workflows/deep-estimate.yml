@@ -56,7 +56,7 @@ jobs:
 
       - name: Create app token (fallback)
         id: app-token
-        if: ${{ inputs.authToken == '' && inputs.authTokenB64 == '' && secrets.APP_ID != '' && secrets.APP_PRIVATE_KEY != '' }}
+        if: ${{ inputs.authToken == '' && inputs.authTokenB64 == '' }}
         uses: actions/create-github-app-token@v1
         with:
           app-id: ${{ secrets.APP_ID }}
