@@ -7,7 +7,7 @@ const logger = {
   error: jest.fn(),
   debug: jest.fn(),
 };
-const warnThrowMessages = ["The `/time` command can only be used in issue comments.", "Insufficient permissions to change the time estimate."];
+const warnThrowMessages = ["The `/time` command can only be used in issue comments."];
 (logger.warn as jest.Mock).mockImplementation((...args: unknown[]) => {
   const msg = String(args[0]);
   if (warnThrowMessages.some((text) => msg.includes(text))) {
@@ -186,31 +186,19 @@ describe("time label permissions hierarchy", () => {
     expect(mockAddLabelToIssue).toHaveBeenCalledWith(expect.anything(), "Time: 2 Hours");
   });
 
-  it("denies author to override time set by collaborator", async () => {
+  it("allows author to override time set by collaborator", async () => {
     const ctx = makeContext({
       sender: "author",
       authorLogin: "author",
       issueLabels: ["Time: 1 Hour"],
       events: [{ event: "labeled", label: { name: "Time: 1 Hour" }, actor: { login: "collab" } }],
     });
-    await expect(setTimeLabel(ctx as unknown as Context<"issue_comment.created">, "2h")).rejects.toThrow(
-      "Insufficient permissions to change the time estimate."
-    );
-    expect(logger.warn).toHaveBeenCalledWith(
-      "Insufficient permissions to change the time estimate.",
-      expect.objectContaining({
-        reason: "author-higher-rank",
-        sender: "author",
-        senderRank: "author",
-        lastSetter: "collab",
-        lastSetterRank: "collaborator",
-        existingTimeLabels: expect.arrayContaining(["Time: 1 Hour"]),
-        requestedTimeInput: "2h",
-      })
-    );
+    await setTimeLabel(ctx as unknown as Context<"issue_comment.created">, "2h");
+    expect(mockRemoveLabelFromIssue).toHaveBeenCalled();
+    expect(mockAddLabelToIssue).toHaveBeenCalledWith(expect.anything(), "Time: 2 Hours");
   });
 
-  it("denies author to override time set by bot", async () => {
+  it("allows author to override time set by bot", async () => {
     const ctx = makeContext({
       sender: "author",
       authorLogin: "author",
@@ -219,21 +207,9 @@ describe("time label permissions hierarchy", () => {
         { event: "labeled", label: { name: "Time: 1 Hour" }, actor: { login: "pricing-bot", type: "Bot" } as unknown as { login: string; type: string } },
       ] as unknown as Array<{ event: string; label?: { name: string }; actor?: { login: string; type: string } }>,
     });
-    await expect(setTimeLabel(ctx as unknown as Context<"issue_comment.created">, "2h")).rejects.toThrow(
-      "Insufficient permissions to change the time estimate."
-    );
-    expect(logger.warn).toHaveBeenCalledWith(
-      "Insufficient permissions to change the time estimate.",
-      expect.objectContaining({
-        reason: "author-higher-rank",
-        sender: "author",
-        senderRank: "author",
-        lastSetter: "pricing-bot",
-        lastSetterRank: "admin",
-        existingTimeLabels: expect.arrayContaining(["Time: 1 Hour"]),
-        requestedTimeInput: "2h",
-      })
-    );
+    await setTimeLabel(ctx as unknown as Context<"issue_comment.created">, "2h");
+    expect(mockRemoveLabelFromIssue).toHaveBeenCalled();
+    expect(mockAddLabelToIssue).toHaveBeenCalledWith(expect.anything(), "Time: 2 Hours");
   });
 
   it("allows collaborator to change existing time", async () => {
@@ -248,25 +224,15 @@ describe("time label permissions hierarchy", () => {
     expect(mockAddLabelToIssue).toHaveBeenCalledWith(expect.anything(), "Time: 2 Hours");
   });
 
-  it("denies contributor from changing existing time", async () => {
+  it("allows contributor to change existing time", async () => {
     const ctx = makeContext({
       sender: "outsider",
       authorLogin: "author",
       issueLabels: ["Time: 1 Hour"],
       events: [{ event: "labeled", label: { name: "Time: 1 Hour" }, actor: { login: "author" } }],
     });
-    await expect(setTimeLabel(ctx as unknown as Context<"issue_comment.created">, "2h")).rejects.toThrow(
-      "Insufficient permissions to change the time estimate."
-    );
-    expect(logger.warn).toHaveBeenCalledWith(
-      "Insufficient permissions to change the time estimate.",
-      expect.objectContaining({
-        reason: "contributor-restriction",
-        sender: "outsider",
-        senderRank: "contributor",
-        existingTimeLabels: expect.arrayContaining(["Time: 1 Hour"]),
-        requestedTimeInput: "2h",
-      })
-    );
+    await setTimeLabel(ctx as unknown as Context<"issue_comment.created">, "2h");
+    expect(mockRemoveLabelFromIssue).toHaveBeenCalled();
+    expect(mockAddLabelToIssue).toHaveBeenCalledWith(expect.anything(), "Time: 2 Hours");
   });
 });
