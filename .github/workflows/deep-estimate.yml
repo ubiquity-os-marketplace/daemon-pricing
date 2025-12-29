@@ -11,7 +11,7 @@ on:
         required: true
       authToken:
         description: "GitHub auth token"
-        required: true
+        required: false
       authTokenB64:
         description: "Base64-encoded GitHub auth token (optional)"
         required: false
@@ -42,6 +42,7 @@ jobs:
       - name: Mask tokens
         run: |
           echo "::add-mask::${{ inputs.authToken }}"
+          echo "::add-mask::${{ inputs.authTokenB64 }}"
           echo "::add-mask::${{ inputs.ubiquityKernelToken }}"
 
       - name: Parse repo owner/name
@@ -53,6 +54,16 @@ jobs:
           echo "owner=$owner" >> "$GITHUB_OUTPUT"
           echo "name=$name" >> "$GITHUB_OUTPUT"
 
+      - name: Create app token (fallback)
+        id: app-token
+        if: ${{ inputs.authToken == '' && inputs.authTokenB64 == '' && secrets.APP_ID != '' && secrets.APP_PRIVATE_KEY != '' }}
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          owner: ${{ steps.repo.outputs.owner }}
+          repositories: ${{ steps.repo.outputs.name }}
+
       - name: Resolve auth token
         id: auth
         run: |
@@ -60,6 +71,9 @@ jobs:
           token="${{ inputs.authToken }}"
           if [ -z "$token" ] && [ -n "${{ inputs.authTokenB64 }}" ]; then
             token="$(echo "${{ inputs.authTokenB64 }}" | base64 --decode)"
+          fi
+          if [ -z "$token" ] && [ -n "${{ steps.app-token.outputs.token }}" ]; then
+            token="${{ steps.app-token.outputs.token }}"
           fi
           if [ -z "$token" ]; then
             echo "Missing auth token input." >&2
@@ -86,91 +100,99 @@ jobs:
           TRIGGER: ${{ inputs.trigger }}
         run: |
           node --input-type=commonjs <<'NODE'
-          const fs = require("node:fs");
-          const path = require("node:path");
+          const main = async () => {
+            const fs = require("node:fs");
+            const path = require("node:path");
 
-          const repo = String(process.env.REPO || "").trim();
-          const issueNumber = Number.parseInt(String(process.env.ISSUE_NUMBER || "0"), 10);
-          const token = String(process.env.GH_TOKEN || "").trim();
-          const initiator = String(process.env.INITIATOR || "").trim();
-          const trigger = String(process.env.TRIGGER || "").trim();
+            const repo = String(process.env.REPO || "").trim();
+            const issueNumber = Number.parseInt(String(process.env.ISSUE_NUMBER || "0"), 10);
+            const token = String(process.env.GH_TOKEN || "").trim();
+            const initiator = String(process.env.INITIATOR || "").trim();
+            const trigger = String(process.env.TRIGGER || "").trim();
 
-          const MAX_BODY_CHARS = 4000;
-          const MAX_COMMENT_CHARS = 800;
-          const MAX_RECENT_COMMENTS = 10;
+            const MAX_BODY_CHARS = 4000;
+            const MAX_COMMENT_CHARS = 800;
+            const MAX_RECENT_COMMENTS = 10;
 
-          if (!repo || !Number.isFinite(issueNumber) || issueNumber <= 0 || !token) {
-            console.error("Missing repo, issue number, or auth token.");
-            process.exit(1);
-          }
+            if (!repo || !Number.isFinite(issueNumber) || issueNumber <= 0 || !token) {
+              throw new Error("Missing repo, issue number, or auth token.");
+            }
 
-          const headers = {
-            Authorization: `token ${token}`,
-            Accept: "application/vnd.github+json",
+            const headers = {
+              Authorization: `token ${token}`,
+              Accept: "application/vnd.github+json",
+            };
+
+            async function fetchJson(url) {
+              const res = await fetch(url, { headers });
+              if (!res.ok) {
+                const text = await res.text().catch(() => "");
+                throw new Error(`GitHub API error ${res.status}: ${text || res.statusText}`);
+              }
+              return await res.json();
+            }
+
+            const issueUrl = `https://api.github.com/repos/${repo}/issues/${issueNumber}`;
+            const issue = await fetchJson(issueUrl);
+            const title = String(issue.title || "").trim();
+            const body = String(issue.body || "").trim();
+            const trimmedBody = body.length > MAX_BODY_CHARS ? `${body.slice(0, MAX_BODY_CHARS)}...` : body;
+
+            const commentCount = Number(issue.comments || 0);
+            let comments = [];
+            if (commentCount > 0) {
+              const perPage = Math.min(MAX_RECENT_COMMENTS, 100);
+              const page = Math.max(1, Math.ceil(commentCount / perPage));
+              const commentsUrl = `https://api.github.com/repos/${repo}/issues/${issueNumber}/comments?per_page=${perPage}&page=${page}`;
+              const data = await fetchJson(commentsUrl);
+              comments = Array.isArray(data) ? data : [];
+            }
+
+            const commandRegex = /^\s*\/time\b/i;
+            const recentComments = comments
+              .filter((comment) => comment?.user?.type === "User")
+              .filter((comment) => !commandRegex.test(String(comment.body || "")))
+              .slice(-MAX_RECENT_COMMENTS)
+              .map((comment) => {
+                const author = String(comment.user?.login || "unknown");
+                const rawBody = String(comment.body || "").trim();
+                const trimmed = rawBody.length > MAX_COMMENT_CHARS ? `${rawBody.slice(0, MAX_COMMENT_CHARS)}...` : rawBody;
+                return `- ${author}: ${trimmed}`;
+              })
+              .filter(Boolean);
+
+            const commentsSection = recentComments.length
+              ? `Recent human comments (latest ${recentComments.length}):\n${recentComments.join("\n")}`
+              : "";
+            const triggerLine = trigger || initiator
+              ? `Trigger: ${trigger || "unknown"}${initiator ? ` by ${initiator}` : ""}`
+              : "";
+
+            const promptParts = [
+              "You are estimating effort for a GitHub issue using the checked-out repository.",
+              "Inspect code as needed. Do not modify files.",
+              "Reply with a single duration using minutes, hours, days, weeks, or months.",
+              "Use digits and one unit. No extra text.",
+              "Examples: 30 minutes, 2 hours, 1 day, 3 days, 1 week, 1 month.",
+              "",
+              triggerLine,
+              "",
+              `Issue title:\n${title || "(missing)"}`,
+              "",
+              `Issue body:\n${trimmedBody || "(missing)"}`,
+              commentsSection ? `\n${commentsSection}` : "",
+            ]
+              .filter((part) => part !== "")
+              .join("\n");
+
+            const promptPath = path.join("target_repo", ".codex.prompt.txt");
+            fs.writeFileSync(promptPath, `${promptParts.trim()}\n`, "utf8");
           };
 
-          async function fetchJson(url) {
-            const res = await fetch(url, { headers });
-            if (!res.ok) {
-              const text = await res.text().catch(() => "");
-              throw new Error(`GitHub API error ${res.status}: ${text || res.statusText}`);
-            }
-            return await res.json();
-          }
-
-          const issueUrl = `https://api.github.com/repos/${repo}/issues/${issueNumber}`;
-          const issue = await fetchJson(issueUrl);
-          const title = String(issue.title || "").trim();
-          const body = String(issue.body || "").trim();
-          const trimmedBody = body.length > MAX_BODY_CHARS ? `${body.slice(0, MAX_BODY_CHARS)}...` : body;
-
-          const commentCount = Number(issue.comments || 0);
-          let comments = [];
-          if (commentCount > 0) {
-            const perPage = Math.min(MAX_RECENT_COMMENTS, 100);
-            const page = Math.max(1, Math.ceil(commentCount / perPage));
-            const commentsUrl = `https://api.github.com/repos/${repo}/issues/${issueNumber}/comments?per_page=${perPage}&page=${page}`;
-            const data = await fetchJson(commentsUrl);
-            comments = Array.isArray(data) ? data : [];
-          }
-
-          const commandRegex = /^\s*\/time\b/i;
-          const recentComments = comments
-            .filter((comment) => comment?.user?.type === "User")
-            .filter((comment) => !commandRegex.test(String(comment.body || "")))
-            .slice(-MAX_RECENT_COMMENTS)
-            .map((comment) => {
-              const author = String(comment.user?.login || "unknown");
-              const rawBody = String(comment.body || "").trim();
-              const trimmed = rawBody.length > MAX_COMMENT_CHARS ? `${rawBody.slice(0, MAX_COMMENT_CHARS)}...` : rawBody;
-              return `- ${author}: ${trimmed}`;
-            })
-            .filter(Boolean);
-
-          const commentsSection = recentComments.length
-            ? `Recent human comments (latest ${recentComments.length}):\n${recentComments.join("\n")}`
-            : "";
-          const triggerLine = trigger || initiator ? `Trigger: ${trigger || "unknown"}${initiator ? ` by ${initiator}` : ""}` : "";
-
-          const promptParts = [
-            "You are estimating effort for a GitHub issue using the checked-out repository.",
-            "Inspect code as needed. Do not modify files.",
-            "Reply with a single duration using minutes, hours, days, weeks, or months.",
-            "Use digits and one unit. No extra text.",
-            "Examples: 30 minutes, 2 hours, 1 day, 3 days, 1 week, 1 month.",
-            "",
-            triggerLine,
-            "",
-            `Issue title:\n${title || "(missing)"}`,
-            "",
-            `Issue body:\n${trimmedBody || "(missing)"}`,
-            commentsSection ? `\n${commentsSection}` : "",
-          ]
-            .filter((part) => part !== "")
-            .join("\n");
-
-          const promptPath = path.join("target_repo", ".codex.prompt.txt");
-          fs.writeFileSync(promptPath, `${promptParts.trim()}\n`, "utf8");
+          main().catch((error) => {
+            console.error(error);
+            process.exit(1);
+          });
           NODE
 
       - name: Start ai.ubq.fi Responses forwarder
@@ -331,167 +353,171 @@ jobs:
           FORCE_OVERRIDE: ${{ inputs.forceOverride }}
         run: |
           node --input-type=commonjs <<'NODE'
-          const fs = require("node:fs");
+          const main = async () => {
+            const fs = require("node:fs");
 
-          const repo = String(process.env.REPO || "").trim();
-          const issueNumber = Number.parseInt(String(process.env.ISSUE_NUMBER || "0"), 10);
-          const token = String(process.env.GH_TOKEN || "").trim();
-          const forceOverride = String(process.env.FORCE_OVERRIDE || "").toLowerCase() === "true";
+            const repo = String(process.env.REPO || "").trim();
+            const issueNumber = Number.parseInt(String(process.env.ISSUE_NUMBER || "0"), 10);
+            const token = String(process.env.GH_TOKEN || "").trim();
+            const forceOverride = String(process.env.FORCE_OVERRIDE || "").toLowerCase() === "true";
 
-          if (!repo || !Number.isFinite(issueNumber) || issueNumber <= 0 || !token) {
-            console.error("Missing repo, issue number, or auth token.");
-            process.exit(1);
-          }
-
-          const headers = {
-            Authorization: `token ${token}`,
-            Accept: "application/vnd.github+json",
-            "Content-Type": "application/json",
-          };
-
-          async function fetchJson(url, options = {}) {
-            const res = await fetch(url, { ...options, headers });
-            if (!res.ok) {
-              const text = await res.text().catch(() => "");
-              throw new Error(`GitHub API error ${res.status}: ${text || res.statusText}`);
+            if (!repo || !Number.isFinite(issueNumber) || issueNumber <= 0 || !token) {
+              throw new Error("Missing repo, issue number, or auth token.");
             }
-            if (res.status === 204) return null;
-            const text = await res.text().catch(() => "");
-            if (!text) return null;
-            return JSON.parse(text);
-          }
 
-          const outputPath = "target_repo/.codex.last-message.md";
-          if (!fs.existsSync(outputPath)) {
-            console.error("Missing Codex output file.");
-            process.exit(1);
-          }
-          const raw = fs.readFileSync(outputPath, "utf8").trim();
-          const line = raw.split(/\r?\n/).find((l) => l.trim()) || "";
-          const cleaned = line.replace(/[`*_]/g, "").trim();
+            const headers = {
+              Authorization: `token ${token}`,
+              Accept: "application/vnd.github+json",
+              "Content-Type": "application/json",
+            };
 
-          const UNIT_ALIASES = {
-            m: "minute",
-            min: "minute",
-            mins: "minute",
-            minute: "minute",
-            minutes: "minute",
-            h: "hour",
-            hr: "hour",
-            hrs: "hour",
-            hour: "hour",
-            hours: "hour",
-            d: "day",
-            day: "day",
-            days: "day",
-            w: "week",
-            wk: "week",
-            wks: "week",
-            week: "week",
-            weeks: "week",
-            mo: "month",
-            mon: "month",
-            mons: "month",
-            month: "month",
-            months: "month",
-          };
-
-          function parseTimeInput(input) {
-            const trimmed = String(input || "").trim().replace(/^Time:\s*<?\s*/i, "").replace(/^</, "").trim();
-            if (!trimmed) return null;
-            if (/^\d+(\.\d+)?$/.test(trimmed)) {
-              return { value: Number.parseFloat(trimmed), unit: "day" };
-            }
-            const match = /(\d+(?:\.\d+)?)\s*([a-zA-Z]+)\b/.exec(trimmed);
-            if (!match) return null;
-            const value = Number.parseFloat(match[1]);
-            if (!Number.isFinite(value)) return null;
-            const unit = UNIT_ALIASES[match[2].toLowerCase()];
-            if (!unit) return null;
-            return { value, unit };
-          }
-
-          function formatNumber(value) {
-            if (Number.isInteger(value)) return value.toString();
-            return Number(value.toFixed(2)).toString();
-          }
-
-          function formatDuration(parsed) {
-            const unitBase = parsed.unit.charAt(0).toUpperCase() + parsed.unit.slice(1);
-            const unitLabel = parsed.value === 1 ? unitBase : `${unitBase}s`;
-            return `${formatNumber(parsed.value)} ${unitLabel}`;
-          }
-
-          const parsed = parseTimeInput(cleaned);
-          if (!parsed) {
-            console.error(`Invalid time estimate from Codex: ${cleaned || "(empty)"}`);
-            process.exit(1);
-          }
-
-          const timeLabel = `Time: ${formatDuration(parsed)}`;
-
-          if (!forceOverride) {
-            const eventsUrl = `https://api.github.com/repos/${repo}/issues/${issueNumber}/events?per_page=100`;
-            let page = 1;
-            let lastActorType = null;
-            let lastCreatedAt = 0;
-            while (true) {
-              const pageUrl = `${eventsUrl}&page=${page}`;
-              const events = await fetchJson(pageUrl);
-              if (!Array.isArray(events) || events.length === 0) break;
-              const labeled = events.filter(
-                (event) => event?.event === "labeled" && event?.label?.name && /^time:/i.test(String(event.label.name))
-              );
-              for (const event of labeled) {
-                const createdAt = Date.parse(String(event?.created_at || "")) || 0;
-                if (createdAt >= lastCreatedAt) {
-                  lastCreatedAt = createdAt;
-                  lastActorType = event?.actor?.type ?? null;
-                }
+            async function fetchJson(url, options = {}) {
+              const res = await fetch(url, { ...options, headers });
+              if (!res.ok) {
+                const text = await res.text().catch(() => "");
+                throw new Error(`GitHub API error ${res.status}: ${text || res.statusText}`);
               }
-              if (events.length < 100) break;
-              page += 1;
+              if (res.status === 204) return null;
+              const text = await res.text().catch(() => "");
+              if (!text) return null;
+              return JSON.parse(text);
             }
-            if (lastActorType === "User") {
-              console.log("Skipping label update because the last time label was set by a human.");
-              process.exit(0);
+
+            const outputPath = "target_repo/.codex.last-message.md";
+            if (!fs.existsSync(outputPath)) {
+              throw new Error("Missing Codex output file.");
             }
-          }
+            const raw = fs.readFileSync(outputPath, "utf8").trim();
+            const line = raw.split(/\r?\n/).find((l) => l.trim()) || "";
+            const cleaned = line.replace(/[`*_]/g, "").trim();
 
-          const labelsUrl = `https://api.github.com/repos/${repo}/issues/${issueNumber}/labels?per_page=100`;
-          const issueLabels = await fetchJson(labelsUrl);
-          const timeLabels = Array.isArray(issueLabels)
-            ? issueLabels.filter((label) => /^time:/i.test(String(label.name))).map((label) => String(label.name))
-            : [];
+            const UNIT_ALIASES = {
+              m: "minute",
+              min: "minute",
+              mins: "minute",
+              minute: "minute",
+              minutes: "minute",
+              h: "hour",
+              hr: "hour",
+              hrs: "hour",
+              hour: "hour",
+              hours: "hour",
+              d: "day",
+              day: "day",
+              days: "day",
+              w: "week",
+              wk: "week",
+              wks: "week",
+              week: "week",
+              weeks: "week",
+              mo: "month",
+              mon: "month",
+              mons: "month",
+              month: "month",
+              months: "month",
+            };
 
-          if (timeLabels.length === 1 && timeLabels[0] === timeLabel) {
-            console.log("Time label already up to date.");
-            process.exit(0);
-          }
+            function parseTimeInput(input) {
+              const trimmed = String(input || "").trim().replace(/^Time:\s*<?\s*/i, "").replace(/^</, "").trim();
+              if (!trimmed) return null;
+              if (/^\d+(\.\d+)?$/.test(trimmed)) {
+                return { value: Number.parseFloat(trimmed), unit: "day" };
+              }
+              const match = /(\d+(?:\.\d+)?)\s*([a-zA-Z]+)\b/.exec(trimmed);
+              if (!match) return null;
+              const value = Number.parseFloat(match[1]);
+              if (!Number.isFinite(value)) return null;
+              const unit = UNIT_ALIASES[match[2].toLowerCase()];
+              if (!unit) return null;
+              return { value, unit };
+            }
 
-          try {
-            await fetchJson(`https://api.github.com/repos/${repo}/labels`, {
+            function formatNumber(value) {
+              if (Number.isInteger(value)) return value.toString();
+              return Number(value.toFixed(2)).toString();
+            }
+
+            function formatDuration(parsed) {
+              const unitBase = parsed.unit.charAt(0).toUpperCase() + parsed.unit.slice(1);
+              const unitLabel = parsed.value === 1 ? unitBase : `${unitBase}s`;
+              return `${formatNumber(parsed.value)} ${unitLabel}`;
+            }
+
+            const parsed = parseTimeInput(cleaned);
+            if (!parsed) {
+              throw new Error(`Invalid time estimate from Codex: ${cleaned || "(empty)"}`);
+            }
+
+            const timeLabel = `Time: ${formatDuration(parsed)}`;
+
+            if (!forceOverride) {
+              const eventsUrl = `https://api.github.com/repos/${repo}/issues/${issueNumber}/events?per_page=100`;
+              let page = 1;
+              let lastActorType = null;
+              let lastCreatedAt = 0;
+              while (true) {
+                const pageUrl = `${eventsUrl}&page=${page}`;
+                const events = await fetchJson(pageUrl);
+                if (!Array.isArray(events) || events.length === 0) break;
+                const labeled = events.filter(
+                  (event) => event?.event === "labeled" && event?.label?.name && /^time:/i.test(String(event.label.name))
+                );
+                for (const event of labeled) {
+                  const createdAt = Date.parse(String(event?.created_at || "")) || 0;
+                  if (createdAt >= lastCreatedAt) {
+                    lastCreatedAt = createdAt;
+                    lastActorType = event?.actor?.type ?? null;
+                  }
+                }
+                if (events.length < 100) break;
+                page += 1;
+              }
+              if (lastActorType === "User") {
+                console.log("Skipping label update because the last time label was set by a human.");
+                return;
+              }
+            }
+
+            const labelsUrl = `https://api.github.com/repos/${repo}/issues/${issueNumber}/labels?per_page=100`;
+            const issueLabels = await fetchJson(labelsUrl);
+            const timeLabels = Array.isArray(issueLabels)
+              ? issueLabels.filter((label) => /^time:/i.test(String(label.name))).map((label) => String(label.name))
+              : [];
+
+            if (timeLabels.length === 1 && timeLabels[0] === timeLabel) {
+              console.log("Time label already up to date.");
+              return;
+            }
+
+            try {
+              await fetchJson(`https://api.github.com/repos/${repo}/labels`, {
+                method: "POST",
+                body: JSON.stringify({ name: timeLabel, color: "ededed" }),
+              });
+            } catch (err) {
+              const message = err instanceof Error ? err.message : String(err);
+              if (!message.includes("422")) {
+                console.warn("Could not create label (likely already exists).", { err: message });
+              }
+            }
+
+            for (const label of timeLabels) {
+              const encoded = encodeURIComponent(label);
+              await fetchJson(`https://api.github.com/repos/${repo}/issues/${issueNumber}/labels/${encoded}`, {
+                method: "DELETE",
+              });
+            }
+
+            await fetchJson(`https://api.github.com/repos/${repo}/issues/${issueNumber}/labels`, {
               method: "POST",
-              body: JSON.stringify({ name: timeLabel, color: "ededed" }),
+              body: JSON.stringify({ labels: [timeLabel] }),
             });
-          } catch (err) {
-            const message = err instanceof Error ? err.message : String(err);
-            if (!message.includes("422")) {
-              console.warn("Could not create label (likely already exists).", { err: message });
-            }
-          }
 
-          for (const label of timeLabels) {
-            const encoded = encodeURIComponent(label);
-            await fetchJson(`https://api.github.com/repos/${repo}/issues/${issueNumber}/labels/${encoded}`, {
-              method: "DELETE",
-            });
-          }
+            console.log(`Applied deep-estimate label: ${timeLabel}`);
+          };
 
-          await fetchJson(`https://api.github.com/repos/${repo}/issues/${issueNumber}/labels`, {
-            method: "POST",
-            body: JSON.stringify({ labels: [timeLabel] }),
+          main().catch((error) => {
+            console.error(error);
+            process.exit(1);
           });
-
-          console.log(`Applied deep-estimate label: ${timeLabel}`);
           NODE

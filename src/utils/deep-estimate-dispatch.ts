@@ -64,6 +64,12 @@ function getDefaultActionRefFromEnv(): { owner: string; repo: string; ref: strin
   return { owner, repo, ref };
 }
 
+function toBase64(value: string): string {
+  if (typeof Buffer !== "undefined") return Buffer.from(value, "utf8").toString("base64");
+  if (typeof btoa !== "undefined") return btoa(value);
+  return "";
+}
+
 export async function dispatchDeepEstimate(context: Context, options: DeepEstimateOptions): Promise<void> {
   const { logger, env } = context;
   if (context.authToken.startsWith("gh") && !context.ubiquityKernelToken) {
@@ -89,7 +95,7 @@ export async function dispatchDeepEstimate(context: Context, options: DeepEstima
   }
 
   const authToken = context.authToken?.trim() ?? "";
-  const authTokenB64 = authToken ? Buffer.from(authToken, "utf8").toString("base64") : "";
+  const authTokenB64 = authToken ? toBase64(authToken) : "";
 
   const inputs = {
     repo: targetRepo,
