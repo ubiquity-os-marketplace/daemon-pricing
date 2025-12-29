@@ -87,6 +87,11 @@ export async function handleCommand(context: Context) {
 }
 
 export async function run(context: Context) {
+  if (context.command) {
+    await handleCommand(context);
+    return { message: "OK" };
+  }
+
   const { eventName, logger } = context;
 
   switch (eventName) {
