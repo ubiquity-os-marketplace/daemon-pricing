@@ -12,6 +12,9 @@ on:
       authToken:
         description: "GitHub auth token"
         required: true
+      authTokenB64:
+        description: "Base64-encoded GitHub auth token (optional)"
+        required: false
       ubiquityKernelToken:
         description: "Kernel attestation token (optional)"
         required: false
@@ -50,10 +53,25 @@ jobs:
           echo "owner=$owner" >> "$GITHUB_OUTPUT"
           echo "name=$name" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve auth token
+        id: auth
+        run: |
+          set -euo pipefail
+          token="${{ inputs.authToken }}"
+          if [ -z "$token" ] && [ -n "${{ inputs.authTokenB64 }}" ]; then
+            token="$(echo "${{ inputs.authTokenB64 }}" | base64 --decode)"
+          fi
+          if [ -z "$token" ]; then
+            echo "Missing auth token input." >&2
+            exit 1
+          fi
+          echo "::add-mask::$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+
       - name: Checkout target repo
         uses: actions/checkout@v5
         with:
-          token: ${{ inputs.authToken }}
+          token: ${{ steps.auth.outputs.token }}
           repository: ${{ inputs.repo }}
           fetch-depth: 0
           persist-credentials: false
@@ -61,7 +79,7 @@ jobs:
 
       - name: Build Codex prompt
         env:
-          GH_TOKEN: ${{ inputs.authToken }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
           REPO: ${{ inputs.repo }}
           ISSUE_NUMBER: ${{ inputs.issueNumber }}
           INITIATOR: ${{ inputs.initiator }}
@@ -157,7 +175,7 @@ jobs:
 
       - name: Start ai.ubq.fi Responses forwarder
         env:
-          AUTH_TOKEN: ${{ inputs.authToken }}
+          AUTH_TOKEN: ${{ steps.auth.outputs.token }}
           KERNEL_TOKEN: ${{ inputs.ubiquityKernelToken }}
           GH_OWNER: ${{ steps.repo.outputs.owner }}
           GH_REPO: ${{ steps.repo.outputs.name }}
@@ -307,7 +325,7 @@ jobs:
 
       - name: Apply time label
         env:
-          GH_TOKEN: ${{ inputs.authToken }}
+          GH_TOKEN: ${{ steps.auth.outputs.token }}
           REPO: ${{ inputs.repo }}
           ISSUE_NUMBER: ${{ inputs.issueNumber }}
           FORCE_OVERRIDE: ${{ inputs.forceOverride }}

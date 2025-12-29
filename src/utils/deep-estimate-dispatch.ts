@@ -88,10 +88,14 @@ export async function dispatchDeepEstimate(context: Context, options: DeepEstima
     return;
   }
 
+  const authToken = context.authToken?.trim() ?? "";
+  const authTokenB64 = authToken ? Buffer.from(authToken, "utf8").toString("base64") : "";
+
   const inputs = {
     repo: targetRepo,
     issueNumber: String(issueNumber),
-    authToken: context.authToken,
+    authToken,
+    authTokenB64,
     ubiquityKernelToken: context.ubiquityKernelToken ?? "",
     installationId: String(context.payload.installation?.id ?? ""),
     forceOverride: options.forceOverride ? "true" : "false",
