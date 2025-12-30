@@ -8,7 +8,7 @@
         "@octokit/auth-app": "^7.1.4",
         "@octokit/rest": "^20.1.0",
         "@sinclair/typebox": "0.34.3",
-        "@ubiquity-os/plugin-sdk": "^3.6.3",
+        "@ubiquity-os/plugin-sdk": "^3.7.0",
         "@ubiquity-os/ubiquity-os-logger": "^1.4.0",
         "decimal.js": "^10.4.3",
         "dotenv": "^16.4.5",
@@ -721,7 +721,7 @@
 
     "@typescript-eslint/visitor-keys": ["@typescript-eslint/visitor-keys@8.35.1", "", { "dependencies": { "@typescript-eslint/types": "8.35.1", "eslint-visitor-keys": "^4.2.1" } }, "sha512-VRwixir4zBWCSTP/ljEo091lbpypz57PoeAQ9imjG+vbeof9LplljsL1mos4ccG6H9IjfrVGM359RozUnuFhpw=="],
 
-    "@ubiquity-os/plugin-sdk": ["@ubiquity-os/plugin-sdk@3.6.3", "", { "dependencies": { "@octokit/auth-app": "^7.1.1", "@octokit/core": "^6.1.3", "@octokit/plugin-paginate-rest": "^11.4.2", "@octokit/plugin-request-log": "^5.3.1", "@octokit/plugin-rest-endpoint-methods": "^13.2.1", "@octokit/plugin-retry": "^7.1.2", "@octokit/plugin-throttling": "^9.3.2", "@octokit/rest": "^21.0.2", "@octokit/types": "^13.6.1", "@octokit/webhooks": "^13.4.1", "@octokit/webhooks-types": "^7.6.1", "@sinclair/typebox": "^0.33.17", "libsodium-wrappers": "^0.7.15", "openai": "^4.70.2", "pino": "^9.7.0", "typebox-validators": "^0.3.5", "yaml": "^2.7.0" } }, "sha512-73Osf1XV7yv2zQ9NA0D/qwZkiGjo7RdbTr9oE6kaSwvZ/eKqB3fCgHpscW5t1fMrI8ye3+eHC7p5t3BWR55EQw=="],
+    "@ubiquity-os/plugin-sdk": ["@ubiquity-os/plugin-sdk@3.7.0", "", { "dependencies": { "@octokit/auth-app": "^7.1.1", "@octokit/core": "^6.1.3", "@octokit/plugin-paginate-rest": "^11.4.2", "@octokit/plugin-request-log": "^5.3.1", "@octokit/plugin-rest-endpoint-methods": "^13.2.1", "@octokit/plugin-retry": "^7.1.2", "@octokit/plugin-throttling": "^9.3.2", "@octokit/rest": "^21.0.2", "@octokit/types": "^13.6.1", "@octokit/webhooks": "^13.4.1", "@octokit/webhooks-types": "^7.6.1", "@sinclair/typebox": "^0.33.17", "libsodium-wrappers": "^0.7.15", "openai": "^4.70.2", "pino": "^9.7.0", "typebox-validators": "^0.3.5", "yaml": "^2.7.0" } }, "sha512-OcvfPsZUuxauKjIUuQPddg3IPHrKceE2+NaG4Fpc4gXQCoJ1siJsaG+Oo/OboPo8g9tg3nlEeBPOuJgbawPX+A=="],
 
     "@ubiquity-os/ubiquity-os-logger": ["@ubiquity-os/ubiquity-os-logger@1.4.0", "", {}, "sha512-giybluPmu0sreEWi60t9X8NxC5d48X7oQAb9RjXR7wX/ZNYugbAaKgj0TYEqECvSVDqgzpKo7UNerh1UQBscGw=="],
 

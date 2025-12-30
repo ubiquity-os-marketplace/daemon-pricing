@@ -125,7 +125,7 @@ async function estimateTimeInput(context: IssueContext): Promise<string> {
             role: "system",
             content:
               "You estimate effort for GitHub issues. Reply with a single duration using minutes, hours, days, weeks, or months. " +
-              `Use digits and one unit. No extra text. Examples: ${optionText}.`,
+              `Use digits and one unit. No extra text. Be consistent for identical inputs. Examples: ${optionText}.`,
           },
           {
             role: "user",
@@ -133,7 +133,7 @@ async function estimateTimeInput(context: IssueContext): Promise<string> {
           },
         ],
         max_tokens: 32,
-        temperature: 0.2,
+        temperature: 0,
       },
       context
     );

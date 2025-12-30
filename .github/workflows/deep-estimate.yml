@@ -173,6 +173,8 @@ jobs:
               "Inspect code as needed. Do not modify files.",
               "Reply with a single duration using minutes, hours, days, weeks, or months.",
               "Use digits and one unit. No extra text.",
+              "Be consistent: return the same duration for identical inputs.",
+              "If multiple durations fit, choose the single most likely and stick to it.",
               "Examples: 30 minutes, 2 hours, 1 day, 3 days, 1 week, 1 month.",
               "",
               triggerLine,
@@ -337,6 +339,7 @@ jobs:
           sandbox: read-only
           safety-strategy: read-only
           model: gpt-5.1-codex-mini
+          effort: low
 
       - name: Stop ai.ubq.fi Responses forwarder
         if: always()
