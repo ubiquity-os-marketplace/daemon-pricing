@@ -50,7 +50,10 @@ export async function isUserAdminOrBillingManager(context: Context, username?: s
 
 export async function listOrgRepos(context: Context) {
   const org = context.payload.organization?.login;
-  if (!org) throw context.logger.warn("No organization found in payload!", { payload: context.payload });
+  if (!org) {
+    context.logger.warn("No organization found in payload!", { payload: context.payload });
+    throw new Error("No organization found in payload!");
+  }
 
   try {
     const response = await context.octokit.rest.repos.listForOrg({
@@ -58,7 +61,8 @@ export async function listOrgRepos(context: Context) {
     });
     return response.data.filter((repo) => !repo.archived && !repo.disabled && !context.config.globalConfigUpdate?.excludeRepos.includes(repo.name));
   } catch (err) {
-    throw logByStatus(context.logger, "Listing org repos failed!", err);
+    logByStatus(context.logger, "Listing org repos failed!", err);
+    throw err instanceof Error ? err : new Error("Listing org repos failed!");
   }
 }
 
@@ -69,6 +73,7 @@ export async function listRepoIssues(context: Context, owner: string, repo: stri
       repo,
     });
   } catch (err) {
-    throw logByStatus(context.logger, "Listing repo issues failed!", err);
+    logByStatus(context.logger, "Listing repo issues failed!", err);
+    throw err instanceof Error ? err : new Error("Listing repo issues failed!");
   }
 }

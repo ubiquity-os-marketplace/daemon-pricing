@@ -6,9 +6,13 @@ import { calculateLabelValue } from "../src/shared/pricing";
 import { Context } from "../src/types/context";
 
 interface Label {
+  id: number;
+  node_id: string;
+  url: string;
   name: string;
-  description: string | undefined;
-  color?: string;
+  description: string | null;
+  color: string;
+  default: boolean;
 }
 
 const mockLogger = {
@@ -52,15 +56,18 @@ describe("syncPriceLabelsToConfig function", () => {
 
   it("updates price label colors when incorrect", async () => {
     const allLabels: Label[] = [
-      { name: "Priority: 1 (Normal)", description: "", color: "ededed" },
-      { name: "Priority: 2 (Medium)", description: "", color: "ededed" },
-      { name: "Price: 10 USD", description: "", color: "000000" },
+      { id: 1, node_id: "n1", url: "", name: "Priority: 1 (Normal)", description: "", color: "ededed", default: false },
+      { id: 2, node_id: "n2", url: "", name: "Priority: 2 (Medium)", description: "", color: "ededed", default: false },
+      { id: 3, node_id: "n3", url: "", name: "Price: 10 USD", description: "", color: "000000", default: false },
     ];
     const labelModule = await import("../src/shared/label");
     jest.spyOn(labelModule, "listLabelsForRepo").mockResolvedValue(allLabels);
     jest.spyOn(labelModule, "createLabel").mockResolvedValue();
 
-    mockContext.config.labels.priority = [{ name: "Priority: 1 (Normal)" }, { name: "Priority: 2 (Medium)" }];
+    mockContext.config.labels.priority = [
+      { name: "Priority: 1 (Normal)", collaboratorOnly: false },
+      { name: "Priority: 2 (Medium)", collaboratorOnly: false },
+    ];
 
     await syncPriceLabelsToConfig(mockContext);
 
@@ -78,7 +85,10 @@ describe("syncPriceLabelsToConfig function", () => {
     const createLabelSpy = jest.spyOn(labelModule, "createLabel").mockResolvedValue();
     jest.spyOn(labelModule, "listLabelsForRepo").mockResolvedValue(allLabels);
 
-    mockContext.config.labels.priority = [{ name: "Priority: 1 (Normal)" }, { name: "Priority: 2 (Medium)" }];
+    mockContext.config.labels.priority = [
+      { name: "Priority: 1 (Normal)", collaboratorOnly: false },
+      { name: "Priority: 2 (Medium)", collaboratorOnly: false },
+    ];
 
     await syncPriceLabelsToConfig(mockContext);
 

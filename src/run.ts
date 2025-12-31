@@ -3,7 +3,7 @@ import { onIssueOpenedUpdatePricing, onLabelChangeSetPricing } from "./handlers/
 import { syncPriceLabelsToConfig } from "./handlers/sync-labels-to-config";
 import { logByStatus } from "./shared/logging";
 import { Context } from "./types/context";
-import { isIssueCommentEvent, isIssueLabelEvent } from "./types/typeguards";
+import { isIssueCommentEvent, isIssueLabelEvent, isIssueOpenedEvent } from "./types/typeguards";
 import { dispatchDeepEstimate } from "./utils/deep-estimate-dispatch";
 import { ensureTimeLabelOnIssueOpened, time } from "./utils/time";
 
@@ -39,7 +39,7 @@ async function handleIssueCommentCreated(context: Context) {
 }
 
 async function handleIssuesOpened(context: Context) {
-  if (!isGithubOrLocalEnvironment()) {
+  if (!isGithubOrLocalEnvironment() || !isIssueOpenedEvent(context)) {
     return;
   }
   await syncPriceLabelsToConfig(context);

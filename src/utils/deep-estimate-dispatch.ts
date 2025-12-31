@@ -69,12 +69,13 @@ function getDefaultActionRefFromEnv(): { owner: string; repo: string; ref: strin
 function toBase64(value: string): string {
   if (typeof Buffer !== "undefined") return Buffer.from(value, "utf8").toString("base64");
   if (typeof btoa !== "undefined") return btoa(value);
-  return "";
+  throw new Error("Base64 encoding unavailable: neither Buffer nor btoa is defined");
 }
 
 export async function dispatchDeepEstimate(context: Context, options: DeepEstimateOptions): Promise<void> {
   const { logger, env } = context;
-  if (context.authToken.startsWith("gh") && !context.ubiquityKernelToken) {
+  const authToken = context.authToken?.trim() ?? "";
+  if (authToken.startsWith("gh") && !context.ubiquityKernelToken) {
     logger.warn("Missing ubiquityKernelToken; skipping deep time estimate dispatch.");
     return;
   }
@@ -96,7 +97,6 @@ export async function dispatchDeepEstimate(context: Context, options: DeepEstima
     return;
   }
 
-  const authToken = context.authToken?.trim() ?? "";
   const authTokenB64 = authToken ? toBase64(authToken) : "";
 
   const inputs = {
