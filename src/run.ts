@@ -11,6 +11,15 @@ function isTimeSlashCommand(body: string | null | undefined): boolean {
   return /^\s*\/time\b/i.test(body ?? "");
 }
 
+function getExplicitTimeInput(context: Context): string {
+  const commandDuration = typeof context.command?.parameters?.duration === "string" ? context.command.parameters.duration.trim() : "";
+  if (commandDuration) return commandDuration;
+  if (!isIssueCommentEvent(context)) return "";
+  const body = context.payload.comment?.body ?? "";
+  if (!isTimeSlashCommand(body)) return "";
+  return body.replace(/^\s*\/time\b/i, "").trim();
+}
+
 async function maybeDispatchDeepEstimate(context: Context, options: Parameters<typeof dispatchDeepEstimate>[1], message: string) {
   try {
     await dispatchDeepEstimate(context, options);
@@ -26,12 +35,13 @@ async function handleIssueCommentCreated(context: Context) {
   if (!isTimeSlashCommand(context.payload.comment?.body)) {
     return;
   }
+  const explicitDuration = getExplicitTimeInput(context);
   await time(context);
   await maybeDispatchDeepEstimate(
     context,
     {
       trigger: "issue_comment.created",
-      forceOverride: true,
+      forceOverride: !explicitDuration,
       initiator: context.payload.sender?.login,
     },
     "Failed to dispatch deep time estimate after /time."
@@ -74,11 +84,12 @@ export async function handleCommand(context: Context) {
   }
 
   if (context.command.name === "time" && isIssueCommentEvent(context)) {
+    const explicitDuration = getExplicitTimeInput(context);
     await time(context);
     try {
       await dispatchDeepEstimate(context, {
         trigger: "issue_comment.created",
-        forceOverride: true,
+        forceOverride: !explicitDuration,
         initiator: context.payload.sender?.login,
       });
     } catch (err) {
