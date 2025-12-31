@@ -87,6 +87,7 @@ jest.unstable_mockModule("../src/shared/issue", () => ({
 }));
 
 const { ensureTimeLabelOnIssueOpened, setTimeLabel, time } = await import("../src/utils/time");
+const { parseTimeInput } = await import("../src/utils/time-labels");
 
 function makeContext(
   overrides: Partial<Context<"issue_comment.created">> = {},
@@ -366,6 +367,16 @@ describe("setTimeLabel", () => {
       new Error("not a member")
     );
     await expect(setTimeLabel(context, "2h")).rejects.toThrow();
+  });
+});
+
+describe("parseTimeInput", () => {
+  it("parses compact multi-unit inputs", () => {
+    expect(parseTimeInput("1h30m")).toEqual({ value: 1.5, unit: "hour" });
+  });
+
+  it("parses multi-unit inputs with words", () => {
+    expect(parseTimeInput("1 hour and 30 minutes")).toEqual({ value: 1.5, unit: "hour" });
   });
 });
 
