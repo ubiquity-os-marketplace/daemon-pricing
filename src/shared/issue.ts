@@ -3,7 +3,10 @@ import { Context } from "../types/context";
 
 async function checkIfIsAdmin(context: Context, username: string) {
   const owner = context.payload.repository.owner?.login;
-  if (!owner) throw context.logger.warn("No owner found in the repository!");
+  if (!owner) {
+    context.logger.warn("No owner found in the repository!");
+    throw new Error("No owner found in the repository!");
+  }
   const response = await context.octokit.rest.repos.getCollaboratorPermissionLevel({
     owner,
     repo: context.payload.repository.name,
@@ -13,7 +16,10 @@ async function checkIfIsAdmin(context: Context, username: string) {
 }
 
 async function checkIfIsBillingManager(context: Context, username: string) {
-  if (!context.payload.organization) throw context.logger.warn("No organization found in payload!");
+  if (!context.payload.organization) {
+    context.logger.warn("No organization found in payload!");
+    throw new Error("No organization found in payload!");
+  }
 
   try {
     await context.octokit.rest.orgs.checkMembershipForUser({
