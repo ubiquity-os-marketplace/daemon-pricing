@@ -19,10 +19,10 @@ async function getDispatchOctokit(context: Context, owner: string, repo: string)
   if (!appId || !appPrivateKey) {
     const pluginToken = process.env.PLUGIN_GITHUB_TOKEN?.trim();
     if (pluginToken) {
-      context.logger.debug("APP_ID or APP_PRIVATE_KEY missing; using PLUGIN_GITHUB_TOKEN for workflow dispatch.");
+      context.logger.warn("APP_ID or APP_PRIVATE_KEY missing; using PLUGIN_GITHUB_TOKEN for workflow dispatch.");
       return new Octokit({ auth: pluginToken });
     }
-    context.logger.debug("APP_ID or APP_PRIVATE_KEY is missing; using default Octokit instance for workflow dispatch.");
+    context.logger.warn("APP_ID or APP_PRIVATE_KEY is missing; using default Octokit instance for workflow dispatch.");
     return context.octokit;
   }
 

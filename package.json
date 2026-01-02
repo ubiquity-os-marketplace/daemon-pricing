@@ -7,7 +7,7 @@
   "license": "MIT",
   "type": "module",
   "engines": {
-    "node": ">=20.10.0"
+    "node": ">=24.11.0"
   },
   "scripts": {
     "worker": "wrangler dev --env dev --port 4001",
@@ -34,8 +34,8 @@
   "dependencies": {
     "@octokit/auth-app": "^7.1.4",
     "@octokit/rest": "^20.1.0",
-    "@sinclair/typebox": "0.34.3",
-    "@ubiquity-os/plugin-sdk": "^3.7.0",
+    "@sinclair/typebox": "0.34.41",
+    "@ubiquity-os/plugin-sdk": "^3.8.0",
     "@ubiquity-os/ubiquity-os-logger": "^1.4.0",
     "decimal.js": "^10.4.3",
     "dotenv": "^16.4.5",
