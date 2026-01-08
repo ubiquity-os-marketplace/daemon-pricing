@@ -186,13 +186,19 @@ export async function setTimeLabel(context: Context, timeInput: string) {
     throw context.logger.warn(`The provided time \`${timeInput}\` is invalid.`, { input: timeInput });
   }
   const timeLabel = formatTimeLabel(parsedInput);
+  const normalizedTimeLabel = timeLabel.toLowerCase();
   const timeLabels = currentLabels.filter((label: string) => label.toLowerCase().startsWith("time:"));
 
+  await ensureTimeLabelExists(ctx, timeLabel);
+
   for (const label of timeLabels) {
+    if (label.toLowerCase() === normalizedTimeLabel) continue;
     await removeLabelFromIssue(ctx, label);
   }
-  await ensureTimeLabelExists(ctx, timeLabel);
-  await addLabelToIssue(ctx, timeLabel);
+
+  if (!timeLabels.some((label) => label.toLowerCase() === normalizedTimeLabel)) {
+    await addLabelToIssue(ctx, timeLabel);
+  }
 }
 
 export async function ensureTimeLabelOnIssueOpened(context: Context<"issues.opened">) {

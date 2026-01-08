@@ -19,7 +19,8 @@ export async function getLabelsChanges(context: Context) {
   const owner = repository.owner?.login;
 
   if (!owner) {
-    throw logger.warn("No owner found in the repository");
+    logger.warn("No owner found in the repository");
+    throw new Error("No owner found in the repository");
   }
 
   try {

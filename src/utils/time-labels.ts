@@ -33,6 +33,24 @@ const UNIT_ALIASES: Record<string, TimeUnit> = {
   months: "month",
 };
 
+const UNIT_TO_MINUTES: Record<TimeUnit, number> = {
+  minute: 1,
+  hour: 60,
+  day: 60 * 24,
+  week: 60 * 24 * 7,
+  month: 60 * 24 * 30,
+};
+
+const UNIT_RANK: Record<TimeUnit, number> = {
+  minute: 0,
+  hour: 1,
+  day: 2,
+  week: 3,
+  month: 4,
+};
+
+const DURATION_PART_REGEX = /(\d+(?:\.\d+)?)\s*([a-zA-Z]+)/g;
+
 function formatUnitLabel(unit: TimeUnit, value: number): string {
   const base = unit.charAt(0).toUpperCase() + unit.slice(1);
   return value === 1 ? base : `${base}s`;
@@ -48,14 +66,38 @@ function normalizeUnit(rawUnit: string): TimeUnit | null {
   return UNIT_ALIASES[key] ?? null;
 }
 
-function extractNumberAndUnit(input: string): ParsedTime | null {
-  const match = /(\d+(?:\.\d+)?)\s*([a-zA-Z]+)\b/.exec(input);
-  if (!match) return null;
-  const value = Number.parseFloat(match[1]);
-  if (!Number.isFinite(value)) return null;
-  const unit = normalizeUnit(match[2]);
-  if (!unit) return null;
-  return { value, unit };
+function parseDurationParts(input: string): ParsedTime[] | null {
+  const matches = [...input.matchAll(DURATION_PART_REGEX)];
+  if (matches.length === 0) return null;
+
+  const parts: ParsedTime[] = [];
+  for (const match of matches) {
+    const value = Number.parseFloat(match[1]);
+    if (!Number.isFinite(value)) return null;
+    const unit = normalizeUnit(match[2]);
+    if (!unit) return null;
+    parts.push({ value, unit });
+  }
+
+  const remainder = input
+    .replace(DURATION_PART_REGEX, " ")
+    .replace(/\band\b/gi, " ")
+    .replace(/,+/g, " ")
+    .trim();
+  if (remainder) return null;
+
+  return parts;
+}
+
+function collapseParsedParts(parts: ParsedTime[]): ParsedTime | null {
+  if (parts.length === 0) return null;
+  if (parts.length === 1) return parts[0];
+
+  const totalMinutes = parts.reduce((sum, part) => sum + part.value * UNIT_TO_MINUTES[part.unit], 0);
+  if (!Number.isFinite(totalMinutes)) return null;
+
+  const targetUnit = parts.reduce((best, part) => (UNIT_RANK[part.unit] > UNIT_RANK[best] ? part.unit : best), parts[0].unit);
+  return { value: totalMinutes / UNIT_TO_MINUTES[targetUnit], unit: targetUnit };
 }
 
 function formatNumber(value: number): string {
@@ -73,14 +115,17 @@ export function parseTimeInput(input: string): ParsedTime | null {
     return { value: Number.parseFloat(trimmed), unit: "day" };
   }
 
-  const direct = extractNumberAndUnit(trimmed);
-  if (direct) return direct;
+  const parts = parseDurationParts(trimmed);
+  const collapsed = parts ? collapseParsedParts(parts) : null;
+  if (collapsed) return collapsed;
 
   const msValue = ms(trimmed);
   if (typeof msValue === "number" && msValue > 0) {
     const longForm = ms(msValue, { long: true });
     if (typeof longForm === "string") {
-      return extractNumberAndUnit(longForm);
+      const msParts = parseDurationParts(longForm);
+      const msCollapsed = msParts ? collapseParsedParts(msParts) : null;
+      if (msCollapsed) return msCollapsed;
     }
   }
 

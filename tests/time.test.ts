@@ -2,6 +2,7 @@ import { jest } from "@jest/globals";
 import { Context } from "../src/types/context";
 
 const logger = {
+  ok: jest.fn(),
   warn: jest.fn(),
   info: jest.fn(),
   error: jest.fn(),
@@ -68,7 +69,9 @@ const mockIssue = {
 const mockAddLabelToIssue = jest.fn();
 const mockRemoveLabelFromIssue = jest.fn();
 const mockCreateLabel = jest.fn();
-const mockCallLlm = jest.fn();
+type MockLlmResponse = { choices: { message: { content: string } }[] };
+type IsUserAdminOrBillingManagerReturn = "admin" | "billing_manager" | false;
+const mockCallLlm = jest.fn<() => Promise<MockLlmResponse>>();
 const mockSanitizeLlmResponse = jest.fn((input: string) => input);
 
 jest.unstable_mockModule("@ubiquity-os/plugin-sdk", () => ({
@@ -81,10 +84,11 @@ jest.unstable_mockModule("../src/shared/label", () => ({
   createLabel: mockCreateLabel,
 }));
 jest.unstable_mockModule("../src/shared/issue", () => ({
-  isUserAdminOrBillingManager: jest.fn(() => "admin"),
+  isUserAdminOrBillingManager: jest.fn(async () => "admin"),
 }));
 
 const { ensureTimeLabelOnIssueOpened, setTimeLabel, time } = await import("../src/utils/time");
+const { parseTimeInput } = await import("../src/utils/time-labels");
 
 function makeContext(
   overrides: Partial<Context<"issue_comment.created">> = {},
@@ -225,7 +229,7 @@ describe("setTimeLabel", () => {
     }));
     jest.clearAllMocks();
     const { isUserAdminOrBillingManager } = await import("../src/shared/issue");
-    (isUserAdminOrBillingManager as jest.Mock<() => Promise<string>>).mockResolvedValue("admin");
+    (isUserAdminOrBillingManager as jest.Mock<() => Promise<IsUserAdminOrBillingManagerReturn>>).mockResolvedValue("admin");
   });
 
   it("throws if not issue comment event", async () => {
@@ -239,7 +243,7 @@ describe("setTimeLabel", () => {
 
   it("allows admin to set time", async () => {
     const { isUserAdminOrBillingManager } = await import("../src/shared/issue");
-    (isUserAdminOrBillingManager as jest.Mock<() => Promise<string>>).mockResolvedValue("admin");
+    (isUserAdminOrBillingManager as jest.Mock<() => Promise<IsUserAdminOrBillingManagerReturn>>).mockResolvedValue("admin");
     const context = makeContext(
       {
         payload: {
@@ -308,7 +312,7 @@ describe("setTimeLabel", () => {
 
   it("removes existing time labels before adding new one", async () => {
     const { isUserAdminOrBillingManager } = await import("../src/shared/issue");
-    (isUserAdminOrBillingManager as jest.Mock<() => Promise<string>>).mockResolvedValue("admin");
+    (isUserAdminOrBillingManager as jest.Mock<() => Promise<IsUserAdminOrBillingManagerReturn>>).mockResolvedValue("admin");
     const context = makeContext(
       {
         payload: {
@@ -348,20 +352,30 @@ describe("setTimeLabel", () => {
 
   it("throws if not admin or author", async () => {
     const { isUserAdminOrBillingManager } = await import("../src/shared/issue");
-    (isUserAdminOrBillingManager as jest.Mock<() => Promise<string>>).mockResolvedValue(false);
+    (isUserAdminOrBillingManager as jest.Mock<() => Promise<IsUserAdminOrBillingManagerReturn>>).mockResolvedValue(false);
     const context = makeContext({
       payload: {
         sender: { login: "outsider" },
         issue: { ...mockIssue, user: { ...mockUser, login: "owner" }, labels: [{ name: "Time: 1h" }] },
       } as unknown as Context<"issue_comment.created">["payload"],
     });
-    (context.octokit.rest.repos.getCollaboratorPermissionLevel as jest.Mock).mockResolvedValue({
+    (
+      context.octokit.rest.repos.getCollaboratorPermissionLevel as unknown as jest.Mock<() => Promise<{ data: { permission: string; role_name: string } }>>
+    ).mockResolvedValue({
       data: { permission: "read", role_name: "read" },
     });
-    (context.octokit.rest.orgs.getMembershipForUser as jest.Mock).mockImplementation(() => {
-      throw new Error("not a member");
-    });
+    (context.octokit.rest.orgs.getMembershipForUser as unknown as jest.Mock<() => Promise<unknown>>).mockRejectedValue(new Error("not a member"));
     await expect(setTimeLabel(context, "2h")).rejects.toThrow();
+  });
+});
+
+describe("parseTimeInput", () => {
+  it("parses compact multi-unit inputs", () => {
+    expect(parseTimeInput("1h30m")).toEqual({ value: 1.5, unit: "hour" });
+  });
+
+  it("parses multi-unit inputs with words", () => {
+    expect(parseTimeInput("1 hour and 30 minutes")).toEqual({ value: 1.5, unit: "hour" });
   });
 });
 
@@ -369,7 +383,7 @@ describe("time", () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     const { isUserAdminOrBillingManager } = await import("../src/shared/issue");
-    (isUserAdminOrBillingManager as jest.Mock<() => Promise<boolean>>).mockResolvedValue(true);
+    (isUserAdminOrBillingManager as jest.Mock<() => Promise<IsUserAdminOrBillingManagerReturn>>).mockResolvedValue("admin");
   });
 
   it("calls setTimeLabel with parsed input", async () => {

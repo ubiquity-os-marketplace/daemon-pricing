@@ -35,14 +35,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Inspect kernel inputs
-        run: |
-          echo "authToken length: ${#AUTH_TOKEN}"
-          echo "ubiquityKernelToken length: ${#KERNEL_TOKEN}"
-        env:
-          AUTH_TOKEN: ${{ github.event.inputs.authToken }}
-          KERNEL_TOKEN: ${{ github.event.inputs.ubiquityKernelToken }}
-
       - name: Calling action
         uses: ./
         env:

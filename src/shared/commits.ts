@@ -9,9 +9,10 @@ export async function pushEmptyCommit(context: Context) {
   const ref = `heads/${payload.repository.default_branch}`;
 
   if (!owner) {
-    throw logger.warn("No owner was found in the repository, a commit / push action cannot be performed.", {
+    logger.warn("No owner was found in the repository, a commit / push action cannot be performed.", {
       payload,
     });
+    throw new Error("No owner was found in the repository, a commit / push action cannot be performed.");
   }
 
   const refResponse = await octokit.rest.git.getRef({
