@@ -7,7 +7,7 @@ import { ZERO_SHA } from "../src/handlers/check-modified-base-rate";
 import { globalLabelUpdate } from "../src/handlers/global-config-update";
 import { Context } from "../src/types/context";
 import { Label } from "../src/types/github";
-import { priceMap, PRIORITY_LABELS, TIME_LABELS } from "./__mocks__/constants";
+import { priceMap, PRIORITY_LABELS } from "./__mocks__/constants";
 import { db } from "./__mocks__/db";
 import { createCommit, inMemoryCommits, setupTests } from "./__mocks__/helpers";
 import { server } from "./__mocks__/node";
@@ -586,10 +586,6 @@ function createContext(
     config: {
       labels: {
         priority: PRIORITY_LABELS.map((label) => ({
-          name: label.name,
-          collaboratorOnly: false,
-        })),
-        time: TIME_LABELS.map((label) => ({
           name: label.name,
           collaboratorOnly: false,
         })),

@@ -14,7 +14,6 @@ describe("Pricing labels", () => {
     const base: Partial<Context> = {
       config: {
         labels: {
-          time: [{ name: "Time: 1 Hour" }, { name: "Time: 2 Hours" }],
           priority: [
             { name: "Priority: 1 (Normal)", collaboratorOnly: false },
             { name: "Priority: 2 (Medium)", collaboratorOnly: false },

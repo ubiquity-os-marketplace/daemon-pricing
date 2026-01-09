@@ -14,14 +14,14 @@ export async function isConfigModified(context: Context): Promise<boolean> {
   const { logger, payload } = context;
 
   if (payload.before === ZERO_SHA) {
-    logger.info("Skipping push events. A new branch was created");
+    logger.debug("Skipping push events. A new branch was created");
     return false;
   }
 
   const changes = getCommitChanges(payload.commits);
 
   if (changes && changes.length === 0) {
-    logger.info("No files were changed in the commits, so no action is required.");
+    logger.debug("No files were changed in the commits, so no action is required.");
     return false;
   }
 

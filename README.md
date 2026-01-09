@@ -62,12 +62,6 @@ Example of valid configuration:
 - plugin: https://ubiquity-os-daemon-pricing.ubq.fi
   with:
     labels:
-      time:
-        - name: "Time: <1 Hour"
-        - name: "Time: <2 Hours"
-        - name: "Time: <4 Hours"
-        - name: "Time: <1 Day"
-        - name: "Time: <1 Week"
       priority:
         - name: "Priority: 1 (Normal)"
         - name: "Priority: 2 (Medium)"
@@ -79,6 +73,12 @@ Example of valid configuration:
     globalConfigUpdate:
       excludeRepos: ["devpool-directory", "devpool-directory-private"]
 ```
+
+Time labels are created automatically from `/time <duration>` or from the issue-open LLM estimate, so they no longer need to be listed in the config.
+
+### Deep time estimates (async)
+
+On issue creation and `/time`, the plugin also dispatches a background workflow that checks out the target repo and uses Codex to refine the estimate. It silently updates the time label if the last time label was set by a bot (issue-open) or always when `/time` triggered the run. The workflow routes Codex calls through `ai.ubq.fi` using the kernel attestation token, so no OpenAI API key is required.
 
 ## Running locally
 

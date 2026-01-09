@@ -3,6 +3,7 @@ import { Context } from "../types/context";
 import { UserType } from "../types/github";
 import { isIssueLabelEvent, isIssueOpenedEvent } from "../types/typeguards";
 import { isUserAdminOrBillingManager } from "./issue";
+import { parseTimeLabel } from "../utils/time-labels";
 
 export async function labelAccessPermissionsCheck(context: Context) {
   // On transfer, there is no specific label in the payload, so we can just check user status
@@ -16,7 +17,7 @@ export async function labelAccessPermissionsCheck(context: Context) {
   const { logger, payload } = context;
   const { shouldFundContributorClosedIssue } = context.config;
   if (!payload.label?.name) {
-    logger.debug("The label has no name.");
+    logger.warn("The label has no name.");
     return false;
   }
 
@@ -31,17 +32,17 @@ export async function labelAccessPermissionsCheck(context: Context) {
 
   const sender = payload.sender?.login;
   if (!sender) {
-    throw logger.error("No sender found in the payload");
+    throw logger.warn("No sender found in the payload");
   }
 
   const repo = payload.repository;
   const sufficientPrivileges = await isUserAdminOrBillingManager(context, sender);
-  const timeRegex = extractLabelPattern(context.config.labels.time);
   const priorityRegex = extractLabelPattern(context.config.labels.priority);
+  const isTimeLabel = parseTimeLabel(payload.label.name) !== null;
   // get text before :
   const match = payload.label?.name?.split(":");
   // We can ignore custom labels which are not like Label: <value>
-  if (match.length <= 1 && !timeRegex.test(payload.label.name) && !priorityRegex.test(payload.label.name)) {
+  if (match.length <= 1 && !isTimeLabel && !priorityRegex.test(payload.label.name)) {
     context.logger.debug("The label does not appear to be a recognized label.", {
       label: payload.label,
     });
