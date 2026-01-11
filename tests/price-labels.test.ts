@@ -1,7 +1,6 @@
 import { jest } from "@jest/globals";
 import { LogReturn, Logs } from "@ubiquity-os/ubiquity-os-logger";
 import { determinePriorityOrder, extractLabelPattern } from "../src/handlers/label-checks";
-import { syncPriceLabelsToConfig } from "../src/handlers/sync-labels-to-config";
 import { calculateLabelValue } from "../src/shared/pricing";
 import { Context } from "../src/types/context";
 
@@ -19,6 +18,8 @@ const mockLogger = {
   info: jest.fn(),
   error: jest.fn(),
   debug: jest.fn(),
+  warn: jest.fn(),
+  ok: jest.fn(),
 };
 
 const mockOctokit = {
@@ -60,9 +61,12 @@ describe("syncPriceLabelsToConfig function", () => {
       { id: 2, node_id: "n2", url: "", name: "Priority: 2 (Medium)", description: "", color: "ededed", default: false },
       { id: 3, node_id: "n3", url: "", name: "Price: 10 USD", description: "", color: "000000", default: false },
     ];
-    const labelModule = await import("../src/shared/label");
-    jest.spyOn(labelModule, "listLabelsForRepo").mockResolvedValue(allLabels);
-    jest.spyOn(labelModule, "createLabel").mockResolvedValue();
+    jest.unstable_mockModule("../src/shared/label", () => ({
+      COLORS: { price: "1f883d" },
+      listLabelsForRepo: async () => allLabels,
+      createLabel: async () => undefined,
+    }));
+    const { syncPriceLabelsToConfig } = await import("../src/handlers/sync-labels-to-config");
 
     mockContext.config.labels.priority = [
       { name: "Priority: 1 (Normal)", collaboratorOnly: false },
@@ -81,9 +85,13 @@ describe("syncPriceLabelsToConfig function", () => {
 
   it("creates missing priority labels", async () => {
     const allLabels: Label[] = [];
-    const labelModule = await import("../src/shared/label");
-    const createLabelSpy = jest.spyOn(labelModule, "createLabel").mockResolvedValue();
-    jest.spyOn(labelModule, "listLabelsForRepo").mockResolvedValue(allLabels);
+    const createLabelSpy = jest.fn<(context: Context, name: string, color: string) => Promise<void>>().mockResolvedValue(undefined);
+    jest.unstable_mockModule("../src/shared/label", () => ({
+      COLORS: { price: "1f883d" },
+      listLabelsForRepo: async () => allLabels,
+      createLabel: createLabelSpy,
+    }));
+    const { syncPriceLabelsToConfig } = await import("../src/handlers/sync-labels-to-config");
 
     mockContext.config.labels.priority = [
       { name: "Priority: 1 (Normal)", collaboratorOnly: false },
@@ -141,10 +149,24 @@ describe("syncPriceLabelsToConfig function", () => {
   });
 
   it("Should handle unconventional label names", () => {
-    const labelList1 = [{ name: "P0" }, { name: "P1" }];
-    const labelList2 = [{ name: "Priority: 1 (Normal)" }, { name: "Priority: 2 (Medium)" }];
-    const labelList3 = [{ name: "p2" }, { name: "p1" }, { name: "p0" }];
-    const invalidLabelList = [{ name: "Prio: 1" }, { name: "p2" }, { name: "p high" }];
+    const labelList1 = [
+      { name: "P0", collaboratorOnly: false },
+      { name: "P1", collaboratorOnly: false },
+    ];
+    const labelList2 = [
+      { name: "Priority: 1 (Normal)", collaboratorOnly: false },
+      { name: "Priority: 2 (Medium)", collaboratorOnly: false },
+    ];
+    const labelList3 = [
+      { name: "p2", collaboratorOnly: false },
+      { name: "p1", collaboratorOnly: false },
+      { name: "p0", collaboratorOnly: false },
+    ];
+    const invalidLabelList = [
+      { name: "Prio: 1", collaboratorOnly: false },
+      { name: "p2", collaboratorOnly: false },
+      { name: "p high", collaboratorOnly: false },
+    ];
 
     expect(extractLabelPattern(labelList1)).toEqual(/P(\d*\.?\d+)/i);
     expect(extractLabelPattern(labelList2)).toEqual(/Priority: (\d*\.?\d+)/i);
