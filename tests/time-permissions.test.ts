@@ -70,7 +70,7 @@ const mockAddLabelToIssue = jest.fn();
 const mockRemoveLabelFromIssue = jest.fn();
 const mockCreateLabel = jest.fn();
 
-jest.unstable_mockModule("../src/shared/label", () => ({
+jest.mock("../src/shared/label", () => ({
   addLabelToIssue: mockAddLabelToIssue,
   removeLabelFromIssue: mockRemoveLabelFromIssue,
   createLabel: mockCreateLabel,
@@ -82,7 +82,7 @@ const isUserAdminOrBillingManagerMock = jest.fn(async (ctxParam: unknown, userna
   return username === "admin" ? "admin" : false;
 });
 
-jest.unstable_mockModule("../src/shared/issue", () => ({
+jest.mock("../src/shared/issue", () => ({
   isUserAdminOrBillingManager: isUserAdminOrBillingManagerMock,
 }));
 

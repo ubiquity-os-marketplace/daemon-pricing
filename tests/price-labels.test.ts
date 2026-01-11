@@ -61,7 +61,7 @@ describe("syncPriceLabelsToConfig function", () => {
       { id: 2, node_id: "n2", url: "", name: "Priority: 2 (Medium)", description: "", color: "ededed", default: false },
       { id: 3, node_id: "n3", url: "", name: "Price: 10 USD", description: "", color: "000000", default: false },
     ];
-    jest.unstable_mockModule("../src/shared/label", () => ({
+    jest.mock("../src/shared/label", () => ({
       COLORS: { price: "1f883d" },
       listLabelsForRepo: async () => allLabels,
       createLabel: async () => undefined,
@@ -86,7 +86,7 @@ describe("syncPriceLabelsToConfig function", () => {
   it("creates missing priority labels", async () => {
     const allLabels: Label[] = [];
     const createLabelSpy = jest.fn<(context: Context, name: string, color: string) => Promise<void>>().mockResolvedValue(undefined);
-    jest.unstable_mockModule("../src/shared/label", () => ({
+    jest.mock("../src/shared/label", () => ({
       COLORS: { price: "1f883d" },
       listLabelsForRepo: async () => allLabels,
       createLabel: createLabelSpy,
@@ -126,7 +126,7 @@ describe("syncPriceLabelsToConfig function", () => {
   it("Should ignore tags on parent issue, and clear pricing", async () => {
     const clearAllPriceLabelsOnIssue = jest.fn();
     const context = { logger: new Logs("debug"), eventName: "issues.labeled" } as unknown as Context;
-    jest.unstable_mockModule("../src/shared/label", () => ({
+    jest.mock("../src/shared/label", () => ({
       clearAllPriceLabelsOnIssue: clearAllPriceLabelsOnIssue,
     }));
     const { handleParentIssue } = await import("../src/handlers/handle-parent-issue");

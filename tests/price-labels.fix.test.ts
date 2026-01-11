@@ -59,21 +59,21 @@ describe("Pricing labels", () => {
     const removeLabelHttp = jest.fn(async () => undefined);
     const postComment = jest.fn(async () => null);
 
-    jest.unstable_mockModule("../src/shared/permissions", () => {
+    jest.mock("../src/shared/permissions", () => {
       return {
         labelAccessPermissionsCheck: jest.fn(async () => false),
         getCollaboratorPermissionLevel: jest.fn(async () => "read"),
         isMemberOfOrg: jest.fn(async () => false),
       };
     });
-    jest.unstable_mockModule("../src/shared/issue", () => {
+    jest.mock("../src/shared/issue", () => {
       return {
         checkIfIsAdmin: jest.fn(async () => false),
         isUserAdminOrBillingManager: jest.fn(async () => false),
         checkIfIsBillingManager: jest.fn(async () => false),
       };
     });
-    jest.unstable_mockModule("../src/types/typeguards", () => ({
+    jest.mock("../src/types/typeguards", () => ({
       isIssueLabelEvent: function isIssueLabelEvent() {
         return true;
       },
@@ -81,7 +81,7 @@ describe("Pricing labels", () => {
         return true;
       },
     }));
-    jest.unstable_mockModule("../src/handlers/handle-parent-issue", () => ({
+    jest.mock("../src/handlers/handle-parent-issue", () => ({
       isParentIssue: function isParentIssue() {
         return false;
       },

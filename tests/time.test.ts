@@ -74,16 +74,16 @@ type IsUserAdminOrBillingManagerReturn = "admin" | "billing_manager" | false;
 const mockCallLlm = jest.fn<() => Promise<MockLlmResponse>>();
 const mockSanitizeLlmResponse = jest.fn((input: string) => input);
 
-jest.unstable_mockModule("@ubiquity-os/plugin-sdk", () => ({
+jest.mock("@ubiquity-os/plugin-sdk", () => ({
   callLlm: mockCallLlm,
   sanitizeLlmResponse: mockSanitizeLlmResponse,
 }));
-jest.unstable_mockModule("../src/shared/label", () => ({
+jest.mock("../src/shared/label", () => ({
   addLabelToIssue: mockAddLabelToIssue,
   removeLabelFromIssue: mockRemoveLabelFromIssue,
   createLabel: mockCreateLabel,
 }));
-jest.unstable_mockModule("../src/shared/issue", () => ({
+jest.mock("../src/shared/issue", () => ({
   isUserAdminOrBillingManager: jest.fn(async () => "admin"),
 }));
 
@@ -224,7 +224,7 @@ function makeIssueOpenedContext(overrides: Partial<Context<"issues.opened">> = {
 
 describe("setTimeLabel", () => {
   beforeEach(async () => {
-    jest.unstable_mockModule("../src/shared/issue", () => ({
+    jest.mock("../src/shared/issue", () => ({
       isUserAdminOrBillingManager: jest.fn(),
     }));
     jest.clearAllMocks();
@@ -234,7 +234,7 @@ describe("setTimeLabel", () => {
 
   it("throws if not issue comment event", async () => {
     jest.resetModules();
-    jest.unstable_mockModule("../src/types/typeguards", () => ({
+    jest.mock("../src/types/typeguards", () => ({
       isIssueCommentEvent: () => false,
     }));
     const context = makeContext();

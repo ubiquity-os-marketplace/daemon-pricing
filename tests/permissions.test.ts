@@ -12,7 +12,7 @@ describe("Permission tests for labels", () => {
     const isUserAdminOrBillingManagerMock = jest.fn();
     const postCommentMock = jest.fn();
     isUserAdminOrBillingManagerMock.mockImplementation(() => Promise.resolve({ data: { permission: "admin" } }));
-    jest.unstable_mockModule("../src/shared/issue", () => ({
+    jest.mock("../src/shared/issue", () => ({
       isUserAdminOrBillingManager: isUserAdminOrBillingManagerMock,
     }));
     const { labelAccessPermissionsCheck } = await import("../src/shared/permissions");
