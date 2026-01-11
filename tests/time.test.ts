@@ -1,4 +1,4 @@
-import { jest } from "@jest/globals";
+import { beforeAll, jest } from "@jest/globals";
 import { Context } from "../src/types/context";
 
 const logger = {
@@ -87,8 +87,15 @@ jest.mock("../src/shared/issue", () => ({
   isUserAdminOrBillingManager: jest.fn(async () => "admin"),
 }));
 
-const { ensureTimeLabelOnIssueOpened, setTimeLabel, time } = await import("../src/utils/time");
-const { parseTimeInput } = await import("../src/utils/time-labels");
+let ensureTimeLabelOnIssueOpened: typeof import("../src/utils/time").ensureTimeLabelOnIssueOpened;
+let setTimeLabel: typeof import("../src/utils/time").setTimeLabel;
+let time: typeof import("../src/utils/time").time;
+let parseTimeInput: typeof import("../src/utils/time-labels").parseTimeInput;
+
+beforeAll(async () => {
+  ({ ensureTimeLabelOnIssueOpened, setTimeLabel, time } = await import("../src/utils/time"));
+  ({ parseTimeInput } = await import("../src/utils/time-labels"));
+});
 
 function makeContext(
   overrides: Partial<Context<"issue_comment.created">> = {},

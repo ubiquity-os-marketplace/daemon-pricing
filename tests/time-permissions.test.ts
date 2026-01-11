@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { beforeAll, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { Context } from "../src/types/context";
 
 const logger = {
@@ -86,7 +86,11 @@ jest.mock("../src/shared/issue", () => ({
   isUserAdminOrBillingManager: isUserAdminOrBillingManagerMock,
 }));
 
-const { setTimeLabel } = await import("../src/utils/time");
+let setTimeLabel: typeof import("../src/utils/time").setTimeLabel;
+
+beforeAll(async () => {
+  ({ setTimeLabel } = await import("../src/utils/time"));
+});
 
 function makeContext({
   sender,
