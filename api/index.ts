@@ -53,7 +53,7 @@ async function startAction(context: Context, inputs: Record<string, unknown>) {
 
   let authOctokit;
   if (!appId || !appPrivateKey) {
-    logger.debug("APP_ID or APP_PRIVATE_KEY are missing from the env, will use the default Octokit instance.");
+    logger.warn("APP_ID or APP_PRIVATE_KEY are missing from the env, will use the default Octokit instance.");
     authOctokit = context.octokit;
   } else {
     const installation = await appOctokit.rest.apps.getRepoInstallation({
