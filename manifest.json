@@ -4,8 +4,8 @@
   "ubiquity:listeners": ["repository.created", "issues.opened", "issues.labeled", "issues.unlabeled", "label.edited", "push"],
   "commands": {
     "time": {
-      "ubiquity:example": "/time 1 Day",
-      "description": "Sets the time label for the given task.",
+      "ubiquity:example": "/time",
+      "description": "Sets the time label for the given task. If no duration is provided, it estimates the time automatically.",
       "parameters": {
         "type": "object",
         "properties": {
@@ -41,48 +41,6 @@
         "default": {},
         "type": "object",
         "properties": {
-          "time": {
-            "minItems": 1,
-            "default": [
-              {
-                "name": "Time: <15 Minutes",
-                "collaboratorOnly": false
-              },
-              {
-                "name": "Time: <1 Hour",
-                "collaboratorOnly": false
-              },
-              {
-                "name": "Time: <2 Hours",
-                "collaboratorOnly": false
-              },
-              {
-                "name": "Time: <4 Hours",
-                "collaboratorOnly": false
-              },
-              {
-                "name": "Time: <1 Day",
-                "collaboratorOnly": false
-              },
-              {
-                "name": "Time: <1 Week",
-                "collaboratorOnly": false
-              }
-            ],
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "name": {
-                  "examples": ["Time: <2 Hours", "Time: <1 Week"],
-                  "description": "The display name of the label representing estimated task length",
-                  "pattern": "^Time:\\s<?\\d+\\s\\S+$",
-                  "type": "string"
-                }
-              },
-              "required": ["name"]
-            }
-          },
           "priority": {
             "minItems": 1,
             "default": [
@@ -144,6 +102,6 @@
       }
     }
   },
-  "homepage_url": "https://daemon-pricing-development.deno.dev",
-  "short_name": "ubiquity-os-marketplace/daemon-pricing@development"
+  "homepage_url": "https://daemon-pricing-codex-concu.deno.dev",
+  "short_name": "ubiquity-os-marketplace/daemon-pricing@codex/concurrent-20251222"
 }

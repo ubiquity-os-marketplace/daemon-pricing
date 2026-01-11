@@ -1,4 +1,4 @@
-import { createActionsPlugin } from "@ubiquity-os/plugin-sdk";
+import { createActionsPlugin, Options } from "@ubiquity-os/plugin-sdk";
 import { LOG_LEVEL, LogLevel } from "@ubiquity-os/ubiquity-os-logger";
 import { run } from "./run";
 import { Command } from "./types/command";
@@ -11,9 +11,9 @@ createActionsPlugin<AssistivePricingSettings, Env, Command, SupportedEvents>(
     return run(context);
   },
   {
-    envSchema: envSchema,
+    envSchema: envSchema as unknown as Options["envSchema"],
+    settingsSchema: pluginSettingsSchema as unknown as Options["settingsSchema"],
     postCommentOnError: true,
-    settingsSchema: pluginSettingsSchema,
     logLevel: (process.env.LOG_LEVEL as LogLevel) || LOG_LEVEL.INFO,
     kernelPublicKey: process.env.KERNEL_PUBLIC_KEY,
     bypassSignatureVerification: process.env.NODE_ENV === "local",

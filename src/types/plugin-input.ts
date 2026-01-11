@@ -15,44 +15,6 @@ export const pluginSettingsSchema = T.Object(
     ),
     labels: T.Object(
       {
-        time: T.Array(
-          T.Object({
-            name: T.String({
-              examples: ["Time: <2 Hours", "Time: <1 Week"],
-              description: "The display name of the label representing estimated task length",
-              pattern: /^Time:\s<?\d+\s\S+$/i.source,
-            }),
-          }),
-          {
-            minItems: 1,
-            default: [
-              {
-                name: "Time: <15 Minutes",
-                collaboratorOnly: false,
-              },
-              {
-                name: "Time: <1 Hour",
-                collaboratorOnly: false,
-              },
-              {
-                name: "Time: <2 Hours",
-                collaboratorOnly: false,
-              },
-              {
-                name: "Time: <4 Hours",
-                collaboratorOnly: false,
-              },
-              {
-                name: "Time: <1 Day",
-                collaboratorOnly: false,
-              },
-              {
-                name: "Time: <1 Week",
-                collaboratorOnly: false,
-              },
-            ],
-          }
-        ),
         priority: T.Array(
           T.Object({
             name: T.String({

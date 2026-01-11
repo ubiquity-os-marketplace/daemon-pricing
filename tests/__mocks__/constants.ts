@@ -2,19 +2,19 @@ import { STRINGS } from "./strings";
 
 export const TIME_LABELS = [
   {
-    name: "Time: <1 Hour",
+    name: "Time: 1 Hour",
   },
   {
-    name: "Time: <2 Hours",
+    name: "Time: 2 Hours",
   },
   {
-    name: "Time: <4 Hours",
+    name: "Time: 4 Hours",
   },
   {
-    name: "Time: <1 Day",
+    name: "Time: 1 Day",
   },
   {
-    name: "Time: <1 Week",
+    name: "Time: 1 Week",
   },
 ];
 

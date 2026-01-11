@@ -6,4 +6,4 @@ outputs:
     value: ${{ steps.mainHandler.outputs.result }}
 runs:
   using: "node20"
-  main: "dist/index.js"
+  main: "dist/index.cjs"

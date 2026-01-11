@@ -53,40 +53,40 @@ describe("User tests", () => {
         basePriceMultiplier: 3.0,
         labels: {
           priority: [{ name: priority1 }, { name: priority2 }, { name: priority3 }],
-          time: [{ name: "<1 minutes" }, { name: "<4 hours" }, { name: "<1 week" }],
+          time: [{ name: "Time: <1 minutes" }, { name: "Time: <4 hours" }, { name: "Time: <1 week" }],
         },
       },
     } as unknown as Context;
     const testCases = [
       {
-        timeValue: calculateLabelValue(context, "<1 minutes"),
+        timeValue: calculateLabelValue(context, "Time: <1 minutes"),
         priorityValue: calculateLabelValue(context, priority3),
         expectedPrice: "1.8",
       },
       {
-        timeValue: calculateLabelValue(context, "<4 hours"),
+        timeValue: calculateLabelValue(context, "Time: <4 hours"),
         priorityValue: calculateLabelValue(context, priority2),
         expectedPrice: "300",
       },
       {
-        timeValue: calculateLabelValue(context, "<1 hours"),
+        timeValue: calculateLabelValue(context, "Time: <1 hours"),
         priorityValue: calculateLabelValue(context, priority2),
         expectedPrice: "75",
       },
       {
-        timeValue: calculateLabelValue(context, "<1.52 hours"),
+        timeValue: calculateLabelValue(context, "Time: <1.52 hours"),
         priorityValue: calculateLabelValue(context, priority3),
-        expectedPrice: "112.5",
+        expectedPrice: "171",
       },
       {
-        timeValue: calculateLabelValue(context, "<139.876 minutes"),
+        timeValue: calculateLabelValue(context, "Time: <139.876 minutes"),
         priorityValue: calculateLabelValue(context, priority1),
-        expectedPrice: "83.4",
+        expectedPrice: "83.93",
       },
       {
-        timeValue: calculateLabelValue(context, "<12.333333 weeks"),
+        timeValue: calculateLabelValue(context, "Time: <12.333333 weeks"),
         priorityValue: calculateLabelValue(context, priority2),
-        expectedPrice: "7800",
+        expectedPrice: "8000",
       },
     ];
     for (const testCase of testCases) {
