@@ -40,11 +40,13 @@ export function getBaseRateChanges(changeAmt: number, withChanges = true, withPl
       `;
 }
 
-export function buildPluginConfigYaml(basePriceMultiplier: number, excludeRepos: string[] = []): string {
-  const priorityYaml = PRIORITY_LABELS.map(
-    (label) => `        - name: "${label.name}"
+export function buildPluginConfigYaml(basePriceMultiplier: number, excludeRepos: string[] = [], labels: typeof PRIORITY_LABELS = PRIORITY_LABELS): string {
+  const priorityYaml = labels
+    .map(
+      (label) => `        - name: "${label.name}"
           collaboratorOnly: false`
-  ).join("\n");
+    )
+    .join("\n");
 
   const excludeLines = excludeRepos.length
     ? ["      globalConfigUpdate:", "        excludeRepos:", ...excludeRepos.map((repo) => `        - ${repo}`)]
@@ -69,6 +71,8 @@ export function seedPluginConfigs({
   beforeBasePriceMultiplier,
   afterBasePriceMultiplier,
   excludeRepos,
+  beforeLabels,
+  afterLabels,
 }: {
   owner: string;
   repo: string;
@@ -76,12 +80,14 @@ export function seedPluginConfigs({
   beforeBasePriceMultiplier: number;
   afterBasePriceMultiplier: number;
   excludeRepos: string[];
+  beforeLabels?: typeof PRIORITY_LABELS;
+  afterLabels?: typeof PRIORITY_LABELS;
 }) {
   setConfig({
     owner,
     repo,
     path: STRINGS.CONFIG_PATH,
-    content: buildPluginConfigYaml(afterBasePriceMultiplier, excludeRepos),
+    content: buildPluginConfigYaml(afterBasePriceMultiplier, excludeRepos, afterLabels),
   });
 
   setConfig({
@@ -89,7 +95,7 @@ export function seedPluginConfigs({
     repo,
     path: STRINGS.CONFIG_PATH,
     ref: beforeRef,
-    content: buildPluginConfigYaml(beforeBasePriceMultiplier, excludeRepos),
+    content: buildPluginConfigYaml(beforeBasePriceMultiplier, excludeRepos, beforeLabels),
   });
 }
 

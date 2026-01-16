@@ -12,6 +12,7 @@ import { Label } from "../types/github";
 import { AssistivePricingSettings, pluginSettingsSchema } from "../types/plugin-input";
 import { isPushEvent } from "../types/typeguards";
 import { isConfigModified } from "./check-modified-base-rate";
+import { getLabelsChanges } from "./get-label-changes";
 import { setPriceLabel } from "./pricing-label";
 import { syncPriceLabelsToConfig } from "./sync-labels-to-config";
 import { normalizeMultilineSecret } from "../utils/secrets";
@@ -170,7 +171,7 @@ export async function globalLabelUpdate(context: Context) {
     return;
   }
 
-  const didConfigurationChange = await isConfigModified(context);
+  const didConfigurationChange = (await isConfigModified(context)) || (await getLabelsChanges(context));
   if (didConfigurationChange) {
     await syncPricingForConfigChange(context);
     return;

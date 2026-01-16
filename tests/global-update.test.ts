@@ -143,6 +143,44 @@ describe("Label Base Rate Changes", () => {
   );
 
   it(
+    "Should update labels when plugin label configuration changes",
+    async () => {
+      const pusher = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as Context["payload"]["sender"];
+      const commits = inMemoryCommits(STRINGS.SHA_1, true, true);
+      const updatedLabels = [...PRIORITY_LABELS, { name: "Priority: 6 (Critical)" }];
+      const { context, consoleSpies } = innerSetup(
+        1,
+        commits,
+        STRINGS.SHA_1,
+        STRINGS.SHA_1,
+        {
+          owner: STRINGS.UBIQUITY,
+          repo: STRINGS.TEST_REPO,
+          sha: STRINGS.SHA_1,
+          modified: [STRINGS.CONFIG_PATH],
+          added: [],
+          withBaseRateChanges: true,
+          withPlugin: true,
+          amount: 5,
+        },
+        pusher,
+        undefined,
+        {
+          beforeBasePriceMultiplier: 2,
+          afterBasePriceMultiplier: 2,
+          beforeLabels: PRIORITY_LABELS,
+          afterLabels: updatedLabels,
+        }
+      );
+
+      await globalLabelUpdate(context);
+      expectConsoleToContain(consoleSpies, STRINGS.CONFIG_CHANGED_IN_COMMIT);
+      expectConsoleToContain(consoleSpies, STRINGS.SYNC_REPOS);
+    },
+    TEST_TIMEOUT
+  );
+
+  it(
     "Should ignore config changes unrelated to this plugin",
     async () => {
       const pusher = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as Context["payload"]["sender"];
@@ -570,13 +608,16 @@ function innerSetup(
   configOverrides?: {
     beforeBasePriceMultiplier?: number;
     afterBasePriceMultiplier?: number;
+    beforeLabels?: typeof PRIORITY_LABELS;
+    afterLabels?: typeof PRIORITY_LABELS;
   }
 ) {
   const sender = db.users.findFirst({ where: { id: { equals: senderId } } }) as unknown as Context["payload"]["sender"];
+  const resolvedBefore = before === after ? `${before}-before` : before;
 
   createCommit(commitParams);
 
-  const context = createContext(sender, commits, before, after, pusher, globalConfigUpdate);
+  const context = createContext(sender, commits, resolvedBefore, after, pusher, globalConfigUpdate);
 
   const afterBasePriceMultiplier = configOverrides?.afterBasePriceMultiplier ?? context.config.basePriceMultiplier;
   const beforeBasePriceMultiplier =
@@ -585,10 +626,12 @@ function innerSetup(
   seedPluginConfigs({
     owner: commitParams.owner,
     repo: commitParams.repo,
-    beforeRef: before,
+    beforeRef: resolvedBefore,
     beforeBasePriceMultiplier,
     afterBasePriceMultiplier,
     excludeRepos: globalConfigUpdate?.excludeRepos ?? [],
+    beforeLabels: configOverrides?.beforeLabels,
+    afterLabels: configOverrides?.afterLabels,
   });
 
   const consoleSpies = createConsoleSpies();

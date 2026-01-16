@@ -1,6 +1,7 @@
-import { CONFIG_FULL_PATH, DEV_CONFIG_FULL_PATH } from "@ubiquity-os/plugin-sdk/constants";
+import { CONFIG_FULL_PATH, CONFIG_ORG_REPO, DEV_CONFIG_FULL_PATH } from "@ubiquity-os/plugin-sdk/constants";
 import { ConfigurationHandler } from "@ubiquity-os/plugin-sdk/configuration";
 import manifest from "../../manifest.json";
+import { isDeepEqual } from "../shared/deep-equal";
 import { Context } from "../types/context";
 import { isPushEvent } from "../types/typeguards";
 import { getCommitChanges } from "./get-commit-changes";
@@ -8,43 +9,11 @@ import { getCommitChanges } from "./get-commit-changes";
 export const ZERO_SHA = "0000000000000000000000000000000000000000";
 const BASE_RATE_FILES = [DEV_CONFIG_FULL_PATH, CONFIG_FULL_PATH];
 
-function normalizeConfig(value: unknown): unknown {
-  if (Array.isArray(value)) {
-    return value.map((item) => normalizeConfig(item));
+function getConfigurationRefOptions(repo: string, ref: string) {
+  if (repo === CONFIG_ORG_REPO) {
+    return { repoRef: ref, orgRef: ref };
   }
-  if (value && typeof value === "object") {
-    const entries = Object.entries(value as Record<string, unknown>)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, entryValue]) => [key, normalizeConfig(entryValue)] as const);
-    return Object.fromEntries(entries);
-  }
-  return value;
-}
-
-function serializeConfig(value: unknown): string {
-  return JSON.stringify(normalizeConfig(value));
-}
-
-function createRefOctokit(context: Context, ref: string) {
-  const baseOctokit = context.octokit;
-  const targetRepo = context.payload.repository.name;
-  return {
-    ...baseOctokit,
-    rest: {
-      ...baseOctokit.rest,
-      repos: {
-        ...baseOctokit.rest.repos,
-        getContent: (params: Parameters<typeof baseOctokit.rest.repos.getContent>[0]) => {
-          const isConfigPath = params.path === CONFIG_FULL_PATH || params.path === DEV_CONFIG_FULL_PATH;
-          const shouldPinRef = isConfigPath && params.repo === targetRepo;
-          return baseOctokit.rest.repos.getContent({
-            ...params,
-            ...(shouldPinRef ? { ref } : {}),
-          });
-        },
-      },
-    },
-  } as typeof baseOctokit;
+  return { repoRef: ref };
 }
 
 export async function isConfigModified(context: Context): Promise<boolean> {
@@ -94,22 +63,26 @@ export async function isConfigModified(context: Context): Promise<boolean> {
   }
 
   try {
-    const beforeHandler = new ConfigurationHandler(logger, createRefOctokit(context, beforeRef));
+    const beforeHandler = new ConfigurationHandler(logger, context.octokit);
     const afterHandler = new ConfigurationHandler(logger, context.octokit);
-    const beforeConfig = await beforeHandler.getSelfConfiguration(manifest, { owner, repo });
+    const refOptions = getConfigurationRefOptions(repo, beforeRef);
+    const beforeConfig = await beforeHandler.getSelfConfiguration(manifest, { owner, repo }, refOptions);
     const afterConfig = await afterHandler.getSelfConfiguration(manifest, { owner, repo });
 
     if (!beforeConfig && !afterConfig) {
-      logger.debug("No plugin configuration found in the config files; skipping plugin-specific updates.");
+      logger.debug("No plugin configuration found in the config files; skipping base rate updates.");
       return false;
     }
 
-    if (serializeConfig(beforeConfig) === serializeConfig(afterConfig)) {
-      logger.debug("Configuration changes do not affect this plugin; skipping updates.");
+    const beforeBaseRate = beforeConfig?.basePriceMultiplier ?? null;
+    const afterBaseRate = afterConfig?.basePriceMultiplier ?? null;
+
+    if (isDeepEqual(beforeBaseRate, afterBaseRate)) {
+      logger.debug("Base rate changes do not affect this plugin; skipping updates.");
       return false;
     }
 
-    logger.info("Detected plugin-specific configuration changes.");
+    logger.info("Detected plugin base rate configuration changes.");
     return true;
   } catch (err) {
     logger.warn("Failed to compare plugin configuration changes; skipping updates.", { err });
