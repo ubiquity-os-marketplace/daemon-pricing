@@ -1,9 +1,12 @@
 import { Context } from "../../src/types/context";
 import { AUTHED_USER, BILLING_MANAGER, PRICE_LABELS, PRIORITY_LABELS, TIME_LABELS, UNAUTHED_USER } from "./constants";
+import { resetConfig, setConfig } from "./config-store";
 import { db } from "./db";
 import issueTemplate from "./issue-template";
 import { STRINGS } from "./strings";
 import usersGet from "./users-get.json";
+
+const PLUGIN_KEY = "ubiquity-os-marketplace/daemon-pricing";
 
 export function getBaseRateChanges(changeAmt: number, withChanges = true, withPlugin = false) {
   return `
@@ -35,6 +38,59 @@ export function getBaseRateChanges(changeAmt: number, withChanges = true, withPl
       : ""
   }
       `;
+}
+
+export function buildPluginConfigYaml(basePriceMultiplier: number, excludeRepos: string[] = []): string {
+  const priorityYaml = PRIORITY_LABELS.map(
+    (label) => `        - name: "${label.name}"
+          collaboratorOnly: false`
+  ).join("\n");
+
+  const excludeLines = excludeRepos.length
+    ? ["      globalConfigUpdate:", "        excludeRepos:", ...excludeRepos.map((repo) => `        - ${repo}`)]
+    : ["      globalConfigUpdate:", "        excludeRepos: []"];
+
+  return [
+    "plugins:",
+    `  ${PLUGIN_KEY}:`,
+    "    with:",
+    `      basePriceMultiplier: ${basePriceMultiplier}`,
+    "      labels:",
+    "        priority:",
+    priorityYaml,
+    ...excludeLines,
+  ].join("\n");
+}
+
+export function seedPluginConfigs({
+  owner,
+  repo,
+  beforeRef,
+  beforeBasePriceMultiplier,
+  afterBasePriceMultiplier,
+  excludeRepos,
+}: {
+  owner: string;
+  repo: string;
+  beforeRef: string;
+  beforeBasePriceMultiplier: number;
+  afterBasePriceMultiplier: number;
+  excludeRepos: string[];
+}) {
+  setConfig({
+    owner,
+    repo,
+    path: STRINGS.CONFIG_PATH,
+    content: buildPluginConfigYaml(afterBasePriceMultiplier, excludeRepos),
+  });
+
+  setConfig({
+    owner,
+    repo,
+    path: STRINGS.CONFIG_PATH,
+    ref: beforeRef,
+    content: buildPluginConfigYaml(beforeBasePriceMultiplier, excludeRepos),
+  });
 }
 
 export function getAuthor(isAuthed: boolean, isBilling: boolean) {
@@ -103,6 +159,7 @@ export function createCommit({
 }
 
 export async function setupTests() {
+  resetConfig();
   for (const item of usersGet) {
     db.users.create(item);
   }

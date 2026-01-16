@@ -1,4 +1,8 @@
 import { http, HttpResponse } from "msw";
+import { Buffer } from "node:buffer";
+import { CONFIG_FULL_PATH, DEV_CONFIG_FULL_PATH } from "@ubiquity-os/plugin-sdk/constants";
+import manifest from "../../manifest.json";
+import { getConfig } from "./config-store";
 import { db } from "./db";
 import issueTemplate from "./issue-template";
 import { Label } from "../../src/types/github";
@@ -11,6 +15,27 @@ const REPO_LABELS_NAME = "https://api.github.com/repos/:owner/:repo/labels/:name
  * Intercepts the routes and returns a custom payload
  */
 export const handlers = [
+  http.get("https://api.github.com/repos/:owner/:repo/contents/:path*", ({ params, request }) => {
+    const { owner, repo, path } = params as { owner: string; repo: string; path: string };
+    const url = new URL(request.url);
+    const ref = url.searchParams.get("ref") ?? undefined;
+    const normalizedPath = String(path);
+
+    if (normalizedPath === "manifest.json") {
+      const manifestContent = Buffer.from(JSON.stringify(manifest), "utf8").toString("base64");
+      return HttpResponse.json({ content: manifestContent });
+    }
+
+    if (normalizedPath === CONFIG_FULL_PATH || normalizedPath === DEV_CONFIG_FULL_PATH) {
+      const content = getConfig({ owner, repo, path: normalizedPath, ref });
+      if (!content) {
+        return new HttpResponse(null, { status: 404 });
+      }
+      return HttpResponse.text(content);
+    }
+
+    return new HttpResponse(null, { status: 404 });
+  }),
   http.post("https://api.github.com/repos/:org/:repo/issues/:id/comments", () => HttpResponse.json()),
 
   http.get("https://api.github.com/users/:user", ({ params: { user } }) => {
