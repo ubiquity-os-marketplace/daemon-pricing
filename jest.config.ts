@@ -16,6 +16,7 @@ const cfg: Config = {
   transformIgnorePatterns: [],
   extensionsToTreatAsEsm: [".ts", ".tsx"],
   moduleNameMapper: {
+    "^@octokit/webhooks$": "<rootDir>/tests/__mocks__/octokit-webhooks.ts",
     "^(\\.{1,2}/.*)\\.js$": "$1",
   },
   setupFilesAfterEnv: ["dotenv/config"],
