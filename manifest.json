@@ -103,5 +103,5 @@
     }
   },
   "homepage_url": "https://daemon-pricing-development.deno.dev",
-  "short_name": "ubiquity-os-marketplace/daemon-pricing@development"
+  "short_name": "ubiquity-os-marketplace/daemon-pricing@fix/empty-content"
 }
