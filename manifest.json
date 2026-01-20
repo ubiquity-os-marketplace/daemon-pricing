@@ -102,6 +102,6 @@
       }
     }
   },
-  "homepage_url": "https://daemon-pricing-development.deno.dev",
-  "short_name": "ubiquity-os-marketplace/daemon-pricing@fix/time"
+  "homepage_url": "https://daemon-pricing-fix-time.deno.dev",
+  "short_name": "ubiquity-os-marketplace/daemon-pricing@codex/concurrent-20251222"
 }
