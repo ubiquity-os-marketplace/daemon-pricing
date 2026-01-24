@@ -38,9 +38,9 @@
     "@ubiquity-os/plugin-sdk": "^3.9.0",
     "@ubiquity-os/ubiquity-os-logger": "^1.4.0",
     "decimal.js": "^10.4.3",
-    "hono": "^4.11.4",
+    "hono": "^4.11.5",
     "ms": "^2.1.3",
-    "openai": "^4.104.0"
+    "openai": "^6.16.0"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.5.0",
