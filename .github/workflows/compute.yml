@@ -44,5 +44,3 @@ jobs:
           ACTION_REF: ${{ github.repository }}@${{ github.ref_name }}
           APP_ID: ${{ secrets.APP_ID }}
           APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
-          UOS_AI_URL: ${{ vars.UOS_AI_URL }}
-          UOS_AI_TOKEN: ${{ secrets.UOS_AI_TOKEN }}
