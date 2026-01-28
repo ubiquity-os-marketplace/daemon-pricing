@@ -22,33 +22,6 @@
     "default": {},
     "type": "object",
     "properties": {
-      "llmModel": {
-        "type": "object",
-        "properties": {
-          "reasoningEffort": {
-            "examples": ["low", "medium", "high", "xhigh"],
-            "default": "low",
-            "anyOf": [
-              {
-                "const": "low",
-                "type": "string"
-              },
-              {
-                "const": "medium",
-                "type": "string"
-              },
-              {
-                "const": "high",
-                "type": "string"
-              },
-              {
-                "const": "xhigh",
-                "type": "string"
-              }
-            ]
-          }
-        }
-      },
       "globalConfigUpdate": {
         "description": "Updates all price labels across all tasks based on `baseRateMultiplier` changes within the config file.",
         "type": "object",
@@ -127,8 +100,7 @@
         "description": "Whether to allow funding contributor closed issues",
         "type": "boolean"
       }
-    },
-    "required": ["llmModel"]
+    }
   },
   "homepage_url": "https://daemon-pricing-fix-double.deno.dev",
   "short_name": "ubiquity-os-marketplace/daemon-pricing@fix/double-estimate"
