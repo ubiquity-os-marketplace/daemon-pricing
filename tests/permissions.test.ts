@@ -12,7 +12,7 @@ describe("Permission tests for labels", () => {
     const isUserAdminOrBillingManagerMock = jest.fn();
     const postCommentMock = jest.fn();
     isUserAdminOrBillingManagerMock.mockImplementation(() => Promise.resolve({ data: { permission: "admin" } }));
-    jest.unstable_mockModule("../src/shared/issue", () => ({
+    jest.mock("../src/shared/issue", () => ({
       isUserAdminOrBillingManager: isUserAdminOrBillingManagerMock,
     }));
     const { labelAccessPermissionsCheck } = await import("../src/shared/permissions");
@@ -43,7 +43,6 @@ describe("Permission tests for labels", () => {
         shouldFundContributorClosedIssue: false,
         labels: {
           priority: [{ name: "Priority: 1 (Normal)" }, { name: "Priority: 2 (Medium)" }],
-          time: [{ name: "Time: <1 day" }, { name: "Time: <1 Week" }],
         },
       },
       commentHandler: {

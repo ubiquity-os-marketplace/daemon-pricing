@@ -1,9 +1,70 @@
 import { globalLabelUpdate } from "./handlers/global-config-update";
 import { onIssueOpenedUpdatePricing, onLabelChangeSetPricing } from "./handlers/pricing-label";
 import { syncPriceLabelsToConfig } from "./handlers/sync-labels-to-config";
+import { logByStatus } from "./shared/logging";
 import { Context } from "./types/context";
-import { isIssueCommentEvent, isIssueLabelEvent } from "./types/typeguards";
-import { time } from "./utils/time";
+import { isIssueCommentEvent, isIssueLabelEvent, isIssueOpenedEvent } from "./types/typeguards";
+import { dispatchDeepEstimate } from "./utils/deep-estimate-dispatch";
+import { ensureTimeLabelOnIssueOpened, time } from "./utils/time";
+
+function isTimeSlashCommand(body: string | null | undefined): boolean {
+  return /^\s*\/time\b/i.test(body ?? "");
+}
+
+function getExplicitTimeInput(context: Context): string {
+  const commandDuration = typeof context.command?.parameters?.duration === "string" ? context.command.parameters.duration.trim() : "";
+  if (commandDuration) return commandDuration;
+  if (!isIssueCommentEvent(context)) return "";
+  const body = context.payload.comment?.body ?? "";
+  if (!isTimeSlashCommand(body)) return "";
+  return body.replace(/^\s*\/time\b/i, "").trim();
+}
+
+async function maybeDispatchDeepEstimate(context: Context, options: Parameters<typeof dispatchDeepEstimate>[1], message: string) {
+  try {
+    await dispatchDeepEstimate(context, options);
+  } catch (err) {
+    logByStatus(context.logger, message, err);
+  }
+}
+
+async function handleIssueCommentCreated(context: Context) {
+  if (!isWorkerOrLocalEnvironment() || !isIssueCommentEvent(context)) {
+    return;
+  }
+  if (!isTimeSlashCommand(context.payload.comment?.body)) {
+    return;
+  }
+  const explicitDuration = getExplicitTimeInput(context);
+  await time(context);
+  await maybeDispatchDeepEstimate(
+    context,
+    {
+      trigger: "issue_comment.created",
+      forceOverride: !explicitDuration,
+      initiator: context.payload.sender?.login,
+    },
+    "Failed to dispatch deep time estimate after /time."
+  );
+}
+
+async function handleIssuesOpened(context: Context) {
+  if (!isGithubOrLocalEnvironment() || !isIssueOpenedEvent(context)) {
+    return;
+  }
+  await syncPriceLabelsToConfig(context);
+  await ensureTimeLabelOnIssueOpened(context);
+  await maybeDispatchDeepEstimate(
+    context,
+    {
+      trigger: "issues.opened",
+      forceOverride: false,
+      initiator: context.payload.sender?.login,
+    },
+    "Failed to dispatch deep time estimate for new issue."
+  );
+  await onIssueOpenedUpdatePricing(context);
+}
 
 export function isLocalEnvironment() {
   return process.env.NODE_ENV === "local";
@@ -23,24 +84,34 @@ export async function handleCommand(context: Context) {
   }
 
   if (context.command.name === "time" && isIssueCommentEvent(context)) {
+    const explicitDuration = getExplicitTimeInput(context);
     await time(context);
+    try {
+      await dispatchDeepEstimate(context, {
+        trigger: "issue_comment.created",
+        forceOverride: !explicitDuration,
+        initiator: context.payload.sender?.login,
+      });
+    } catch (err) {
+      logByStatus(context.logger, "Failed to dispatch deep time estimate after /time.", err);
+    }
   }
 }
 
 export async function run(context: Context) {
+  if (context.command) {
+    await handleCommand(context);
+    return { message: "OK" };
+  }
+
   const { eventName, logger } = context;
 
   switch (eventName) {
     case "issue_comment.created":
-      if (isWorkerOrLocalEnvironment() && isIssueCommentEvent(context)) {
-        await time(context);
-      }
+      await handleIssueCommentCreated(context);
       break;
     case "issues.opened": {
-      if (isGithubOrLocalEnvironment()) {
-        await syncPriceLabelsToConfig(context);
-        await onIssueOpenedUpdatePricing(context);
-      }
+      await handleIssuesOpened(context);
       break;
     }
     case "repository.created":
@@ -60,7 +131,7 @@ export async function run(context: Context) {
       }
       break;
     default:
-      logger.error(`Event ${eventName} is not supported`);
+      logger.warn(`Event ${eventName} is not supported`);
   }
   return { message: "OK" };
 }
