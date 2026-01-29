@@ -138,6 +138,9 @@ function makeContext(
   return {
     logger,
     config: {
+      llmModel: {
+        reasoningEffort: "low",
+      },
       labels: {
         priority: [],
       },
@@ -209,6 +212,9 @@ function makeIssueOpenedContext(overrides: Partial<Context<"issues.opened">> = {
     eventName: "issues.opened",
     logger,
     config: {
+      llmModel: {
+        reasoningEffort: "low",
+      },
       labels: {
         priority: [],
       },
