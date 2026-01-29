@@ -56,9 +56,11 @@ export async function getLabelsChanges(context: Context) {
 
   try {
     const handler = new ConfigurationHandler(logger, context.octokit);
-    const refOptions = getConfigurationRefOptions(repo, beforeRef);
-    const beforeConfig = await handler.getSelfConfiguration(manifest, { owner, repo }, refOptions);
-    const afterConfig = await handler.getSelfConfiguration(manifest, { owner, repo });
+    const beforeRefOptions = getConfigurationRefOptions(repo, beforeRef);
+    const afterRef = payload.after;
+    const afterRefOptions = afterRef ? getConfigurationRefOptions(repo, afterRef) : undefined;
+    const beforeConfig = await handler.getSelfConfiguration(manifest, { owner, repo }, beforeRefOptions);
+    const afterConfig = await handler.getSelfConfiguration(manifest, { owner, repo }, afterRefOptions);
 
     const beforeLabels = beforeConfig?.labels ?? null;
     const afterLabels = afterConfig?.labels ?? null;

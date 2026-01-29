@@ -23,7 +23,7 @@ export const handlers = [
 
     if (normalizedPath === "manifest.json") {
       const manifestContent = Buffer.from(JSON.stringify(manifest), "utf8").toString("base64");
-      return HttpResponse.json({ content: manifestContent });
+      return HttpResponse.json({ content: manifestContent, encoding: "base64" });
     }
 
     if (normalizedPath === CONFIG_FULL_PATH || normalizedPath === DEV_CONFIG_FULL_PATH) {
@@ -31,7 +31,12 @@ export const handlers = [
       if (!content) {
         return new HttpResponse(null, { status: 404 });
       }
-      return HttpResponse.text(content);
+      const accept = request.headers.get("accept") ?? "";
+      if (accept.includes("application/vnd.github.raw") || accept.includes("application/vnd.github.v3.raw")) {
+        return HttpResponse.text(content);
+      }
+      const encodedContent = Buffer.from(content, "utf8").toString("base64");
+      return HttpResponse.json({ content: encodedContent, encoding: "base64" });
     }
 
     return new HttpResponse(null, { status: 404 });

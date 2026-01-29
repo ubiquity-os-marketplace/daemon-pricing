@@ -65,9 +65,11 @@ export async function isConfigModified(context: Context): Promise<boolean> {
   try {
     const beforeHandler = new ConfigurationHandler(logger, context.octokit);
     const afterHandler = new ConfigurationHandler(logger, context.octokit);
-    const refOptions = getConfigurationRefOptions(repo, beforeRef);
-    const beforeConfig = await beforeHandler.getSelfConfiguration(manifest, { owner, repo }, refOptions);
-    const afterConfig = await afterHandler.getSelfConfiguration(manifest, { owner, repo });
+    const beforeRefOptions = getConfigurationRefOptions(repo, beforeRef);
+    const afterRef = payload.after;
+    const afterRefOptions = afterRef ? getConfigurationRefOptions(repo, afterRef) : undefined;
+    const beforeConfig = await beforeHandler.getSelfConfiguration(manifest, { owner, repo }, beforeRefOptions);
+    const afterConfig = await afterHandler.getSelfConfiguration(manifest, { owner, repo }, afterRefOptions);
 
     if (!beforeConfig && !afterConfig) {
       logger.debug("No plugin configuration found in the config files; skipping base rate updates.");

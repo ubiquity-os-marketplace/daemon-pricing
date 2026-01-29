@@ -627,6 +627,7 @@ function innerSetup(
     owner: commitParams.owner,
     repo: commitParams.repo,
     beforeRef: resolvedBefore,
+    afterRef: after,
     beforeBasePriceMultiplier,
     afterBasePriceMultiplier,
     excludeRepos: globalConfigUpdate?.excludeRepos ?? [],

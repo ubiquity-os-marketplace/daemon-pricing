@@ -84,14 +84,19 @@ async function resolveTargetRepos(context: Context, octokit: Context["octokit"])
 }
 
 async function resolveRepoConfig(context: Context, octokit: Context["octokit"], owner: string, repo: string): Promise<AssistivePricingSettings | null> {
-  const handler = new ConfigurationHandler(context.logger, octokit);
-  const rawConfig = await handler.getSelfConfiguration(manifest, { owner, repo });
-  if (!rawConfig) {
+  try {
+    const handler = new ConfigurationHandler(context.logger, octokit);
+    const rawConfig = await handler.getSelfConfiguration(manifest, { owner, repo });
+    if (!rawConfig) {
+      return null;
+    }
+
+    const withDefaults = Value.Default(pluginSettingsSchema, rawConfig);
+    return Value.Decode(pluginSettingsSchema, withDefaults);
+  } catch (err) {
+    context.logger.warn("Failed to fetch configuration for repository", { owner, repo, err });
     return null;
   }
-
-  const withDefaults = Value.Default(pluginSettingsSchema, rawConfig);
-  return Value.Decode(pluginSettingsSchema, withDefaults);
 }
 
 async function updatePricingForRepo(context: Context, repository: Repositories[number], config: AssistivePricingSettings, octokit: Context["octokit"]) {
@@ -115,6 +120,9 @@ async function updatePricingForRepo(context: Context, repository: Repositories[n
   await syncPriceLabelsToConfig(repoContext);
   const issues = await listRepoIssues(repoContext, repoOwner, repository.name);
   for (const issue of issues) {
+    if ("pull_request" in issue) {
+      continue;
+    }
     const ctx = {
       ...repoContext,
       payload: {
@@ -122,7 +130,14 @@ async function updatePricingForRepo(context: Context, repository: Repositories[n
         issue,
       },
     } as Context;
-    await setPriceLabel(ctx, issue.labels as Label[], ctx.config);
+    try {
+      await setPriceLabel(ctx, issue.labels as Label[], ctx.config);
+    } catch (err) {
+      logByStatus(repoContext.logger, `Failed to update pricing label for issue #${issue.number}`, err, {
+        issueUrl: issue.html_url,
+        repo: repository.html_url,
+      });
+    }
   }
 }
 

@@ -68,6 +68,7 @@ export function seedPluginConfigs({
   owner,
   repo,
   beforeRef,
+  afterRef,
   beforeBasePriceMultiplier,
   afterBasePriceMultiplier,
   excludeRepos,
@@ -77,18 +78,29 @@ export function seedPluginConfigs({
   owner: string;
   repo: string;
   beforeRef: string;
+  afterRef?: string;
   beforeBasePriceMultiplier: number;
   afterBasePriceMultiplier: number;
   excludeRepos: string[];
   beforeLabels?: typeof PRIORITY_LABELS;
   afterLabels?: typeof PRIORITY_LABELS;
 }) {
+  const afterContent = buildPluginConfigYaml(afterBasePriceMultiplier, excludeRepos, afterLabels);
   setConfig({
     owner,
     repo,
     path: STRINGS.CONFIG_PATH,
-    content: buildPluginConfigYaml(afterBasePriceMultiplier, excludeRepos, afterLabels),
+    content: afterContent,
   });
+  if (afterRef) {
+    setConfig({
+      owner,
+      repo,
+      path: STRINGS.CONFIG_PATH,
+      ref: afterRef,
+      content: afterContent,
+    });
+  }
 
   setConfig({
     owner,
