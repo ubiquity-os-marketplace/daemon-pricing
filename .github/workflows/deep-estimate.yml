@@ -33,9 +33,6 @@ on:
 
 jobs:
   estimate:
-    env:
-      UOS_AI_URL: ${{ vars.UOS_AI_URL }}
-      UOS_AI_TOKEN: ${{ secrets.UOS_AI_TOKEN }}
     runs-on: ubuntu-latest
     permissions:
       contents: read

@@ -7,12 +7,10 @@ import { LOG_LEVEL, LogLevel } from "@ubiquity-os/ubiquity-os-logger";
 import type { ExecutionContext } from "hono";
 import manifest from "../manifest.json";
 import { handleCommand, isLocalEnvironment, run } from "./run";
-import { logByStatus } from "./shared/logging";
 import { Command } from "./types/command";
 import { Context, SupportedEvents } from "./types/context";
 import { Env, envSchema } from "./types/env";
 import { AssistivePricingSettings, pluginSettingsSchema } from "./types/plugin-input";
-import { dispatchDeepEstimate } from "./utils/deep-estimate-dispatch";
 import { normalizeMultilineSecret } from "./utils/secrets";
 
 async function startAction(context: Context, inputs: Record<string, unknown>) {
@@ -94,17 +92,6 @@ export default {
             } else {
               const text = (await responseClone.json()) as Record<string, unknown>;
               await startAction(context, text);
-              if (context.eventName === "issues.opened") {
-                try {
-                  await dispatchDeepEstimate(context, {
-                    trigger: "issues.opened",
-                    forceOverride: false,
-                    initiator: context.payload.sender?.login,
-                  });
-                } catch (err) {
-                  logByStatus(context.logger, "Failed to dispatch deep time estimate for new issue.", err);
-                }
-              }
               return { message: "OK" };
             }
           }

@@ -134,6 +134,7 @@ async function estimateTimeInput(context: IssueContext): Promise<string> {
         ],
         max_tokens: 32,
         temperature: 0,
+        reasoning_effort: context.config.llmModel.reasoningEffort,
       },
       context
     );
