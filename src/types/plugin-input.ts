@@ -1,19 +1,18 @@
 import { StaticDecode, Type as T } from "@sinclair/typebox";
 
-const reasoningEffortType = T.Union(
-  [T.Literal("low"), T.Literal("medium"), T.Literal("high"), T.Literal("xhigh")],
-  {
-    examples: ["low", "medium", "high", "xhigh"],
-    default: "low",
-  },
-  { default: {} }
-);
+const reasoningEffortType = T.Union([T.Literal("low"), T.Literal("medium"), T.Literal("high"), T.Literal("xhigh")], {
+  examples: ["low", "medium", "high", "xhigh"],
+  default: "low",
+});
 
 export const pluginSettingsSchema = T.Object(
   {
-    llmModel: T.Object({
-      reasoningEffort: reasoningEffortType,
-    }),
+    llmModel: T.Object(
+      {
+        reasoningEffort: reasoningEffortType,
+      },
+      { default: {} }
+    ),
     globalConfigUpdate: T.Optional(
       T.Object(
         {
