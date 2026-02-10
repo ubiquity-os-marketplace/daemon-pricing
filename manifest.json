@@ -1,7 +1,7 @@
 {
-  "name": "@ubiquity-os/daemon-pricing",
-  "short_name": "ubiquity-os-marketplace/daemon-pricing@codex/fix/manifest-build-assistive-pricing",
-  "description": "Helps set pricing for GitHub Issues and their rewards.",
+  "name": "Assistive pricing",
+  "description": "Handles assistive pricing, and allows for users to modify labels.",
+  "ubiquity:listeners": ["repository.created", "issues.opened", "issues.labeled", "issues.unlabeled", "label.edited", "push"],
   "commands": {
     "time": {
       "ubiquity:example": "/time",
@@ -17,39 +17,11 @@
       }
     }
   },
-  "ubiquity:listeners": ["repository.created", "issues.opened", "issues.labeled", "issues.unlabeled", "label.edited", "push"],
   "skipBotEvents": false,
   "configuration": {
     "default": {},
     "type": "object",
     "properties": {
-      "llmModel": {
-        "type": "object",
-        "properties": {
-          "reasoningEffort": {
-            "examples": ["low", "medium", "high", "xhigh"],
-            "default": "low",
-            "anyOf": [
-              {
-                "const": "low",
-                "type": "string"
-              },
-              {
-                "const": "medium",
-                "type": "string"
-              },
-              {
-                "const": "high",
-                "type": "string"
-              },
-              {
-                "const": "xhigh",
-                "type": "string"
-              }
-            ]
-          }
-        }
-      },
       "globalConfigUpdate": {
         "description": "Updates all price labels across all tasks based on `baseRateMultiplier` changes within the config file.",
         "type": "object",
@@ -128,8 +100,8 @@
         "description": "Whether to allow funding contributor closed issues",
         "type": "boolean"
       }
-    },
-    "required": ["llmModel"]
+    }
   },
-  "homepage_url": "https://daemon-pricing-fix-double.deno.dev"
+  "homepage_url": "https://daemon-pricing-codex-fix-m.deno.dev",
+  "short_name": "ubiquity-os-marketplace/daemon-pricing@fix/double-estimate"
 }
