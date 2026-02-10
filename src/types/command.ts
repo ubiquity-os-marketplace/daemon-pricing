@@ -6,7 +6,7 @@ export const commandSchema = T.Object({
     examples: ["/time"],
   }),
   parameters: T.Object({
-    duration: T.Optional(T.String()),
+    duration: T.Optional(T.String({ description: "Duration label to apply (for example: 30m, 2h, 1d).", examples: ["2h"] })),
   }),
 });
 
