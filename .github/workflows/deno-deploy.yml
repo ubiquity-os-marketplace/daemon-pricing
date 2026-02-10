@@ -27,7 +27,7 @@ jobs:
         with:
           pluginEntry: "./worker"
 
-      - uses: ubiquity-os/deno-deploy@main
+      - uses: ubiquity-os/deno-deploy@feat/320-artifact-manifest-branch
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           KERNEL_PUBLIC_KEY: ${{ secrets.KERNEL_PUBLIC_KEY }}
@@ -37,6 +37,8 @@ jobs:
           ACTION_REF: ${{ env.ACTION_REF }}
           LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
         with:
+          sourceRef: ${{ github.event.ref || github.event.workflow_run.head_branch || github.ref_name }}
+          artifactPrefix: dist/
           token: ${{ secrets.DENO_DEPLOY_TOKEN }}
           action: ${{ github.event_name == 'delete' && 'delete' || 'deploy' }}
           organization: ${{ secrets.DENO_ORG_NAME }}
