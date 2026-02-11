@@ -9,7 +9,7 @@ import { Context } from "../src/types/context";
 import { Label } from "../src/types/github";
 import { priceMap, PRIORITY_LABELS } from "./__mocks__/constants";
 import { db } from "./__mocks__/db";
-import { createCommit, inMemoryCommits, setupTests } from "./__mocks__/helpers";
+import { createCommit, inMemoryCommits, seedPluginConfigs, setupTests } from "./__mocks__/helpers";
 import { server } from "./__mocks__/node";
 import { STRINGS } from "./__mocks__/strings";
 
@@ -66,16 +66,16 @@ describe("Label Base Rate Changes", () => {
 
       expect(updatedRepo?.labels).toHaveLength(29);
       expect(updatedIssue?.labels).toHaveLength(3);
-      expect(updatedIssue2?.labels).toHaveLength(2);
+      expect(updatedIssue2?.labels).toHaveLength(3);
 
       const priceLabels = updatedIssue?.labels.filter((label) => (label as Label).name.includes("Price:"));
       const priceLabels2 = updatedIssue2?.labels.filter((label) => (label as Label).name.includes("Price:"));
 
       expect(priceLabels).toHaveLength(1);
-      expect(priceLabels2).toHaveLength(0);
+      expect(priceLabels2).toHaveLength(1);
 
       expect(priceLabels?.map((label) => (label as Label).name)).toContain(`Price: ${priceMap[1] * 2} USD`);
-      expect(priceLabels2?.map((label) => (label as Label).name)).toHaveLength(0);
+      expect(priceLabels2?.map((label) => (label as Label).name)).toContain(`Price: ${priceMap[1] * 2} USD`);
 
       const noTandP = db.issue.findFirst({ where: { id: { equals: 2 } } });
       expect(noTandP?.labels).toHaveLength(0);
@@ -107,7 +107,7 @@ describe("Label Base Rate Changes", () => {
       );
       await globalLabelUpdate(context);
       expectConsoleToContain(consoleSpies, STRINGS.CONFIG_CHANGED_IN_COMMIT);
-      expectConsoleToContain(consoleSpies, STRINGS.EMPTY_COMMITS);
+      expectConsoleToContain(consoleSpies, STRINGS.SYNC_REPOS);
     },
     TEST_TIMEOUT
   );
@@ -137,7 +137,80 @@ describe("Label Base Rate Changes", () => {
 
       await globalLabelUpdate(context);
       expectConsoleToContain(consoleSpies, STRINGS.CONFIG_CHANGED_IN_COMMIT);
-      expectConsoleToContain(consoleSpies, STRINGS.EMPTY_COMMITS);
+      expectConsoleToContain(consoleSpies, STRINGS.SYNC_REPOS);
+    },
+    TEST_TIMEOUT
+  );
+
+  it(
+    "Should update labels when plugin label configuration changes",
+    async () => {
+      const pusher = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as Context["payload"]["sender"];
+      const commits = inMemoryCommits(STRINGS.SHA_1, true, true);
+      const updatedLabels = [...PRIORITY_LABELS, { name: "Priority: 6 (Critical)" }];
+      const { context, consoleSpies } = innerSetup(
+        1,
+        commits,
+        STRINGS.SHA_1,
+        STRINGS.SHA_1,
+        {
+          owner: STRINGS.UBIQUITY,
+          repo: STRINGS.TEST_REPO,
+          sha: STRINGS.SHA_1,
+          modified: [STRINGS.CONFIG_PATH],
+          added: [],
+          withBaseRateChanges: true,
+          withPlugin: true,
+          amount: 5,
+        },
+        pusher,
+        undefined,
+        {
+          beforeBasePriceMultiplier: 2,
+          afterBasePriceMultiplier: 2,
+          beforeLabels: PRIORITY_LABELS,
+          afterLabels: updatedLabels,
+        }
+      );
+
+      await globalLabelUpdate(context);
+      expectConsoleToContain(consoleSpies, STRINGS.CONFIG_CHANGED_IN_COMMIT);
+      expectConsoleToContain(consoleSpies, STRINGS.SYNC_REPOS);
+    },
+    TEST_TIMEOUT
+  );
+
+  it(
+    "Should ignore config changes unrelated to this plugin",
+    async () => {
+      const pusher = db.users.findFirst({ where: { id: { equals: 1 } } }) as unknown as Context["payload"]["sender"];
+      const commits = inMemoryCommits(STRINGS.SHA_1, true, true);
+      const { context, consoleSpies } = innerSetup(
+        1,
+        commits,
+        STRINGS.SHA_1,
+        STRINGS.SHA_1,
+        {
+          owner: STRINGS.UBIQUITY,
+          repo: STRINGS.TEST_REPO,
+          sha: STRINGS.SHA_1,
+          modified: [STRINGS.CONFIG_PATH],
+          added: [],
+          withBaseRateChanges: true,
+          withPlugin: false,
+          amount: 5,
+        },
+        pusher,
+        undefined,
+        {
+          beforeBasePriceMultiplier: 2,
+          afterBasePriceMultiplier: 2,
+        }
+      );
+
+      await globalLabelUpdate(context);
+      expectConsoleToContain(consoleSpies, STRINGS.CONFIG_CHANGED_IN_COMMIT);
+      expectConsoleNotToContain(consoleSpies, STRINGS.SYNC_REPOS);
     },
     TEST_TIMEOUT
   );
@@ -175,16 +248,16 @@ describe("Label Base Rate Changes", () => {
 
       expect(updatedRepo?.labels).toHaveLength(29);
       expect(updatedIssue?.labels).toHaveLength(3);
-      expect(updatedIssue2?.labels).toHaveLength(2);
+      expect(updatedIssue2?.labels).toHaveLength(3);
 
       const priceLabels = updatedIssue?.labels.filter((label) => (label as Label).name.includes("Price:"));
       const priceLabels2 = updatedIssue2?.labels.filter((label) => (label as Label).name.includes("Price:"));
 
       expect(priceLabels).toHaveLength(1);
-      expect(priceLabels2).toHaveLength(0);
+      expect(priceLabels2).toHaveLength(1);
 
       expect(priceLabels?.map((label) => (label as Label).name)).toContain(`Price: ${priceMap[1] * 2} USD`);
-      expect(priceLabels2?.map((label) => (label as Label).name)).toHaveLength(0);
+      expect(priceLabels2?.map((label) => (label as Label).name)).toContain(`Price: ${priceMap[1] * 2} USD`);
 
       const sender_ = context.payload.sender;
 
@@ -225,16 +298,16 @@ describe("Label Base Rate Changes", () => {
 
       expect(updatedRepo?.labels).toHaveLength(29);
       expect(updatedIssue?.labels).toHaveLength(3);
-      expect(updatedIssue2?.labels).toHaveLength(2);
+      expect(updatedIssue2?.labels).toHaveLength(3);
 
       const priceLabels = updatedIssue?.labels.filter((label) => (label as Label).name.includes("Price:"));
       const priceLabels2 = updatedIssue2?.labels.filter((label) => (label as Label).name.includes("Price:"));
 
       expect(priceLabels).toHaveLength(1);
-      expect(priceLabels2).toHaveLength(0);
+      expect(priceLabels2).toHaveLength(1);
 
       expect(priceLabels?.map((label) => (label as Label).name)).toContain(`Price: ${priceMap[1] * 2} USD`);
-      expect(priceLabels2?.map((label) => (label as Label).name)).toHaveLength(0);
+      expect(priceLabels2?.map((label) => (label as Label).name)).toContain(`Price: ${priceMap[1] * 2} USD`);
     },
     TEST_TIMEOUT
   );
@@ -268,7 +341,7 @@ describe("Label Base Rate Changes", () => {
       await globalLabelUpdate(context);
 
       expectConsoleToContain(consoleSpies, STRINGS.CONFIG_CHANGED_IN_COMMIT);
-      expectConsoleToContain(consoleSpies, STRINGS.EMPTY_COMMITS);
+      expectConsoleToContain(consoleSpies, STRINGS.SYNC_REPOS);
     },
     TEST_TIMEOUT
   );
@@ -299,7 +372,7 @@ describe("Label Base Rate Changes", () => {
       await globalLabelUpdate(context);
 
       expectConsoleToContain(consoleSpies, STRINGS.CONFIG_CHANGED_IN_COMMIT);
-      expectConsoleToContain(consoleSpies, STRINGS.EMPTY_COMMITS);
+      expectConsoleToContain(consoleSpies, STRINGS.SYNC_REPOS);
     },
     TEST_TIMEOUT
   );
@@ -480,7 +553,6 @@ describe("Label Base Rate Changes", () => {
 
       await globalLabelUpdate(context);
       expectConsoleToContain(consoleSpies, "Skipping push events. A new branch was created");
-      expectConsoleToContain(consoleSpies, "No label changes found in the diff");
     },
     TEST_TIMEOUT
   );
@@ -532,13 +604,36 @@ function innerSetup(
   pusher?: Context["payload"]["sender"],
   globalConfigUpdate?: {
     excludeRepos: string[];
+  },
+  configOverrides?: {
+    beforeBasePriceMultiplier?: number;
+    afterBasePriceMultiplier?: number;
+    beforeLabels?: typeof PRIORITY_LABELS;
+    afterLabels?: typeof PRIORITY_LABELS;
   }
 ) {
   const sender = db.users.findFirst({ where: { id: { equals: senderId } } }) as unknown as Context["payload"]["sender"];
+  const resolvedBefore = before === after ? `${before}-before` : before;
 
   createCommit(commitParams);
 
-  const context = createContext(sender, commits, before, after, pusher, globalConfigUpdate);
+  const context = createContext(sender, commits, resolvedBefore, after, pusher, globalConfigUpdate);
+
+  const afterBasePriceMultiplier = configOverrides?.afterBasePriceMultiplier ?? context.config.basePriceMultiplier;
+  const beforeBasePriceMultiplier =
+    configOverrides?.beforeBasePriceMultiplier ?? (commitParams.withBaseRateChanges ? Math.max(afterBasePriceMultiplier - 1, 0) : afterBasePriceMultiplier);
+
+  seedPluginConfigs({
+    owner: commitParams.owner,
+    repo: commitParams.repo,
+    beforeRef: resolvedBefore,
+    afterRef: after,
+    beforeBasePriceMultiplier,
+    afterBasePriceMultiplier,
+    excludeRepos: globalConfigUpdate?.excludeRepos ?? [],
+    beforeLabels: configOverrides?.beforeLabels,
+    afterLabels: configOverrides?.afterLabels,
+  });
 
   const consoleSpies = createConsoleSpies();
 
