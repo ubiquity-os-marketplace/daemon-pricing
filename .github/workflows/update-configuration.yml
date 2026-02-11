@@ -16,6 +16,8 @@ jobs:
           treatAsEsm: true
           sourcemap: true
           pluginEntry: "${{ github.workspace }}/src/action.ts"
+          excludeSupportedEvents: "issue_comment.created"
+          skipBotEvents: false
         env:
           APP_ID: ${{ secrets.APP_ID }}
           APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
