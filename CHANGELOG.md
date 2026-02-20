@@ -1,5 +1,71 @@
 # Changelog
 
+## 1.0.0 (2026-02-20)
+
+
+### Features
+
+* add `/time` command support ([b3582c5](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/b3582c52ed2db0de442f55bbc24c3867e986aef2))
+* add `/time` command support ([7cbb128](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/7cbb1282e850e628a05873063b32f6d43df8070a))
+* add api auto pricing ([00b6d03](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/00b6d031d8a1fb047ca0bbf531cc3e1399cd244d))
+* add api auto pricing ([12dad3d](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/12dad3de4b62a6d79a72485de56c36110f8f4739))
+* add api auto pricing ([5efa302](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/5efa3020ba425a0d6fa71819afe03b0b728e0acf))
+* add support for handling `issues.transferred` events ([b5b06ae](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/b5b06ae92ab3813e7faf13f0f94cc2ef795c0cf4))
+* add support for handling `issues.transferred` events ([918536a](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/918536a43b1e850c266d3e620f830b07f4f714fb))
+* added deno support ([2c0606c](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/2c0606c3297c035476a360fb451e46f1c33c574f))
+* azure deploy ([324af09](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/324af09d8d05b9da666e357cd8ad4ac50d16fae3))
+* deno ([e002504](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/e002504015fe024aaa994797efbc4dc6caa6b02e))
+* enhance time estimation functionality and label management ([4156a9a](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/4156a9a45964a588f714a8380acccd6977a9f9dc))
+* **time:** allow /time overrides ([0e470c4](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/0e470c47b380fed9a13c997187621eb7c9e5542f))
+* vercel migration ([31dc3b8](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/31dc3b89523e25a198786a44d101add11bdfa411))
+
+
+### Bug Fixes
+
+* accept kernel attestation inputs ([0eadf11](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/0eadf112e289be6addfd9bfbf249360353602668))
+* add "maintain" to collaborator roles ([12eea37](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/12eea373b670ffc6bf54a62ee2f4ed51f030511b))
+* add unit tests for `/time` label permissions ([8166c3d](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/8166c3d69e68e1563cf2678a532301607147bf44))
+* address daemon-pricing review feedback ([50003d3](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/50003d33c1857df36649dad6f26c21cc51d075d0))
+* address daemon-pricing review feedback ([ae98235](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/ae982351be6a2daaa43f8808a3cf9ae4770e4b5e))
+* align logging and sdk ([0dd7dc7](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/0dd7dc7592f2e3bfe834c3d5d767cc5fe0eac420))
+* align manifest workflow and command schema metadata ([08a4efd](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/08a4efd43dbb3a2d271704ec1ba372de23bc1d5b))
+* **app-auth:** normalize app private key ([66d31e7](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/66d31e762d6272dee4c32951489bb76e82a5b339))
+* avoid duplicate command handling ([0a2460e](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/0a2460ee62a170134321b59e3a27b5726f09a953))
+* avoid overriding manual time estimates ([a5339f1](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/a5339f1a436f904cf74bde6c85c28b83916a37c0))
+* bundle action dependencies ([e3b31c5](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/e3b31c525f6db9a11365a6773c4a764b9d5fdfb8))
+* **ci:** remove excluded ACTIONS_ prefix from secrets filter ([3b114b3](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/3b114b3c0ffe2e8ebdaadfbf1bd956043bc69a7c))
+* compare plugin config via deep equality ([7ef3382](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/7ef3382821ea0f8101af78b6ae7c52d17e124165))
+* **compute:** pass app creds to actions ([8ce910a](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/8ce910a37d6cc5bc29fa4d996742ca65dc58e3c9))
+* **compute:** set action ref for deep estimate ([7915ed5](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/7915ed532577449a65e9f95aa01e81145ab5f713))
+* **deep-estimate:** accept base64 auth token ([a83e8b0](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/a83e8b000bf4caf785f468aab6d376b81f39fdfa))
+* **deep-estimate:** remove secrets in condition ([eec4664](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/eec46644e574454be9b9477eea20aaef2a547b8c))
+* **deep-estimate:** resolve auth and cjs scripts ([8c9ab5d](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/8c9ab5debb373a68f9fb97c11586db27fb57434f))
+* dispatch deep estimates from actions ([6302b8f](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/6302b8f8dec36cd6d94aef83517ffcd05f014893))
+* fixed environment for Azure and Husky ([ab7e113](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/ab7e11340b461e04d7dc0e12493c3b25cc78754e))
+* handle bot-applied `/time` labels correctly ([e58f350](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/e58f350b11b7ab4ada0c4e9f19336c27a0005aea))
+* handle commands in actions ([a5b4c9e](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/a5b4c9e0913b986bf79bac79b9b7c9d4558151c6))
+* harden config sync handling ([6319563](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/6319563ac2dc90ed336f9489e37ccc18cfb0bf8a))
+* **husky:** comment out unused Husky script import ([1941b86](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/1941b86baac8ac8c1ea3fc6c3c0bfffc409973fa))
+* improve time label handling ([acfeeb0](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/acfeeb09d01cd9fe7d679009d9260aa47cc562fc))
+* **labels:** remove unauthorized labels after permission warning (fix [#126](https://github.com/ubiquity-os-marketplace/daemon-pricing/issues/126)) ([4f6e064](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/4f6e064ba2edb66e808fc0b95119c5ab9638c6e1))
+* **logging:** align status mapping ([c9ba525](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/c9ba525c1b9d429e7367aff0cc49d0ff46882d77))
+* release please issue permission ([42ca404](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/42ca40494dd9bb3f7b52874350a27c87bb62e1ca))
+* remove deep estimate dispatch on issue opened ([7e8235a](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/7e8235a70d31027f88fb460f59b5a17fb9598807))
+* remove paraphrasing comments & apiUrl -&gt; basetenApiUrl ([7ecaf04](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/7ecaf04a972ed5b7da42d8bb4902891185e91bab))
+* remove paraphrasing comments & apiUrl -&gt; basetenApiUrl ([c3e474b](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/c3e474bb21e55b0c80a511d4a294480244fef810))
+* require BASTEN_API_URL ([aaf5199](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/aaf5199e346c3b064016a381ac40bc81eed0a0d2))
+* require BASTEN_API_URL ([6c43ef4](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/6c43ef4086b5385e67ef81d166416406b1d9bdbf))
+* set environment main for main branch and tags ([26d1f68](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/26d1f686f219bc698ad5a66af19f164c2b18251d))
+* set environment main for main branch and tags ([8f82ec9](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/8f82ec9f08fd6359c87845e207ffe80eae43413a))
+* sync global label updates directly ([51d40aa](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/51d40aa0966bf3f68c6792ad94f8a1cd8ab3104d))
+* sync global label updates directly ([badd228](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/badd2285a9e97c0f3f8954e71214ece2b63a69ac))
+* sync manifest workflow metadata for issue 27 ([60ba51f](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/60ba51f1937ecf15dfc24e2bb1b1635ed8ca32d9))
+* sync workflow skipBotEvents and parameter metadata ([7ce5c22](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/7ce5c22c6a46f70273d840be49f052b994438c85))
+* update action bundle and time labels ([77fe868](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/77fe868c773ac8a8333a4a6819ce2e82ceb9bbc6))
+* update action-deploy-plugin reference in configuration workflow ([f3d3a15](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/f3d3a153f46961e16a304f1e89aeb79362b39cd9))
+* **vercel-deploy:** handle multiple environments dynamically ([54370e4](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/54370e4836fbaf0d32699dca24c513a8ea3d1b17))
+* **workflow:** run deep estimate scripts as cjs ([7eabcf9](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/7eabcf9e99d4dad1c76b8a35bf1d6bbdfc9085a9))
+
 ## [4.4.0](https://github.com/ubiquity-os-marketplace/daemon-pricing/compare/v4.3.0...v4.4.0) (2025-06-03)
 
 
