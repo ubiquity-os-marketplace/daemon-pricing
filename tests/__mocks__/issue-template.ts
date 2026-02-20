@@ -48,7 +48,7 @@ export default {
       name: "Price: 25 USD",
     },
     {
-      name: "Time: <1 Hour",
+      name: "Time: 1 Hour",
     },
     {
       name: "Priority: 1 (Normal)",

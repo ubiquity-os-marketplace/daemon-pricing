@@ -11,9 +11,9 @@ jobs:
     permissions: write-all
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
-          node-version: "20.10.0"
+          node-version: "24.11.1"
 
       - uses: actions/checkout@master
         with:
@@ -26,7 +26,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Jest With Coverage
-        run: bun run test
+        run: bun run test:jest
 
       - name: Add Jest Report to Summary
         if: always()

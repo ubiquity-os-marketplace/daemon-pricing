@@ -1,19 +1,25 @@
 import { jest } from "@jest/globals";
 import { LogReturn, Logs } from "@ubiquity-os/ubiquity-os-logger";
 import { determinePriorityOrder, extractLabelPattern } from "../src/handlers/label-checks";
-import { syncPriceLabelsToConfig } from "../src/handlers/sync-labels-to-config";
 import { calculateLabelValue } from "../src/shared/pricing";
 import { Context } from "../src/types/context";
 
 interface Label {
+  id: number;
+  node_id: string;
+  url: string;
   name: string;
-  description: string | undefined;
+  description: string | null;
+  color: string;
+  default: boolean;
 }
 
 const mockLogger = {
   info: jest.fn(),
   error: jest.fn(),
   debug: jest.fn(),
+  warn: jest.fn(),
+  ok: jest.fn(),
 };
 
 const mockOctokit = {
@@ -28,7 +34,6 @@ const mockOctokit = {
 const mockContext: Context = {
   config: {
     labels: {
-      time: [],
       priority: [],
     },
     basePriceMultiplier: 1,
@@ -50,27 +55,54 @@ describe("syncPriceLabelsToConfig function", () => {
     jest.resetModules();
   });
 
-  it("should not update labels if descriptions match the collaboratorOnly criteria", async () => {
+  it("updates price label colors when incorrect", async () => {
     const allLabels: Label[] = [
-      { name: "Label1", description: "" },
-      { name: "Label2", description: "" },
-      { name: "Label3", description: "" },
+      { id: 1, node_id: "n1", url: "", name: "Priority: 1 (Normal)", description: "", color: "ededed", default: false },
+      { id: 2, node_id: "n2", url: "", name: "Priority: 2 (Medium)", description: "", color: "ededed", default: false },
+      { id: 3, node_id: "n3", url: "", name: "Price: 10 USD", description: "", color: "000000", default: false },
     ];
-    jest.unstable_mockModule("../src/shared/label", () => ({
-      listLabelsForRepo: jest.fn(),
+    jest.mock("../src/shared/label", () => ({
+      COLORS: { price: "1f883d" },
+      listLabelsForRepo: async () => allLabels,
+      createLabel: async () => undefined,
     }));
+    const { syncPriceLabelsToConfig } = await import("../src/handlers/sync-labels-to-config");
 
-    const pricingLabels = [{ name: "Label1" }, { name: "Label2" }, { name: "Label3" }];
-    const { listLabelsForRepo } = await import("../src/shared/label");
-    (listLabelsForRepo as unknown as jest.Mock<() => Promise<typeof allLabels>>).mockResolvedValue(allLabels);
-    (mockOctokit.paginate as unknown as jest.Mock<() => Promise<typeof allLabels>>).mockResolvedValue(allLabels);
-
-    mockContext.config.labels.time = pricingLabels;
-    mockContext.config.labels.priority = [];
+    mockContext.config.labels.priority = [
+      { name: "Priority: 1 (Normal)", collaboratorOnly: false },
+      { name: "Priority: 2 (Medium)", collaboratorOnly: false },
+    ];
 
     await syncPriceLabelsToConfig(mockContext);
 
-    expect(mockOctokit.rest.issues.updateLabel).not.toHaveBeenCalled();
+    expect(mockOctokit.rest.issues.updateLabel).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: "Price: 10 USD",
+        color: "1f883d",
+      })
+    );
+  }, 15000);
+
+  it("creates missing priority labels", async () => {
+    const allLabels: Label[] = [];
+    const createLabelSpy = jest.fn<(context: Context, name: string, color: string) => Promise<void>>().mockResolvedValue(undefined);
+    jest.mock("../src/shared/label", () => ({
+      COLORS: { price: "1f883d" },
+      listLabelsForRepo: async () => allLabels,
+      createLabel: createLabelSpy,
+    }));
+    const { syncPriceLabelsToConfig } = await import("../src/handlers/sync-labels-to-config");
+
+    mockContext.config.labels.priority = [
+      { name: "Priority: 1 (Normal)", collaboratorOnly: false },
+      { name: "Priority: 2 (Medium)", collaboratorOnly: false },
+    ];
+
+    await syncPriceLabelsToConfig(mockContext);
+
+    expect(createLabelSpy).toHaveBeenCalledTimes(2);
+    expect(createLabelSpy).toHaveBeenCalledWith(expect.anything(), "Priority: 1 (Normal)", "default");
+    expect(createLabelSpy).toHaveBeenCalledWith(expect.anything(), "Priority: 2 (Medium)", "default");
   }, 15000);
 
   it("Should properly handle 0 priority label", () => {
@@ -78,7 +110,6 @@ describe("syncPriceLabelsToConfig function", () => {
       config: {
         labels: {
           priority: [{ name: "Priority: 0 (Regression)" }],
-          time: [{ name: "Time: 2 Hours" }],
         },
       },
     } as unknown as Context;
@@ -95,7 +126,7 @@ describe("syncPriceLabelsToConfig function", () => {
   it("Should ignore tags on parent issue, and clear pricing", async () => {
     const clearAllPriceLabelsOnIssue = jest.fn();
     const context = { logger: new Logs("debug"), eventName: "issues.labeled" } as unknown as Context;
-    jest.unstable_mockModule("../src/shared/label", () => ({
+    jest.mock("../src/shared/label", () => ({
       clearAllPriceLabelsOnIssue: clearAllPriceLabelsOnIssue,
     }));
     const { handleParentIssue } = await import("../src/handlers/handle-parent-issue");
@@ -118,10 +149,24 @@ describe("syncPriceLabelsToConfig function", () => {
   });
 
   it("Should handle unconventional label names", () => {
-    const labelList1 = [{ name: "P0" }, { name: "P1" }];
-    const labelList2 = [{ name: "Priority: 1 (Normal)" }, { name: "Priority: 2 (Medium)" }];
-    const labelList3 = [{ name: "p2" }, { name: "p1" }, { name: "p0" }];
-    const invalidLabelList = [{ name: "Prio: 1" }, { name: "p2" }, { name: "p high" }];
+    const labelList1 = [
+      { name: "P0", collaboratorOnly: false },
+      { name: "P1", collaboratorOnly: false },
+    ];
+    const labelList2 = [
+      { name: "Priority: 1 (Normal)", collaboratorOnly: false },
+      { name: "Priority: 2 (Medium)", collaboratorOnly: false },
+    ];
+    const labelList3 = [
+      { name: "p2", collaboratorOnly: false },
+      { name: "p1", collaboratorOnly: false },
+      { name: "p0", collaboratorOnly: false },
+    ];
+    const invalidLabelList = [
+      { name: "Prio: 1", collaboratorOnly: false },
+      { name: "p2", collaboratorOnly: false },
+      { name: "p high", collaboratorOnly: false },
+    ];
 
     expect(extractLabelPattern(labelList1)).toEqual(/P(\d*\.?\d+)/i);
     expect(extractLabelPattern(labelList2)).toEqual(/Priority: (\d*\.?\d+)/i);

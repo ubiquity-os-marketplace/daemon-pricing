@@ -1,24 +1,25 @@
-import { JestConfigWithTsJest } from "ts-jest";
+import type { Config } from "jest";
 
-module.exports = {
-  preset: "ts-jest",
+const cfg: Config = {
   testEnvironment: "node",
-  roots: ["./tests"],
-  coveragePathIgnorePatterns: ["node_modules", "mocks"],
+  transform: {
+    "^.+\\.[jt]s$": "@swc/jest",
+  },
+  moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json", "node"],
+  coveragePathIgnorePatterns: ["node_modules", "mocks", "tests"],
   collectCoverage: true,
   coverageReporters: ["json", "lcov", "text", "clover", "json-summary"],
   reporters: ["default", "jest-junit", "jest-md-dashboard"],
   coverageDirectory: "coverage",
-  extensionsToTreatAsEsm: [".ts"],
+  testTimeout: 20000,
+  roots: ["<rootDir>", "tests"],
+  transformIgnorePatterns: [],
+  extensionsToTreatAsEsm: [".ts", ".tsx"],
   moduleNameMapper: {
+    "^@octokit/webhooks$": "<rootDir>/tests/__mocks__/octokit-webhooks.ts",
     "^(\\.{1,2}/.*)\\.js$": "$1",
   },
-  transform: {
-    "^.+\\.tsx?$": [
-      "ts-jest",
-      {
-        useESM: true,
-      },
-    ],
-  },
-} as JestConfigWithTsJest;
+  setupFilesAfterEnv: ["dotenv/config"],
+};
+
+export default cfg;

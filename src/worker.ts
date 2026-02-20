@@ -1,18 +1,17 @@
 import { createAppAuth } from "@octokit/auth-app";
 import { Octokit } from "@octokit/rest";
-import { createPlugin } from "@ubiquity-os/plugin-sdk";
+import { createPlugin, Options } from "@ubiquity-os/plugin-sdk";
 import { Manifest } from "@ubiquity-os/plugin-sdk/manifest";
 import { customOctokit } from "@ubiquity-os/plugin-sdk/octokit";
 import { LOG_LEVEL, LogLevel } from "@ubiquity-os/ubiquity-os-logger";
 import type { ExecutionContext } from "hono";
-import { env as honoEnv } from "hono/adapter";
 import manifest from "../manifest.json";
-import { getPricing, getPriorityTime } from "./handlers/get-priority-time";
 import { handleCommand, isLocalEnvironment, run } from "./run";
 import { Command } from "./types/command";
 import { Context, SupportedEvents } from "./types/context";
 import { Env, envSchema } from "./types/env";
 import { AssistivePricingSettings, pluginSettingsSchema } from "./types/plugin-input";
+import { normalizeMultilineSecret } from "./utils/secrets";
 
 async function startAction(context: Context, inputs: Record<string, unknown>) {
   const { payload, logger, env } = context;
@@ -37,17 +36,19 @@ async function startAction(context: Context, inputs: Record<string, unknown>) {
 
   logger.info(`Will try to dispatch a workflow at ${owner}/${repo}@${ref}`);
 
+  const appPrivateKey = normalizeMultilineSecret(context.env.APP_PRIVATE_KEY);
+
   const appOctokit = new customOctokit({
     authStrategy: createAppAuth,
     auth: {
       appId: context.env.APP_ID,
-      privateKey: context.env.APP_PRIVATE_KEY,
+      privateKey: appPrivateKey,
     },
   });
 
   let authOctokit;
-  if (!env.APP_ID || !env.APP_PRIVATE_KEY) {
-    logger.debug("APP_ID or APP_PRIVATE_KEY are missing from the env, will use the default Octokit instance.");
+  if (!env.APP_ID || !appPrivateKey) {
+    logger.warn("APP_ID or APP_PRIVATE_KEY are missing from the env, will use the default Octokit instance.");
     authOctokit = context.octokit;
   } else {
     const installation = await appOctokit.rest.apps.getRepoInstallation({
@@ -58,7 +59,7 @@ async function startAction(context: Context, inputs: Record<string, unknown>) {
       authStrategy: createAppAuth,
       auth: {
         appId: context.env.APP_ID,
-        privateKey: context.env.APP_PRIVATE_KEY,
+        privateKey: appPrivateKey,
         installationId: installation.data.id,
       },
     });
@@ -90,7 +91,8 @@ export default {
               return run(context);
             } else {
               const text = (await responseClone.json()) as Record<string, unknown>;
-              return startAction(context, text);
+              await startAction(context, text);
+              return { message: "OK" };
             }
           }
           case "issues.labeled":
@@ -104,46 +106,14 @@ export default {
       },
       manifest as Manifest,
       {
-        envSchema: envSchema,
+        envSchema: envSchema as unknown as Options["envSchema"],
+        settingsSchema: pluginSettingsSchema as unknown as Options["settingsSchema"],
         postCommentOnError: true,
-        settingsSchema: pluginSettingsSchema,
         logLevel: (env.LOG_LEVEL as LogLevel) || LOG_LEVEL.INFO,
         kernelPublicKey: env.KERNEL_PUBLIC_KEY as string,
         bypassSignatureVerification: process.env.NODE_ENV === "local",
       }
     );
-
-    // /time endpoint
-    app.post("/time", async (c) => {
-      const env = honoEnv(c);
-      const { BASETEN_API_KEY, BASE_PRICE_MULTIPLIER, BASETEN_API_URL } = env;
-      if (!BASETEN_API_KEY) {
-        return c.json({ error: "BASETEN_API_KEY is not set" }, 500);
-      } else if (!BASETEN_API_URL) {
-        return c.json({ error: "BASETEN_API_URL is not set" }, 500);
-      }
-      const body = await c.req.json();
-      const { issue_description, issue_title } = body as {
-        issue_description: string;
-        issue_title: string;
-      };
-
-      const priorityTimeEstimate = await getPriorityTime(issue_description, issue_title, BASETEN_API_KEY as string, BASETEN_API_URL as string);
-
-      if (!priorityTimeEstimate) {
-        return c.json({ error: "No priority time estimate" }, 500);
-      }
-
-      const { time, priority } = priorityTimeEstimate;
-
-      const price = getPricing(parseFloat(BASE_PRICE_MULTIPLIER as string), parseFloat(time), priority);
-
-      return c.json({
-        time: time,
-        priority: priority,
-        price: price.toString(),
-      });
-    });
 
     return app.fetch(request, env, executionCtx);
   },

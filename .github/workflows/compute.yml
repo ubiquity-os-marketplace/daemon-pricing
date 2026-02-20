@@ -13,6 +13,12 @@ on:
         required: true
       authToken:
         required: true
+      ubiquityKernelToken:
+        description: "Kernel attestation token (optional)"
+        required: false
+      kernelPublicKey:
+        description: "Kernel public key PEM for signature verification (optional)"
+        required: false
       ref:
         required: true
       signature:
@@ -27,11 +33,14 @@ jobs:
     environment: ${{ (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')) && 'main' || 'development' }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Calling action
         uses: ./
         env:
           PLUGIN_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          KERNEL_PUBLIC_KEY: ${{ secrets.KERNEL_PUBLIC_KEY }}
+          KERNEL_PUBLIC_KEY: ${{ (endsWith(github.actor, '[bot]') && github.event.inputs.kernelPublicKey) || secrets.KERNEL_PUBLIC_KEY }}
           LOG_LEVEL: ${{ secrets.LOG_LEVEL || 'info' }}
+          ACTION_REF: ${{ github.repository }}@${{ github.ref_name }}
+          APP_ID: ${{ secrets.APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}

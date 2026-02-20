@@ -1,9 +1,12 @@
 import { Context } from "../../src/types/context";
 import { AUTHED_USER, BILLING_MANAGER, PRICE_LABELS, PRIORITY_LABELS, TIME_LABELS, UNAUTHED_USER } from "./constants";
+import { resetConfig, setConfig } from "./config-store";
 import { db } from "./db";
 import issueTemplate from "./issue-template";
 import { STRINGS } from "./strings";
 import usersGet from "./users-get.json";
+
+const PLUGIN_KEY = "ubiquity-os-marketplace/daemon-pricing";
 
 export function getBaseRateChanges(changeAmt: number, withChanges = true, withPlugin = false) {
   return `
@@ -29,13 +32,83 @@ export function getBaseRateChanges(changeAmt: number, withChanges = true, withPl
       ? `
     with: 
       labels:
-        time: []
 @ -40,115 +36,124 @@
         assistivePricing: true
   `
       : ""
   }
       `;
+}
+
+export function buildPluginConfigYaml(basePriceMultiplier: number, excludeRepos: string[] = [], labels: typeof PRIORITY_LABELS = PRIORITY_LABELS): string {
+  const priorityYaml = labels
+    .map(
+      (label) => `        - name: "${label.name}"
+          collaboratorOnly: false`
+    )
+    .join("\n");
+
+  const excludeLines = excludeRepos.length
+    ? ["      globalConfigUpdate:", "        excludeRepos:", ...excludeRepos.map((repo) => `        - ${repo}`)]
+    : ["      globalConfigUpdate:", "        excludeRepos: []"];
+
+  return [
+    "plugins:",
+    `  ${PLUGIN_KEY}:`,
+    "    with:",
+    `      basePriceMultiplier: ${basePriceMultiplier}`,
+    "      labels:",
+    "        priority:",
+    priorityYaml,
+    ...excludeLines,
+  ].join("\n");
+}
+
+export function seedPluginConfigs({
+  owner,
+  repo,
+  beforeRef,
+  afterRef,
+  beforeBasePriceMultiplier,
+  afterBasePriceMultiplier,
+  excludeRepos,
+  beforeLabels,
+  afterLabels,
+}: {
+  owner: string;
+  repo: string;
+  beforeRef: string;
+  afterRef?: string;
+  beforeBasePriceMultiplier: number;
+  afterBasePriceMultiplier: number;
+  excludeRepos: string[];
+  beforeLabels?: typeof PRIORITY_LABELS;
+  afterLabels?: typeof PRIORITY_LABELS;
+}) {
+  const afterContent = buildPluginConfigYaml(afterBasePriceMultiplier, excludeRepos, afterLabels);
+  setConfig({
+    owner,
+    repo,
+    path: STRINGS.CONFIG_PATH,
+    content: afterContent,
+  });
+  if (afterRef) {
+    setConfig({
+      owner,
+      repo,
+      path: STRINGS.CONFIG_PATH,
+      ref: afterRef,
+      content: afterContent,
+    });
+  }
+
+  setConfig({
+    owner,
+    repo,
+    path: STRINGS.CONFIG_PATH,
+    ref: beforeRef,
+    content: buildPluginConfigYaml(beforeBasePriceMultiplier, excludeRepos, beforeLabels),
+  });
 }
 
 export function getAuthor(isAuthed: boolean, isBilling: boolean) {
@@ -104,6 +177,7 @@ export function createCommit({
 }
 
 export async function setupTests() {
+  resetConfig();
   for (const item of usersGet) {
     db.users.create(item);
   }
@@ -137,7 +211,7 @@ export async function setupTests() {
     number: 3,
     labels: [
       {
-        name: "Time: <1 Hour",
+        name: "Time: 1 Hour",
       },
       {
         name: "Priority: 1 (Normal)",
