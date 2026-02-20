@@ -1,7 +1,7 @@
 {
-  "name": "Assistive pricing",
-  "description": "Handles assistive pricing, and allows for users to modify labels.",
-  "ubiquity:listeners": ["repository.created", "issues.opened", "issues.labeled", "issues.unlabeled", "label.edited", "push"],
+  "name": "@ubiquity-os/daemon-pricing",
+  "short_name": "ubiquity-os-marketplace/daemon-pricing@main",
+  "description": "Helps set pricing for GitHub Issues and their rewards.",
   "commands": {
     "time": {
       "ubiquity:example": "/time",
@@ -17,6 +17,7 @@
       }
     }
   },
+  "ubiquity:listeners": ["repository.created", "issues.opened", "issues.labeled", "issues.unlabeled", "label.edited", "push"],
   "skipBotEvents": false,
   "configuration": {
     "default": {},
@@ -130,6 +131,5 @@
       }
     }
   },
-  "homepage_url": "https://daemon-pricing-development.deno.dev",
-  "short_name": "ubiquity-os-marketplace/daemon-pricing@fix/double-estimate"
+  "homepage_url": "https://daemon-pricing-development.deno.dev"
 }
