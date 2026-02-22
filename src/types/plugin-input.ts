@@ -7,9 +7,12 @@ const reasoningEffortType = T.Union([T.Literal("low"), T.Literal("medium"), T.Li
 
 export const pluginSettingsSchema = T.Object(
   {
-    llmModel: T.Object({
-      reasoningEffort: reasoningEffortType,
-    }),
+    llmModel: T.Object(
+      {
+        reasoningEffort: reasoningEffortType,
+      },
+      { default: {} }
+    ),
     globalConfigUpdate: T.Optional(
       T.Object(
         {
