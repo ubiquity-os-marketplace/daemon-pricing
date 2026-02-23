@@ -22,8 +22,8 @@
     "dev": "bun run --watch --no-clear-screen --port 4001 src/worker.ts",
     "build": "tsup",
     "build:watch": "tsup --watch",
-    "prebuild": "rimraf dist",
-    "prepare:manifest": "node ./scripts/prepare-manifest.mjs",
+    "prebuild": "bun run prepare:manifest && rimraf dist",
+    "prepare:manifest": "curl -fsSL https://raw.githubusercontent.com/ubiquity-os/action-deploy-plugin/main/.github/scripts/update-manifest.js | node - .",
     "predev": "bun run prepare:manifest"
   },
   "keywords": [
