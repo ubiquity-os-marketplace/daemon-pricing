@@ -23,7 +23,7 @@
     "build": "tsup",
     "build:watch": "tsup --watch",
     "prebuild": "bun run prepare:manifest && rimraf dist",
-    "prepare:manifest": "curl -fsSL https://raw.githubusercontent.com/ubiquity-os/action-deploy-plugin/main/.github/scripts/update-manifest.js | node - .",
+    "prepare:manifest": "bun x @ubiquity-os/plugin-manifest-tool .",
     "predev": "bun run prepare:manifest"
   },
   "keywords": [
