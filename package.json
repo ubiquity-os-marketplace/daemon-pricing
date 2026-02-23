@@ -17,7 +17,7 @@
     "format:cspell": "cspell **/*",
     "knip": "knip --config .github/knip.ts",
     "knip-ci": "knip --no-exit-code --reporter json --config .github/knip.ts",
-    "prepare": "node .husky/install.mjs",
+    "prepare": "bun run prepare:manifest && node .husky/install.mjs",
     "test:jest": "jest --coverage",
     "dev": "bun run --watch --no-clear-screen --port 4001 src/worker.ts",
     "build": "tsup",
