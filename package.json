@@ -22,7 +22,9 @@
     "dev": "bun run --watch --no-clear-screen --port 4001 src/worker.ts",
     "build": "tsup",
     "build:watch": "tsup --watch",
-    "prebuild": "rimraf dist"
+    "prebuild": "rimraf dist",
+    "prepare:manifest": "node ./scripts/prepare-manifest.mjs",
+    "predev": "bun run prepare:manifest"
   },
   "keywords": [
     "typescript",
