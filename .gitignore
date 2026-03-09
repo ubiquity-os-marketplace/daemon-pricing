@@ -17,3 +17,6 @@ cypress/screenshots
 test-dashboard.md
 .wrangler
 .vercel
+
+manifest.json
+dist/
