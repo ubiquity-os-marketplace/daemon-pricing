@@ -26,9 +26,10 @@
     "issues.unlabeled",
     "issues.opened",
     "label.edited",
+    "issue_comment.created",
     "push"
   ],
-  "skipBotEvents": false,
+  "skipBotEvents": true,
   "configuration": {
     "default": {},
     "type": "object",
@@ -157,5 +158,6 @@
         "type": "boolean"
       }
     }
-  }
+  },
+  "homepage_url": "https://daemon-pricing-development.deno.dev"
 }
