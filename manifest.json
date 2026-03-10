@@ -29,7 +29,7 @@
     "issue_comment.created",
     "push"
   ],
-  "skipBotEvents": true,
+  "skipBotEvents": false,
   "configuration": {
     "default": {},
     "type": "object",
@@ -158,6 +158,5 @@
         "type": "boolean"
       }
     }
-  },
-  "homepage_url": "https://daemon-pricing-development.deno.dev"
+  }
 }
