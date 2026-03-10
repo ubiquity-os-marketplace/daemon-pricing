@@ -26,7 +26,6 @@
     "issues.unlabeled",
     "issues.opened",
     "label.edited",
-    "issue_comment.created",
     "push"
   ],
   "skipBotEvents": false,
