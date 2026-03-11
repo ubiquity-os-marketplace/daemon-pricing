@@ -5,5 +5,5 @@ outputs:
     description: "The result of a event handler"
     value: ${{ steps.mainHandler.outputs.result }}
 runs:
-  using: "node20"
+  using: "node24"
   main: "dist/index.cjs"
