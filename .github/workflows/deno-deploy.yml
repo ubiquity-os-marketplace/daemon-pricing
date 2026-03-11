@@ -30,7 +30,7 @@ jobs:
         with:
           pluginEntry: "./worker"
 
-      - uses: ubiquity-os/deno-deploy@main
+      - uses: ubiquity-os/deno-deploy@feat/320-artifact-manifest-branch
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           KERNEL_PUBLIC_KEY: ${{ secrets.KERNEL_PUBLIC_KEY }}
