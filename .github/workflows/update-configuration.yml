@@ -91,7 +91,7 @@ jobs:
 
       - name: Publish action artifact branch
         if: ${{ env.BUILD_ACTION_ENABLED == 'true' }}
-        uses: ubiquity-os/action-deploy-plugin@fix/propagate-skip-bot-events
+        uses: ubiquity-os/action-deploy-plugin@main
         with:
           action: ${{ github.event_name == 'delete' && 'delete' || 'publish' }}
           treatAsEsm: true
@@ -128,7 +128,7 @@ jobs:
         with:
           pluginEntry: "./worker"
 
-      - uses: ubiquity-os/deno-deploy@feat/320-artifact-manifest-branch
+      - uses: ubiquity-os/deno-deploy@main
         if: ${{ env.DEPLOY_DENO_ENABLED == 'true' && steps.refs.outputs.is_tag_ref != 'true' && steps.refs.outputs.is_artifact_ref != 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
