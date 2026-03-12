@@ -119,7 +119,7 @@ jobs:
 
       - name: Generate manifest for deploy
         if: ${{ env.DEPLOY_DENO_ENABLED == 'true' && steps.refs.outputs.is_tag_ref != 'true' && steps.refs.outputs.is_artifact_ref != 'true' && github.event_name != 'delete' }}
-        run: deno x -A -y npm:@ubiquity-os/plugin-manifest-tool@latest
+        run: deno x -A -y --no-lock npm:@ubiquity-os/plugin-manifest-tool@latest
         env:
           SKIP_BOT_EVENTS: ${{ env.SKIP_BOT_EVENTS }}
           EXCLUDE_SUPPORTED_EVENTS: ${{ env.EXCLUDE_SUPPORTED_EVENTS }}
