@@ -107,16 +107,19 @@ jobs:
         if: ${{ env.DEPLOY_DENO_ENABLED == 'true' && steps.refs.outputs.is_tag_ref != 'true' && steps.refs.outputs.is_artifact_ref != 'true' }}
         uses: actions/checkout@v6
 
-      - uses: oven-sh/setup-bun@v2
+      - name: Set up Deno
         if: ${{ env.DEPLOY_DENO_ENABLED == 'true' && steps.refs.outputs.is_tag_ref != 'true' && steps.refs.outputs.is_artifact_ref != 'true' }}
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
 
       - name: Install dependencies
         if: ${{ env.DEPLOY_DENO_ENABLED == 'true' && steps.refs.outputs.is_tag_ref != 'true' && steps.refs.outputs.is_artifact_ref != 'true' && github.event_name != 'delete' }}
-        run: bun install --frozen-lockfile --ignore-scripts
+        run: deno install --node-modules-dir=auto --no-lock
 
       - name: Generate manifest for deploy
         if: ${{ env.DEPLOY_DENO_ENABLED == 'true' && steps.refs.outputs.is_tag_ref != 'true' && steps.refs.outputs.is_artifact_ref != 'true' && github.event_name != 'delete' }}
-        run: bun x @ubiquity-os/plugin-manifest-tool@latest
+        run: deno x -A -y --no-lock npm:@ubiquity-os/plugin-manifest-tool@latest
         env:
           SKIP_BOT_EVENTS: ${{ env.SKIP_BOT_EVENTS }}
           EXCLUDE_SUPPORTED_EVENTS: ${{ env.EXCLUDE_SUPPORTED_EVENTS }}
