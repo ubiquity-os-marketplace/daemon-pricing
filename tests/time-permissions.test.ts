@@ -37,6 +37,20 @@ beforeAll(async () => {
   ({ run } = await import("../src/run"));
 });
 
+function makeWarnLog(message: string) {
+  return {
+    logMessage: {
+      raw: message,
+      diff: message,
+      level: "warn",
+      type: "warn",
+    },
+    metadata: {
+      message,
+    },
+  };
+}
+
 function makeIssueCommentContext({
   sender = "outsider",
   issueAuthor = "author",
@@ -56,7 +70,7 @@ function makeIssueCommentContext({
   orgRole?: string;
   command?: Context["command"];
 } = {}) {
-  const createComment = jest.fn(async () => ({ data: { id: 1 } }));
+  const postComment = jest.fn(async () => ({ id: 1 }));
   const getCollaboratorPermissionLevel = jest.fn(async () => ({
     data: {
       permission: repoPermission,
@@ -75,11 +89,12 @@ function makeIssueCommentContext({
       state: "active",
     },
   }));
+  const warn = jest.fn((message: string) => makeWarnLog(message));
 
   const context = {
     eventName: "issue_comment.created",
     logger: {
-      warn: jest.fn(),
+      warn,
       info: jest.fn(),
       error: jest.fn(),
       debug: jest.fn(),
@@ -112,11 +127,11 @@ function makeIssueCommentContext({
       },
     },
     command,
+    commentHandler: {
+      postComment,
+    },
     octokit: {
       rest: {
-        issues: {
-          createComment,
-        },
         repos: {
           getCollaboratorPermissionLevel,
         },
@@ -130,36 +145,35 @@ function makeIssueCommentContext({
 
   return {
     context,
-    createComment,
+    postComment,
     getCollaboratorPermissionLevel,
     checkMembershipForUser,
     getMembershipForUser,
+    warn,
   };
 }
 
-describe("run /time authorization", () => {
+describe("/time command permissions", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     delete process.env.GITHUB_ACTIONS;
   });
 
   it("posts a warning and skips /time for unauthorized issue comments", async () => {
-    const { context, createComment } = makeIssueCommentContext();
+    const { context, postComment, warn } = makeIssueCommentContext();
 
     await run(context);
 
-    expect(createComment).toHaveBeenCalledWith({
-      owner: "owner",
-      repo: "repo",
-      issue_number: 42,
-      body: "@outsider you do not have permissions to run the `/time` command.",
+    expect(warn).toHaveBeenCalledWith("@outsider you do not have permissions to run the `/time` command.");
+    expect(postComment).toHaveBeenCalledWith(context, makeWarnLog("@outsider you do not have permissions to run the `/time` command."), {
+      raw: true,
     });
     expect(mockTime).not.toHaveBeenCalled();
     expect(mockDispatchDeepEstimate).not.toHaveBeenCalled();
   });
 
   it("posts a warning and skips parsed /time commands for unauthorized users", async () => {
-    const { context, createComment } = makeIssueCommentContext({
+    const { context, postComment, warn } = makeIssueCommentContext({
       command: {
         name: "time",
         parameters: {
@@ -170,25 +184,23 @@ describe("run /time authorization", () => {
 
     await run(context);
 
-    expect(createComment).toHaveBeenCalledWith({
-      owner: "owner",
-      repo: "repo",
-      issue_number: 42,
-      body: "@outsider you do not have permissions to run the `/time` command.",
+    expect(warn).toHaveBeenCalledWith("@outsider you do not have permissions to run the `/time` command.");
+    expect(postComment).toHaveBeenCalledWith(context, makeWarnLog("@outsider you do not have permissions to run the `/time` command."), {
+      raw: true,
     });
     expect(mockTime).not.toHaveBeenCalled();
     expect(mockDispatchDeepEstimate).not.toHaveBeenCalled();
   });
 
   it("allows the issue author to run /time", async () => {
-    const { context, createComment, getCollaboratorPermissionLevel, checkMembershipForUser } = makeIssueCommentContext({
+    const { context, postComment, getCollaboratorPermissionLevel, checkMembershipForUser } = makeIssueCommentContext({
       sender: "author",
       issueAuthor: "author",
     });
 
     await run(context);
 
-    expect(createComment).not.toHaveBeenCalled();
+    expect(postComment).not.toHaveBeenCalled();
     expect(getCollaboratorPermissionLevel).not.toHaveBeenCalled();
     expect(checkMembershipForUser).not.toHaveBeenCalled();
     expect(mockTime).toHaveBeenCalledWith(context);
@@ -196,7 +208,7 @@ describe("run /time authorization", () => {
   });
 
   it("allows an organization member to run /time", async () => {
-    const { context, createComment, getCollaboratorPermissionLevel, checkMembershipForUser, getMembershipForUser } = makeIssueCommentContext({
+    const { context, postComment, getCollaboratorPermissionLevel, checkMembershipForUser, getMembershipForUser } = makeIssueCommentContext({
       sender: "member",
       orgLogin: "ubiquity-os-marketplace",
       isOrgMember: true,
@@ -204,7 +216,7 @@ describe("run /time authorization", () => {
 
     await run(context);
 
-    expect(createComment).not.toHaveBeenCalled();
+    expect(postComment).not.toHaveBeenCalled();
     expect(checkMembershipForUser).toHaveBeenCalledWith({
       org: "ubiquity-os-marketplace",
       username: "member",
@@ -219,7 +231,7 @@ describe("run /time authorization", () => {
   });
 
   it("allows a billing manager to run /time", async () => {
-    const { context, createComment, getMembershipForUser } = makeIssueCommentContext({
+    const { context, postComment, getMembershipForUser } = makeIssueCommentContext({
       sender: "billing",
       orgLogin: "ubiquity-os-marketplace",
       isOrgMember: true,
@@ -228,7 +240,7 @@ describe("run /time authorization", () => {
 
     await run(context);
 
-    expect(createComment).not.toHaveBeenCalled();
+    expect(postComment).not.toHaveBeenCalled();
     expect(getMembershipForUser).toHaveBeenCalledWith({
       org: "ubiquity-os-marketplace",
       username: "billing",
@@ -238,14 +250,14 @@ describe("run /time authorization", () => {
   });
 
   it("allows collaborators with write access to run /time", async () => {
-    const { context, createComment, getCollaboratorPermissionLevel } = makeIssueCommentContext({
+    const { context, postComment, getCollaboratorPermissionLevel } = makeIssueCommentContext({
       sender: "collaborator",
       repoPermission: "write",
     });
 
     await run(context);
 
-    expect(createComment).not.toHaveBeenCalled();
+    expect(postComment).not.toHaveBeenCalled();
     expect(getCollaboratorPermissionLevel).toHaveBeenCalledWith({
       owner: "owner",
       repo: "repo",
@@ -256,13 +268,13 @@ describe("run /time authorization", () => {
   });
 
   it("ignores non-/time issue comments", async () => {
-    const { context, createComment, getCollaboratorPermissionLevel, checkMembershipForUser } = makeIssueCommentContext({
+    const { context, postComment, getCollaboratorPermissionLevel, checkMembershipForUser } = makeIssueCommentContext({
       body: "hello there",
     });
 
     await run(context);
 
-    expect(createComment).not.toHaveBeenCalled();
+    expect(postComment).not.toHaveBeenCalled();
     expect(getCollaboratorPermissionLevel).not.toHaveBeenCalled();
     expect(checkMembershipForUser).not.toHaveBeenCalled();
     expect(mockTime).not.toHaveBeenCalled();

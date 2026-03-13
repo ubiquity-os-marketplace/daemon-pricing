@@ -30,19 +30,10 @@ async function maybeDispatchDeepEstimate(context: Context, options: Parameters<t
 }
 
 async function postTimePermissionWarning(context: Context<"issue_comment.created">, username: string) {
-  const owner = context.payload.repository.owner?.login;
-  if (!owner) {
-    context.logger.warn("No owner was found while trying to post the /time permission warning.");
-    return;
-  }
+  const warningMessage = `@${username} you do not have permissions to run the \`/time\` command.`;
 
   try {
-    await context.octokit.rest.issues.createComment({
-      owner,
-      repo: context.payload.repository.name,
-      issue_number: context.payload.issue.number,
-      body: `@${username} you do not have permissions to run the \`/time\` command.`,
-    });
+    await context.commentHandler.postComment(context, context.logger.warn(warningMessage), { raw: true });
   } catch (err) {
     logByStatus(context.logger, "Failed to post /time permission warning comment.", err, { username });
   }
