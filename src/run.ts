@@ -1,5 +1,6 @@
 import { globalLabelUpdate } from "./handlers/global-config-update";
 import { onIssueOpenedUpdatePricing, onLabelChangeSetPricing } from "./handlers/pricing-label";
+import { canRunTimeCommand } from "./shared/issue";
 import { syncPriceLabelsToConfig } from "./handlers/sync-labels-to-config";
 import { logByStatus } from "./shared/logging";
 import { Context } from "./types/context";
@@ -28,6 +29,41 @@ async function maybeDispatchDeepEstimate(context: Context, options: Parameters<t
   }
 }
 
+async function postTimePermissionWarning(context: Context<"issue_comment.created">, username: string) {
+  const owner = context.payload.repository.owner?.login;
+  if (!owner) {
+    context.logger.warn("No owner was found while trying to post the /time permission warning.");
+    return;
+  }
+
+  try {
+    await context.octokit.rest.issues.createComment({
+      owner,
+      repo: context.payload.repository.name,
+      issue_number: context.payload.issue.number,
+      body: `@${username} you do not have permissions to run the \`/time\` command.`,
+    });
+  } catch (err) {
+    logByStatus(context.logger, "Failed to post /time permission warning comment.", err, { username });
+  }
+}
+
+async function ensureTimeCommandAuthorized(context: Context<"issue_comment.created">) {
+  const username = context.payload.sender?.login ?? context.payload.comment?.user?.login;
+  if (!username) {
+    context.logger.warn("No username was found for the /time command.");
+    return false;
+  }
+
+  const authorization = await canRunTimeCommand(context, username);
+  if (authorization) {
+    return true;
+  }
+
+  await postTimePermissionWarning(context, username);
+  return false;
+}
+
 async function handleIssueCommentCreated(context: Context) {
   if (!isWorkerOrLocalEnvironment() || !isIssueCommentEvent(context)) {
     return;
@@ -35,6 +71,10 @@ async function handleIssueCommentCreated(context: Context) {
   if (!isTimeSlashCommand(context.payload.comment?.body)) {
     return;
   }
+  if (!(await ensureTimeCommandAuthorized(context))) {
+    return;
+  }
+
   const explicitDuration = getExplicitTimeInput(context);
   await time(context);
   await maybeDispatchDeepEstimate(
@@ -84,6 +124,9 @@ export async function handleCommand(context: Context) {
   }
 
   if (context.command.name === "time" && isIssueCommentEvent(context)) {
+    if (!(await ensureTimeCommandAuthorized(context))) {
+      return;
+    }
     const explicitDuration = getExplicitTimeInput(context);
     await time(context);
     try {

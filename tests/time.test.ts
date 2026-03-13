@@ -10,7 +10,7 @@ const logger = {
 };
 (logger.warn as jest.Mock).mockImplementation((...args: unknown[]) => {
   const msg = String(args[0]);
-  if (msg.includes("can only be used in issue comments") || msg.includes("Only admins or the issue author can set time estimates.")) {
+  if (msg.includes("can only be used in issue comments")) {
     throw new Error(msg);
   }
 });
@@ -361,24 +361,6 @@ describe("setTimeLabel", () => {
     await setTimeLabel(context, "2h");
     expect(mockRemoveLabelFromIssue).toHaveBeenCalledTimes(2);
     expect(mockAddLabelToIssue).toHaveBeenCalledWith(context, "Time: 2 Hours");
-  });
-
-  it("throws if not admin or author", async () => {
-    const { isUserAdminOrBillingManager } = await import("../src/shared/issue");
-    (isUserAdminOrBillingManager as jest.Mock<() => Promise<IsUserAdminOrBillingManagerReturn>>).mockResolvedValue(false);
-    const context = makeContext({
-      payload: {
-        sender: { login: "outsider" },
-        issue: { ...mockIssue, user: { ...mockUser, login: "owner" }, labels: [{ name: "Time: 1h" }] },
-      } as unknown as Context<"issue_comment.created">["payload"],
-    });
-    (
-      context.octokit.rest.repos.getCollaboratorPermissionLevel as unknown as jest.Mock<() => Promise<{ data: { permission: string; role_name: string } }>>
-    ).mockResolvedValue({
-      data: { permission: "read", role_name: "read" },
-    });
-    (context.octokit.rest.orgs.getMembershipForUser as unknown as jest.Mock<() => Promise<unknown>>).mockRejectedValue(new Error("not a member"));
-    await expect(setTimeLabel(context, "2h")).rejects.toThrow();
   });
 });
 
