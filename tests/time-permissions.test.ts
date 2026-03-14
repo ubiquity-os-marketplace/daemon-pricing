@@ -1,242 +1,283 @@
 import { beforeAll, beforeEach, describe, expect, it, jest } from "@jest/globals";
-import { Context } from "../src/types/context";
+import type { Context } from "../src/types/context";
 
-const logger = {
-  warn: jest.fn(),
-  info: jest.fn(),
-  error: jest.fn(),
-  debug: jest.fn(),
-};
-const warnThrowMessages = ["The `/time` command can only be used in issue comments."];
-(logger.warn as jest.Mock).mockImplementation((...args: unknown[]) => {
-  const msg = String(args[0]);
-  if (warnThrowMessages.some((text) => msg.includes(text))) {
-    throw new Error(msg);
-  }
-});
+const mockTime = jest.fn(async () => undefined);
+const mockEnsureTimeLabelOnIssueOpened = jest.fn(async () => undefined);
+const mockDispatchDeepEstimate = jest.fn(async () => undefined);
+const mockSyncPriceLabelsToConfig = jest.fn(async () => undefined);
+const mockOnIssueOpenedUpdatePricing = jest.fn(async () => undefined);
+const mockOnLabelChangeSetPricing = jest.fn(async () => undefined);
+const mockGlobalLabelUpdate = jest.fn(async () => undefined);
 
-const mockReactions = {
-  "+1": 0,
-  "-1": 0,
-  confused: 0,
-  eyes: 0,
-  heart: 0,
-  hooray: 0,
-  laugh: 0,
-  rocket: 0,
-  total_count: 0,
-  url: "",
-};
-
-const mockUser = {
-  login: "author",
-  id: 1,
-  avatar_url: "",
-  url: "",
-  type: "User" as const,
-};
-
-const baseIssue = {
-  active_lock_reason: null,
-  assignee: null,
-  assignees: [],
-  author_association: "NONE" as const,
-  body: "",
-  closed_at: null,
-  comments: 0,
-  comments_url: "",
-  created_at: "",
-  events_url: "",
-  html_url: "",
-  id: 1,
-  labels: [] as Array<{ name: string }>,
-  labels_url: "",
-  locked: false,
-  milestone: null,
-  node_id: "",
-  number: 42,
-  performed_via_github_app: null,
-  reactions: mockReactions,
-  repository_url: "",
-  state: "open" as "open" | "closed",
-  timeline_url: "",
-  title: "",
-  updated_at: "",
-  url: "",
-  user: { ...mockUser },
-};
-
-const mockAddLabelToIssue = jest.fn();
-const mockRemoveLabelFromIssue = jest.fn();
-const mockCreateLabel = jest.fn();
-
-jest.mock("../src/shared/label", () => ({
-  addLabelToIssue: mockAddLabelToIssue,
-  removeLabelFromIssue: mockRemoveLabelFromIssue,
-  createLabel: mockCreateLabel,
+jest.mock("../src/utils/time", () => ({
+  ensureTimeLabelOnIssueOpened: mockEnsureTimeLabelOnIssueOpened,
+  time: mockTime,
 }));
 
-// We'll inject behavior based on username
-const isUserAdminOrBillingManagerMock = jest.fn(async (ctxParam: unknown, username?: string) => {
-  if (!username) return false;
-  return username === "admin" ? "admin" : false;
-});
-
-jest.mock("../src/shared/issue", () => ({
-  isUserAdminOrBillingManager: isUserAdminOrBillingManagerMock,
+jest.mock("../src/utils/deep-estimate-dispatch", () => ({
+  dispatchDeepEstimate: mockDispatchDeepEstimate,
 }));
 
-let setTimeLabel: typeof import("../src/utils/time").setTimeLabel;
+jest.mock("../src/handlers/sync-labels-to-config", () => ({
+  syncPriceLabelsToConfig: mockSyncPriceLabelsToConfig,
+}));
+
+jest.mock("../src/handlers/pricing-label", () => ({
+  onIssueOpenedUpdatePricing: mockOnIssueOpenedUpdatePricing,
+  onLabelChangeSetPricing: mockOnLabelChangeSetPricing,
+}));
+
+jest.mock("../src/handlers/global-config-update", () => ({
+  globalLabelUpdate: mockGlobalLabelUpdate,
+}));
+
+let run: typeof import("../src/run").run;
 
 beforeAll(async () => {
-  ({ setTimeLabel } = await import("../src/utils/time"));
+  ({ run } = await import("../src/run"));
 });
 
-function makeContext({
-  sender,
-  issueLabels,
-  events,
-  authorLogin = "author",
-  org = undefined as undefined | string,
-}: {
-  sender: string;
-  issueLabels: string[];
-  events: Array<{ event: string; label?: { name: string }; actor?: { login: string } }>;
-  authorLogin?: string;
-  org?: string;
-}) {
-  const issue = { ...baseIssue, user: { ...mockUser, login: authorLogin }, labels: issueLabels.map((name) => ({ name })) };
-  const octokit = {
-    rest: {
-      issues: {
-        listEvents: jest.fn(),
-        listLabelsForRepo: jest.fn(),
-      },
-      repos: {
-        getCollaboratorPermissionLevel: jest.fn(({ username }: { username: string }) => {
-          if (username === "collab") return { data: { permission: "write", role_name: "write" } };
-          if (username === "admin") return { data: { permission: "admin", role_name: "admin" } };
-          if (username === "author") return { data: { permission: "read", role_name: "read" } };
-          return { data: { permission: "read", role_name: "read" } };
-        }),
-      },
-      orgs: {
-        getMembershipForUser: jest.fn(({ username }: { username: string }) => {
-          if (username === "collab") return Promise.resolve({ data: { state: "active", role: "member" } });
-          if (username === "admin") return Promise.resolve({ data: { state: "active", role: "admin" } });
-          throw new Error("not a member");
-        }),
-      },
-    },
-    paginate: jest.fn((fn: unknown) => {
-      // Resolve to different arrays based on the API method reference
-      if (fn === octokit.rest.issues.listEvents) return Promise.resolve(events);
-      if (fn === octokit.rest.issues.listLabelsForRepo)
-        return Promise.resolve([{ name: "Time: 15 Minutes" }, { name: "Time: 2 Hours" }, { name: "Time: 1 Week" }]);
-      return Promise.resolve([]);
-    }),
-  };
-
+function makeWarnLog(message: string) {
   return {
-    logger,
-    payload: {
-      action: "created",
-      repository: { owner: { login: "owner" }, name: "repo" },
-      organization: org ? { login: org } : undefined,
-      sender: { login: sender },
-      issue,
-      comment: {
-        author_association: "NONE",
-        body: "/time 2h",
-        html_url: "",
-        id: 1,
-        node_id: "",
-        user: { ...mockUser, login: sender },
-        created_at: "",
-        updated_at: "",
-        url: "",
-        reactions: mockReactions,
-        issue_url: "",
-        performed_via_github_app: null,
-      },
+    logMessage: {
+      raw: message,
+      diff: message,
+      level: "warn",
+      type: "warn",
     },
-    octokit,
-  } as unknown as Context<"issue_comment.created">;
+    metadata: {
+      message,
+    },
+  };
 }
 
-describe("time label permissions hierarchy", () => {
+function makeIssueCommentContext({
+  sender = "outsider",
+  issueAuthor = "author",
+  body = "/time 2h",
+  repoPermission = "read",
+  orgLogin,
+  isOrgMember = false,
+  orgRole = "member",
+  command,
+}: {
+  sender?: string;
+  issueAuthor?: string;
+  body?: string;
+  repoPermission?: string;
+  orgLogin?: string;
+  isOrgMember?: boolean;
+  orgRole?: string;
+  command?: Context["command"];
+} = {}) {
+  const postComment = jest.fn(async () => ({ id: 1 }));
+  const getCollaboratorPermissionLevel = jest.fn(async () => ({
+    data: {
+      permission: repoPermission,
+      role_name: repoPermission,
+    },
+  }));
+  const checkMembershipForUser = jest.fn(async () => {
+    if (!isOrgMember) {
+      throw new Error("not a member");
+    }
+    return { status: 204 };
+  });
+  const getMembershipForUser = jest.fn(async () => ({
+    data: {
+      role: orgRole,
+      state: "active",
+    },
+  }));
+  const warn = jest.fn((message: string) => makeWarnLog(message));
+
+  const context = {
+    eventName: "issue_comment.created",
+    logger: {
+      warn,
+      info: jest.fn(),
+      error: jest.fn(),
+      debug: jest.fn(),
+      ok: jest.fn(),
+      fatal: jest.fn(),
+    },
+    payload: {
+      action: "created",
+      organization: orgLogin ? { login: orgLogin } : undefined,
+      repository: {
+        owner: { login: "owner" },
+        name: "repo",
+      },
+      sender: {
+        login: sender,
+        type: "User",
+      },
+      issue: {
+        number: 42,
+        user: {
+          login: issueAuthor,
+        },
+      },
+      comment: {
+        id: 7,
+        body,
+        user: {
+          login: sender,
+        },
+      },
+    },
+    command,
+    commentHandler: {
+      postComment,
+    },
+    octokit: {
+      rest: {
+        repos: {
+          getCollaboratorPermissionLevel,
+        },
+        orgs: {
+          checkMembershipForUser,
+          getMembershipForUser,
+        },
+      },
+    },
+  } as unknown as Context<"issue_comment.created">;
+
+  return {
+    context,
+    postComment,
+    getCollaboratorPermissionLevel,
+    checkMembershipForUser,
+    getMembershipForUser,
+    warn,
+  };
+}
+
+describe("/time command permissions", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    delete process.env.GITHUB_ACTIONS;
   });
 
-  it("allows anybody to set time when unset", async () => {
-    const ctx = makeContext({ sender: "outsider", authorLogin: "author", issueLabels: [], events: [] });
-    await setTimeLabel(ctx as unknown as Context<"issue_comment.created">, "2h");
-    expect(mockAddLabelToIssue).toHaveBeenCalledWith(expect.anything(), "Time: 2 Hours");
+  it("posts a warning and skips /time for unauthorized issue comments", async () => {
+    const { context, postComment, warn } = makeIssueCommentContext();
+
+    await run(context);
+
+    expect(warn).toHaveBeenCalledWith("@outsider you do not have permissions to run the `/time` command.");
+    expect(postComment).toHaveBeenCalledWith(context, makeWarnLog("@outsider you do not have permissions to run the `/time` command."), {
+      raw: true,
+    });
+    expect(mockTime).not.toHaveBeenCalled();
+    expect(mockDispatchDeepEstimate).not.toHaveBeenCalled();
   });
 
-  it("allows author to override time set by anybody", async () => {
-    const ctx = makeContext({
+  it("posts a warning and skips parsed /time commands for unauthorized users", async () => {
+    const { context, postComment, warn } = makeIssueCommentContext({
+      command: {
+        name: "time",
+        parameters: {
+          duration: "2h",
+        },
+      },
+    });
+
+    await run(context);
+
+    expect(warn).toHaveBeenCalledWith("@outsider you do not have permissions to run the `/time` command.");
+    expect(postComment).toHaveBeenCalledWith(context, makeWarnLog("@outsider you do not have permissions to run the `/time` command."), {
+      raw: true,
+    });
+    expect(mockTime).not.toHaveBeenCalled();
+    expect(mockDispatchDeepEstimate).not.toHaveBeenCalled();
+  });
+
+  it("allows the issue author to run /time", async () => {
+    const { context, postComment, getCollaboratorPermissionLevel, checkMembershipForUser } = makeIssueCommentContext({
       sender: "author",
-      authorLogin: "author",
-      issueLabels: ["Time: 1 Hour"],
-      events: [
-        { event: "labeled", label: { name: "Time: 1 Hour" }, actor: { login: "outsider" } },
-        { event: "labeled", label: { name: "bug" } },
-      ],
+      issueAuthor: "author",
     });
-    await setTimeLabel(ctx as unknown as Context<"issue_comment.created">, "2h");
-    expect(mockRemoveLabelFromIssue).toHaveBeenCalled();
-    expect(mockAddLabelToIssue).toHaveBeenCalledWith(expect.anything(), "Time: 2 Hours");
+
+    await run(context);
+
+    expect(postComment).not.toHaveBeenCalled();
+    expect(getCollaboratorPermissionLevel).not.toHaveBeenCalled();
+    expect(checkMembershipForUser).not.toHaveBeenCalled();
+    expect(mockTime).toHaveBeenCalledWith(context);
+    expect(mockDispatchDeepEstimate).toHaveBeenCalledTimes(1);
   });
 
-  it("allows author to override time set by collaborator", async () => {
-    const ctx = makeContext({
-      sender: "author",
-      authorLogin: "author",
-      issueLabels: ["Time: 1 Hour"],
-      events: [{ event: "labeled", label: { name: "Time: 1 Hour" }, actor: { login: "collab" } }],
+  it("allows an organization member to run /time", async () => {
+    const { context, postComment, getCollaboratorPermissionLevel, checkMembershipForUser, getMembershipForUser } = makeIssueCommentContext({
+      sender: "member",
+      orgLogin: "ubiquity-os-marketplace",
+      isOrgMember: true,
     });
-    await setTimeLabel(ctx as unknown as Context<"issue_comment.created">, "2h");
-    expect(mockRemoveLabelFromIssue).toHaveBeenCalled();
-    expect(mockAddLabelToIssue).toHaveBeenCalledWith(expect.anything(), "Time: 2 Hours");
+
+    await run(context);
+
+    expect(postComment).not.toHaveBeenCalled();
+    expect(checkMembershipForUser).toHaveBeenCalledWith({
+      org: "ubiquity-os-marketplace",
+      username: "member",
+    });
+    expect(getMembershipForUser).toHaveBeenCalledWith({
+      org: "ubiquity-os-marketplace",
+      username: "member",
+    });
+    expect(getCollaboratorPermissionLevel).not.toHaveBeenCalled();
+    expect(mockTime).toHaveBeenCalledWith(context);
+    expect(mockDispatchDeepEstimate).toHaveBeenCalledTimes(1);
   });
 
-  it("allows author to override time set by bot", async () => {
-    const ctx = makeContext({
-      sender: "author",
-      authorLogin: "author",
-      issueLabels: ["Time: 1 Hour"],
-      events: [
-        { event: "labeled", label: { name: "Time: 1 Hour" }, actor: { login: "pricing-bot", type: "Bot" } as unknown as { login: string; type: string } },
-      ] as unknown as Array<{ event: string; label?: { name: string }; actor?: { login: string; type: string } }>,
+  it("allows a billing manager to run /time", async () => {
+    const { context, postComment, getMembershipForUser } = makeIssueCommentContext({
+      sender: "billing",
+      orgLogin: "ubiquity-os-marketplace",
+      isOrgMember: true,
+      orgRole: "billing_manager",
     });
-    await setTimeLabel(ctx as unknown as Context<"issue_comment.created">, "2h");
-    expect(mockRemoveLabelFromIssue).toHaveBeenCalled();
-    expect(mockAddLabelToIssue).toHaveBeenCalledWith(expect.anything(), "Time: 2 Hours");
+
+    await run(context);
+
+    expect(postComment).not.toHaveBeenCalled();
+    expect(getMembershipForUser).toHaveBeenCalledWith({
+      org: "ubiquity-os-marketplace",
+      username: "billing",
+    });
+    expect(mockTime).toHaveBeenCalledWith(context);
+    expect(mockDispatchDeepEstimate).toHaveBeenCalledTimes(1);
   });
 
-  it("allows collaborator to change existing time", async () => {
-    const ctx = makeContext({
-      sender: "collab",
-      authorLogin: "author",
-      issueLabels: ["Time: 1 Hour"],
-      events: [{ event: "labeled", label: { name: "Time: 1 Hour" }, actor: { login: "author" } }],
-      org: "some-org",
+  it("allows collaborators with write access to run /time", async () => {
+    const { context, postComment, getCollaboratorPermissionLevel } = makeIssueCommentContext({
+      sender: "collaborator",
+      repoPermission: "write",
     });
-    await setTimeLabel(ctx as unknown as Context<"issue_comment.created">, "2h");
-    expect(mockAddLabelToIssue).toHaveBeenCalledWith(expect.anything(), "Time: 2 Hours");
+
+    await run(context);
+
+    expect(postComment).not.toHaveBeenCalled();
+    expect(getCollaboratorPermissionLevel).toHaveBeenCalledWith({
+      owner: "owner",
+      repo: "repo",
+      username: "collaborator",
+    });
+    expect(mockTime).toHaveBeenCalledWith(context);
+    expect(mockDispatchDeepEstimate).toHaveBeenCalledTimes(1);
   });
 
-  it("allows contributor to change existing time", async () => {
-    const ctx = makeContext({
-      sender: "outsider",
-      authorLogin: "author",
-      issueLabels: ["Time: 1 Hour"],
-      events: [{ event: "labeled", label: { name: "Time: 1 Hour" }, actor: { login: "author" } }],
+  it("ignores non-/time issue comments", async () => {
+    const { context, postComment, getCollaboratorPermissionLevel, checkMembershipForUser } = makeIssueCommentContext({
+      body: "hello there",
     });
-    await setTimeLabel(ctx as unknown as Context<"issue_comment.created">, "2h");
-    expect(mockRemoveLabelFromIssue).toHaveBeenCalled();
-    expect(mockAddLabelToIssue).toHaveBeenCalledWith(expect.anything(), "Time: 2 Hours");
+
+    await run(context);
+
+    expect(postComment).not.toHaveBeenCalled();
+    expect(getCollaboratorPermissionLevel).not.toHaveBeenCalled();
+    expect(checkMembershipForUser).not.toHaveBeenCalled();
+    expect(mockTime).not.toHaveBeenCalled();
+    expect(mockDispatchDeepEstimate).not.toHaveBeenCalled();
   });
 });
