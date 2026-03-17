@@ -78,7 +78,7 @@ Time labels are created automatically from `/time <duration>` or from the issue-
 
 ### Deep time estimates (async)
 
-On issue creation and `/time`, the plugin also dispatches a background workflow that checks out the target repo and uses Codex to refine the estimate. It silently updates the time label if the last time label was set by a bot (issue-open) or always when `/time` triggered the run. The workflow routes Codex calls through `ai.ubq.fi` using the kernel attestation token, so no OpenAI API key is required.
+On issue creation and bare `/time`, the plugin also dispatches a background workflow that checks out the target repo and uses Codex to refine the estimate. `/time <duration>` only sets the time label manually and does not trigger the workflow. The workflow silently updates the time label if the last time label was set by a bot (issue-open) or when bare `/time` triggered the run. It routes Codex calls through `ai.ubq.fi` using the kernel attestation token, so no OpenAI API key is required.
 
 ## Running locally
 
