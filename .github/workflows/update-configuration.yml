@@ -103,6 +103,45 @@ jobs:
           APP_ID: ${{ secrets.APP_ID }}
           APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
 
+      - name: Check out dist mirror branch
+        if: ${{ env.BUILD_ACTION_ENABLED == 'true' && github.event_name != 'delete' && steps.refs.outputs.is_tag_ref != 'true' && steps.refs.outputs.is_artifact_ref != 'true' }}
+        uses: actions/checkout@v6
+        with:
+          ref: dist/${{ steps.refs.outputs.source_ref }}
+          path: dist_mirror_repo
+
+      - name: Sync deep-estimate workflow to dist mirror
+        if: ${{ env.BUILD_ACTION_ENABLED == 'true' && github.event_name != 'delete' && steps.refs.outputs.is_tag_ref != 'true' && steps.refs.outputs.is_artifact_ref != 'true' }}
+        shell: bash
+        env:
+          DIST_MIRROR_BRANCH: dist/${{ steps.refs.outputs.source_ref }}
+          DIST_MIRROR_REPO_PATH: ${{ github.workspace }}/dist_mirror_repo
+          SOURCE_WORKFLOW_PATH: ${{ github.workspace }}/.github/workflows/deep-estimate.yml
+        run: |
+          set -euo pipefail
+
+          # github.workspace remains the source branch checkout for this deploy run.
+          # dist_mirror_repo is a second checkout of the published dist/<source> mirror.
+          if [ ! -f "$SOURCE_WORKFLOW_PATH" ]; then
+            echo "::notice::Skipping deep-estimate workflow sync because $SOURCE_WORKFLOW_PATH does not exist."
+            exit 0
+          fi
+
+          mkdir -p "$DIST_MIRROR_REPO_PATH/.github/workflows"
+          cp "$SOURCE_WORKFLOW_PATH" "$DIST_MIRROR_REPO_PATH/.github/workflows/deep-estimate.yml"
+
+          git -C "$DIST_MIRROR_REPO_PATH" add .github/workflows/deep-estimate.yml
+
+          if git -C "$DIST_MIRROR_REPO_PATH" diff --cached --quiet --exit-code; then
+            echo "::notice::deep-estimate.yml is already up to date on $DIST_MIRROR_BRANCH."
+            exit 0
+          fi
+
+          git -C "$DIST_MIRROR_REPO_PATH" config user.name "github-actions[bot]"
+          git -C "$DIST_MIRROR_REPO_PATH" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "$DIST_MIRROR_REPO_PATH" commit -m "chore: [skip ci] sync deep-estimate workflow"
+          git -C "$DIST_MIRROR_REPO_PATH" push origin "HEAD:$DIST_MIRROR_BRANCH"
+
       - name: Check out the repository
         if: ${{ env.DEPLOY_DENO_ENABLED == 'true' && steps.refs.outputs.is_tag_ref != 'true' && steps.refs.outputs.is_artifact_ref != 'true' }}
         uses: actions/checkout@v6
