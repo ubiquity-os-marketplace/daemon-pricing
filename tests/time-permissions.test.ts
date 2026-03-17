@@ -192,10 +192,11 @@ describe("/time command permissions", () => {
     expect(mockDispatchDeepEstimate).not.toHaveBeenCalled();
   });
 
-  it("allows the issue author to run /time", async () => {
+  it("allows the issue author to run bare /time and dispatches deep estimate", async () => {
     const { context, postComment, getCollaboratorPermissionLevel, checkMembershipForUser } = makeIssueCommentContext({
       sender: "author",
       issueAuthor: "author",
+      body: "/time",
     });
 
     await run(context);
@@ -205,13 +206,19 @@ describe("/time command permissions", () => {
     expect(checkMembershipForUser).not.toHaveBeenCalled();
     expect(mockTime).toHaveBeenCalledWith(context);
     expect(mockDispatchDeepEstimate).toHaveBeenCalledTimes(1);
+    expect(mockDispatchDeepEstimate).toHaveBeenCalledWith(context, {
+      trigger: "issue_comment.created",
+      forceOverride: true,
+      initiator: "author",
+    });
   });
 
-  it("allows an organization member to run /time", async () => {
+  it("allows an organization member to run /time with an explicit duration without deep estimate", async () => {
     const { context, postComment, getCollaboratorPermissionLevel, checkMembershipForUser, getMembershipForUser } = makeIssueCommentContext({
       sender: "member",
       orgLogin: "ubiquity-os-marketplace",
       isOrgMember: true,
+      body: "/time 2h",
     });
 
     await run(context);
@@ -227,15 +234,16 @@ describe("/time command permissions", () => {
     });
     expect(getCollaboratorPermissionLevel).not.toHaveBeenCalled();
     expect(mockTime).toHaveBeenCalledWith(context);
-    expect(mockDispatchDeepEstimate).toHaveBeenCalledTimes(1);
+    expect(mockDispatchDeepEstimate).not.toHaveBeenCalled();
   });
 
-  it("allows a billing manager to run /time", async () => {
+  it("allows a billing manager to run bare /time", async () => {
     const { context, postComment, getMembershipForUser } = makeIssueCommentContext({
       sender: "billing",
       orgLogin: "ubiquity-os-marketplace",
       isOrgMember: true,
       orgRole: "billing_manager",
+      body: "/time",
     });
 
     await run(context);
@@ -249,10 +257,17 @@ describe("/time command permissions", () => {
     expect(mockDispatchDeepEstimate).toHaveBeenCalledTimes(1);
   });
 
-  it("allows collaborators with write access to run /time", async () => {
+  it("skips deep estimate for parsed /time commands with an explicit duration", async () => {
     const { context, postComment, getCollaboratorPermissionLevel } = makeIssueCommentContext({
       sender: "collaborator",
       repoPermission: "write",
+      body: "/time",
+      command: {
+        name: "time",
+        parameters: {
+          duration: "2h",
+        },
+      },
     });
 
     await run(context);
@@ -264,7 +279,25 @@ describe("/time command permissions", () => {
       username: "collaborator",
     });
     expect(mockTime).toHaveBeenCalledWith(context);
+    expect(mockDispatchDeepEstimate).not.toHaveBeenCalled();
+  });
+
+  it("treats whitespace-only /time arguments as bare /time", async () => {
+    const { context } = makeIssueCommentContext({
+      sender: "collaborator",
+      repoPermission: "write",
+      body: "/time   ",
+    });
+
+    await run(context);
+
+    expect(mockTime).toHaveBeenCalledWith(context);
     expect(mockDispatchDeepEstimate).toHaveBeenCalledTimes(1);
+    expect(mockDispatchDeepEstimate).toHaveBeenCalledWith(context, {
+      trigger: "issue_comment.created",
+      forceOverride: true,
+      initiator: "collaborator",
+    });
   });
 
   it("ignores non-/time issue comments", async () => {

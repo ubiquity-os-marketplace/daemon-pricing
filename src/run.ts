@@ -21,6 +21,10 @@ function getExplicitTimeInput(context: Context): string {
   return body.replace(/^\s*\/time\b/i, "").trim();
 }
 
+function shouldDispatchDeepEstimateAfterTime(context: Context<"issue_comment.created">): boolean {
+  return !getExplicitTimeInput(context);
+}
+
 async function maybeDispatchDeepEstimate(context: Context, options: Parameters<typeof dispatchDeepEstimate>[1], message: string) {
   try {
     await dispatchDeepEstimate(context, options);
@@ -55,6 +59,22 @@ async function ensureTimeCommandAuthorized(context: Context<"issue_comment.creat
   return false;
 }
 
+async function maybeDispatchDeepEstimateAfterTime(context: Context<"issue_comment.created">) {
+  if (!shouldDispatchDeepEstimateAfterTime(context)) {
+    return;
+  }
+
+  await maybeDispatchDeepEstimate(
+    context,
+    {
+      trigger: "issue_comment.created",
+      forceOverride: true,
+      initiator: context.payload.sender?.login,
+    },
+    "Failed to dispatch deep time estimate after /time."
+  );
+}
+
 async function handleIssueCommentCreated(context: Context) {
   if (!isWorkerOrLocalEnvironment() || !isIssueCommentEvent(context)) {
     return;
@@ -66,17 +86,8 @@ async function handleIssueCommentCreated(context: Context) {
     return;
   }
 
-  const explicitDuration = getExplicitTimeInput(context);
   await time(context);
-  await maybeDispatchDeepEstimate(
-    context,
-    {
-      trigger: "issue_comment.created",
-      forceOverride: !explicitDuration,
-      initiator: context.payload.sender?.login,
-    },
-    "Failed to dispatch deep time estimate after /time."
-  );
+  await maybeDispatchDeepEstimateAfterTime(context);
 }
 
 async function handleIssuesOpened(context: Context) {
@@ -118,17 +129,8 @@ export async function handleCommand(context: Context) {
     if (!(await ensureTimeCommandAuthorized(context))) {
       return;
     }
-    const explicitDuration = getExplicitTimeInput(context);
     await time(context);
-    try {
-      await dispatchDeepEstimate(context, {
-        trigger: "issue_comment.created",
-        forceOverride: !explicitDuration,
-        initiator: context.payload.sender?.login,
-      });
-    } catch (err) {
-      logByStatus(context.logger, "Failed to dispatch deep time estimate after /time.", err);
-    }
+    await maybeDispatchDeepEstimateAfterTime(context);
   }
 }
 

@@ -411,6 +411,7 @@ describe("time", () => {
       Promise.resolve([{ name: "Time: 5 Hours" }, { name: "Time: 15 Minutes" }, { name: "Time: 1 Week" }])
     );
     await time(context);
+    expect(mockCallLlm).not.toHaveBeenCalled();
     expect(mockAddLabelToIssue).toHaveBeenCalledWith(context, "Time: 5 Hours");
   });
 
