@@ -1,0 +1,161 @@
+{
+  "name": "@ubiquity-os/daemon-pricing",
+  "short_name": "ubiquity-os-marketplace/daemon-pricing@main",
+  "description": "Helps set pricing for GitHub Issues and their rewards.",
+  "commands": {
+    "time": {
+      "description": "Sets the time label for the given task. If no duration is provided, it estimates the time automatically.",
+      "ubiquity:example": "/time",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "duration": {
+            "description": "Duration label to apply (for example: 30m, 2h, 1d).",
+            "examples": [
+              "2h"
+            ],
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "ubiquity:listeners": [
+    "repository.created",
+    "issues.labeled",
+    "issues.unlabeled",
+    "issues.opened",
+    "label.edited",
+    "push"
+  ],
+  "skipBotEvents": false,
+  "configuration": {
+    "default": {},
+    "type": "object",
+    "properties": {
+      "llmModel": {
+        "default": {},
+        "type": "object",
+        "properties": {
+          "reasoningEffort": {
+            "examples": [
+              "low",
+              "medium",
+              "high",
+              "xhigh"
+            ],
+            "default": "low",
+            "anyOf": [
+              {
+                "const": "low",
+                "type": "string"
+              },
+              {
+                "const": "medium",
+                "type": "string"
+              },
+              {
+                "const": "high",
+                "type": "string"
+              },
+              {
+                "const": "xhigh",
+                "type": "string"
+              }
+            ]
+          }
+        }
+      },
+      "globalConfigUpdate": {
+        "description": "Updates all price labels across all tasks based on `baseRateMultiplier` changes within the config file.",
+        "type": "object",
+        "properties": {
+          "excludeRepos": {
+            "examples": [
+              "repo-name",
+              "no-owner-required"
+            ],
+            "description": "List of repositories to exclude from being updated",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "excludeRepos"
+        ]
+      },
+      "labels": {
+        "default": {},
+        "type": "object",
+        "properties": {
+          "priority": {
+            "minItems": 1,
+            "default": [
+              {
+                "name": "Priority: 0 (Regression)",
+                "collaboratorOnly": false
+              },
+              {
+                "name": "Priority: 1 (Normal)",
+                "collaboratorOnly": false
+              },
+              {
+                "name": "Priority: 2 (Medium)",
+                "collaboratorOnly": false
+              },
+              {
+                "name": "Priority: 3 (High)",
+                "collaboratorOnly": false
+              },
+              {
+                "name": "Priority: 4 (Urgent)",
+                "collaboratorOnly": false
+              },
+              {
+                "name": "Priority: 5 (Emergency)",
+                "collaboratorOnly": false
+              }
+            ],
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "examples": [
+                    "Priority: 1 (Normal)",
+                    "Priority: 5 (Emergency)"
+                  ],
+                  "description": "The display name of the label representing task priority",
+                  "type": "string"
+                },
+                "collaboratorOnly": {
+                  "default": false,
+                  "description": "Whether the task is only available for collaborators to be assigned",
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "name"
+              ]
+            }
+          }
+        }
+      },
+      "basePriceMultiplier": {
+        "examples": [
+          1.5
+        ],
+        "default": 1,
+        "description": "The base price multiplier for all tasks",
+        "type": "number"
+      },
+      "shouldFundContributorClosedIssue": {
+        "default": false,
+        "description": "Whether to allow funding contributor closed issues",
+        "type": "boolean"
+      }
+    }
+  }
+}
