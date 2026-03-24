@@ -157,6 +157,5 @@
         "type": "boolean"
       }
     }
-  },
-  "homepage_url": "https://daemon-pricing-main.deno.dev"
+  }
 }
