@@ -1,0 +1,16 @@
+{
+  "total_examples": 387,
+  "train_size": 300,
+  "val_size": 87,
+  "time_labels": [
+    "Time: <15 Minutes",
+    "Time: <1 Hour",
+    "Time: <2 Hours",
+    "Time: <4 Hours",
+    "Time: <1 Day",
+    "Time: <2 Days",
+    "Time: <1 Week"
+  ],
+  "scraped_at": "2026-04-01T13:09:54.623Z",
+  "source": "https://github.com/devpool-directory/devpool-directory"
+}
