@@ -70,17 +70,6 @@ jobs:
           echo "is_tag_ref=$is_tag_ref" >> "$GITHUB_OUTPUT"
           echo "is_artifact_ref=$is_artifact_ref" >> "$GITHUB_OUTPUT"
 
-      - name: Print deployment mode
-        shell: bash
-        run: |
-          echo "BUILD_ACTION_ENABLED=${BUILD_ACTION_ENABLED}"
-          echo "DEPLOY_DENO_ENABLED=${DEPLOY_DENO_ENABLED}"
-          echo "SKIP_BOT_EVENTS=${SKIP_BOT_EVENTS}"
-          echo "EXCLUDE_SUPPORTED_EVENTS=${EXCLUDE_SUPPORTED_EVENTS}"
-          echo "SOURCE_REF=${{ steps.refs.outputs.source_ref }}"
-          echo "IS_ARTIFACT_REF=${{ steps.refs.outputs.is_artifact_ref }}"
-          echo "IS_TAG_REF=${{ steps.refs.outputs.is_tag_ref }}"
-
       - name: Publish action artifact branch
         if: ${{ env.BUILD_ACTION_ENABLED == 'true' }}
         uses: ubiquity-os/action-deploy-plugin@main
