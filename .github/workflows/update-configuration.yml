@@ -66,16 +66,9 @@ jobs:
             is_artifact_ref="true"
           fi
 
-          if [[ "$BUILD_ACTION_ENABLED" == "true" ]]; then
-            action_ref_branch="dist/${source_ref}"
-          else
-            action_ref_branch="${source_ref}"
-          fi
-
           echo "source_ref=$source_ref" >> "$GITHUB_OUTPUT"
           echo "is_tag_ref=$is_tag_ref" >> "$GITHUB_OUTPUT"
           echo "is_artifact_ref=$is_artifact_ref" >> "$GITHUB_OUTPUT"
-          echo "ACTION_REF=${GITHUB_REPOSITORY}@${action_ref_branch}" >> "$GITHUB_ENV"
 
       - name: Print deployment mode
         shell: bash
@@ -87,7 +80,6 @@ jobs:
           echo "SOURCE_REF=${{ steps.refs.outputs.source_ref }}"
           echo "IS_ARTIFACT_REF=${{ steps.refs.outputs.is_artifact_ref }}"
           echo "IS_TAG_REF=${{ steps.refs.outputs.is_tag_ref }}"
-          echo "ACTION_REF=${ACTION_REF}"
 
       - name: Publish action artifact branch
         if: ${{ env.BUILD_ACTION_ENABLED == 'true' }}
@@ -178,13 +170,9 @@ jobs:
           APP_ID: ${{ secrets.APP_ID }}
           APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
           APP_INSTALLATION_ID: ${{ secrets.APP_INSTALLATION_ID }}
-          ACTION_REF: ${{ env.ACTION_REF }}
           LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
         with:
           token: ${{ secrets.DENO_DEPLOY_TOKEN }}
-          action: ${{ github.event_name == 'delete' && 'delete' || 'deploy' }}
-          organization: ${{ secrets.DENO_ORG_NAME }}
+          action: ${{ github.event_name == 'delete' && 'delete' || 'provision' }}
+          app: ${{ secrets.DENO_PROJECT_NAME }}
           entrypoint: ${{ github.event_name == 'delete' && 'src/deno.ts' || steps.adapter.outputs.entrypoint }}
-          project_name: ${{ secrets.DENO_PROJECT_NAME }}
-          sourceRef: ${{ steps.refs.outputs.source_ref }}
-          artifactPrefix: dist/
