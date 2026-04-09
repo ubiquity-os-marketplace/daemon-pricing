@@ -8,7 +8,7 @@ Fine-tune a model to predict how long a GitHub issue will take to complete based
 
 ## Architecture
 
-```
+```text
 src/scraper/
 ├── scraper.ts    # Fetch issues from GitHub API, filter by time labels
 ├── formatter.ts  # Convert issues to OpenAI fine-tune message format
@@ -17,7 +17,7 @@ src/scraper/
 data/
 ├── train.jsonl       # Training data (20+ examples)
 └── validation.jsonl  # Validation data (5+ examples)
-```
+```text
 
 ## Dataset Format
 
@@ -31,7 +31,7 @@ Each line is a JSON object following OpenAI's chat completion format:
     {"role": "assistant", "content": "Time: <2 Hours"}
   ]
 }
-```
+```text
 
 ## Usage
 
@@ -41,7 +41,7 @@ GITHUB_TOKEN=ghp_... npx tsx src/scraper/cli.ts
 
 # Custom repository
 GITHUB_TOKEN=ghp_... npx tsx src/scraper/cli.ts owner repo
-```
+```text
 
 ## Time Labels Recognized
 
