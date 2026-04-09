@@ -1,8 +1,8 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, jest } from "@jest/globals";
 import { Context } from "../src/types/context";
 
-const mockCallLlm = jest.fn();
-const mockSanitizeLlmResponse = jest.fn((input: string) => input);
+const mockCallLlm = jest.fn<(...args: unknown[]) => Promise<unknown>>();
+const mockSanitizeLlmResponse = jest.fn<(input: string) => string>((input: string) => input);
 
 jest.mock("@ubiquity-os/plugin-sdk", () => ({
   callLlm: mockCallLlm,
