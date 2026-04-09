@@ -15,9 +15,9 @@ src/scraper/
 ├── dataset.ts    # Split train/validation, write JSONL files
 └── cli.ts        # CLI entry point
 data/
-├── train.jsonl       # Training data (20+ examples)
+├── train.jsonl       # Training data (250+ examples)
 └── validation.jsonl  # Validation data (5+ examples)
-```text
+```
 
 ## Dataset Format
 
@@ -31,7 +31,7 @@ Each line is a JSON object following OpenAI's chat completion format:
     {"role": "assistant", "content": "Time: <2 Hours"}
   ]
 }
-```text
+```
 
 ## Usage
 
@@ -41,7 +41,7 @@ GITHUB_TOKEN=ghp_... npx tsx src/scraper/cli.ts
 
 # Custom repository
 GITHUB_TOKEN=ghp_... npx tsx src/scraper/cli.ts owner repo
-```text
+```
 
 ## Time Labels Recognized
 
@@ -57,5 +57,5 @@ The scraper identifies time labels matching patterns like:
 ## Sample Data
 
 The `data/` directory includes sample JSONL files with realistic GitHub issue examples for immediate fine-tuning experimentation:
-- **train.jsonl**: 24 training examples
+- **train.jsonl**: 250+ training examples
 - **validation.jsonl**: 5 validation examples
