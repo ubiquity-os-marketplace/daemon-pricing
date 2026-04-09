@@ -24,7 +24,7 @@ const { privateKey, publicKey } = crypto.generateKeyPairSync("rsa", {
   },
 });
 
-const url = "/";
+const url = "http://localhost";
 
 beforeAll(() => server.listen());
 afterEach(() => server.resetHandlers());
