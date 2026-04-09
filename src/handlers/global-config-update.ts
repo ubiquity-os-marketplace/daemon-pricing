@@ -3,7 +3,7 @@ import { Value } from "@sinclair/typebox/value";
 import { ConfigurationHandler } from "@ubiquity-os/plugin-sdk/configuration";
 import { CONFIG_ORG_REPO } from "@ubiquity-os/plugin-sdk/constants";
 import { customOctokit } from "@ubiquity-os/plugin-sdk/octokit";
-import manifest from "../../manifest.json";
+import manifest from "../../manifest.json" with { type: "json" };
 import { isUserAdminOrBillingManager, listOrgRepos, listRepoIssues } from "../shared/issue";
 import { logByStatus } from "../shared/logging";
 import { COMMIT_MESSAGE } from "../types/constants";
