@@ -1,17 +1,25 @@
 import { createAppAuth } from "@octokit/auth-app";
 import { Octokit } from "@octokit/rest";
 import { createPlugin, Options } from "@ubiquity-os/plugin-sdk";
-import { Manifest } from "@ubiquity-os/plugin-sdk/manifest";
+import { Manifest, resolveRuntimeManifest } from "@ubiquity-os/plugin-sdk/manifest";
 import { customOctokit } from "@ubiquity-os/plugin-sdk/octokit";
 import { LOG_LEVEL, LogLevel } from "@ubiquity-os/ubiquity-os-logger";
 import type { ExecutionContext } from "hono";
-import manifest from "../manifest.json";
+import manifest from "../manifest.json" with { type: "json" };
 import { handleCommand, isLocalEnvironment, run } from "./run";
 import { Command } from "./types/command";
 import { Context, SupportedEvents } from "./types/context";
 import { Env, envSchema } from "./types/env";
 import { AssistivePricingSettings, pluginSettingsSchema } from "./types/plugin-input";
 import { normalizeMultilineSecret } from "./utils/secrets";
+
+function buildRuntimeManifest(request: Request) {
+  const runtimeManifest = resolveRuntimeManifest(manifest as Manifest);
+  return {
+    ...runtimeManifest,
+    homepage_url: new URL(request.url).origin,
+  };
+}
 
 async function startAction(context: Context, inputs: Record<string, unknown>) {
   const { payload, logger, env } = context;
@@ -75,6 +83,11 @@ async function startAction(context: Context, inputs: Record<string, unknown>) {
 
 export default {
   async fetch(request: Request, env: Record<string, unknown>, executionCtx?: ExecutionContext) {
+    const runtimeManifest = buildRuntimeManifest(request);
+    if (new URL(request.url).pathname === "/manifest.json") {
+      return Response.json(runtimeManifest);
+    }
+
     // It is important to clone the request because the body is read within createPlugin as well
     const responseClone = request.clone();
 
@@ -104,7 +117,7 @@ export default {
           }
         }
       },
-      manifest as Manifest,
+      runtimeManifest,
       {
         envSchema: envSchema as unknown as Options["envSchema"],
         settingsSchema: pluginSettingsSchema as unknown as Options["settingsSchema"],

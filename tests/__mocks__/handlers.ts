@@ -1,7 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { Buffer } from "node:buffer";
 import { CONFIG_FULL_PATH, DEV_CONFIG_FULL_PATH } from "@ubiquity-os/plugin-sdk/constants";
-import manifest from "../../manifest.json";
+import manifest from "../../manifest.json" with { type: "json" };
 import { getConfig } from "./config-store";
 import { db } from "./db";
 import issueTemplate from "./issue-template";
