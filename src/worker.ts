@@ -90,7 +90,11 @@ export default {
     }
     // It is important to clone the request because the body is read within createPlugin as well
     const responseClone = request.clone();
-    const environment = env<Env>(request as never);
+    const environment = env<Env>(request as never) as Env & {
+      KERNEL_PUBLIC_KEY?: string;
+      LOG_LEVEL?: string;
+      NODE_ENV?: string;
+    };
 
     const app = createPlugin<AssistivePricingSettings, Env, Command, SupportedEvents>(
       async (context) => {
