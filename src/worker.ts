@@ -5,6 +5,7 @@ import { Manifest, resolveRuntimeManifest } from "@ubiquity-os/plugin-sdk/manife
 import { customOctokit } from "@ubiquity-os/plugin-sdk/octokit";
 import { LOG_LEVEL, LogLevel } from "@ubiquity-os/ubiquity-os-logger";
 import type { ExecutionContext } from "hono";
+import { env } from "hono/adapter";
 import manifest from "../manifest.json" with { type: "json" };
 import { handleCommand, isLocalEnvironment, run } from "./run";
 import { Command } from "./types/command";
@@ -82,14 +83,14 @@ async function startAction(context: Context, inputs: Record<string, unknown>) {
 }
 
 export default {
-  async fetch(request: Request, env: Record<string, unknown>, executionCtx?: ExecutionContext) {
+  async fetch(request: Request, serverInfo: Deno.ServeHandlerInfo, executionCtx?: ExecutionContext) {
     const runtimeManifest = buildRuntimeManifest(request);
     if (new URL(request.url).pathname === "/manifest.json") {
       return Response.json(runtimeManifest);
     }
-
     // It is important to clone the request because the body is read within createPlugin as well
     const responseClone = request.clone();
+    const environment = env<Env>(request as never);
 
     const app = createPlugin<AssistivePricingSettings, Env, Command, SupportedEvents>(
       async (context) => {
@@ -122,12 +123,12 @@ export default {
         envSchema: envSchema as unknown as Options["envSchema"],
         settingsSchema: pluginSettingsSchema as unknown as Options["settingsSchema"],
         postCommentOnError: true,
-        logLevel: (env.LOG_LEVEL as LogLevel) || LOG_LEVEL.INFO,
-        kernelPublicKey: env.KERNEL_PUBLIC_KEY as string,
-        bypassSignatureVerification: process.env.NODE_ENV === "local",
+        logLevel: (environment.LOG_LEVEL as LogLevel) || LOG_LEVEL.INFO,
+        kernelPublicKey: environment.KERNEL_PUBLIC_KEY as string,
+        bypassSignatureVerification: environment.NODE_ENV === "local",
       }
     );
 
-    return app.fetch(request, env, executionCtx);
+    return app.fetch(request, serverInfo, executionCtx);
   },
 };
