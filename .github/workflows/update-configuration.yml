@@ -207,6 +207,7 @@ jobs:
           APP_ID: ${{ secrets.APP_ID }}
           APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
           APP_INSTALLATION_ID: ${{ secrets.APP_INSTALLATION_ID }}
+          ACTION_REF: ${{ github.repository }}@${{ github.ref_name }}
           LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
         with:
           token: ${{ secrets.DENO_2_DEPLOY_TOKEN || secrets.DENO_DEPLOY_TOKEN }}
