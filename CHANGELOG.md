@@ -1,5 +1,22 @@
 # Changelog
 
+## [4.6.1](https://github.com/ubiquity-os-marketplace/daemon-pricing/compare/v4.6.0...v4.6.1) (2026-04-21)
+
+
+### Bug Fixes
+
+* add json import attributes for deno ([7b1413e](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/7b1413e01c7e0ccd898a12d98f3a409479f083cc))
+* address non-transitive CI failures ([27f7230](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/27f723097cf6c0b81c4709706ac8a2774d201db1))
+* align deno worker env handling ([61bcc94](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/61bcc94c6ee67b3a1b69dd65062f4c729f2fa354))
+* align deno worker env handling ([db24cd1](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/db24cd11dc569ffc3a21e9b3059ea7f917646b81))
+* bump plugin-sdk for runtime manifest refs ([00f8f75](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/00f8f75db33ffd5768a6472403e0002fe0b67913))
+* fall back to legacy deno token ([6d52b30](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/6d52b30445b8b19450e73b49e28b2b4c26bc63cf))
+* make worker entrypoints CI-safe ([ea0aa16](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/ea0aa16d13dc742dc1fc5bb1c6d4702756407f0f))
+* pass action ref to deploy workflow ([472faa7](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/472faa75e28a778c033c50b5347dd2ccc840f48e))
+* pass explicit deno org ([f99dd95](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/f99dd953a3e0a04463f912bbd43007d731b94b6e))
+* use deno 2 deploy token ([321e5a3](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/321e5a38a891022cbe6d7acfcbb04842f7e01d62))
+* widen runtime env typing ([e12e87d](https://github.com/ubiquity-os-marketplace/daemon-pricing/commit/e12e87d9ee418f452d9400af040ed8894a5ff999))
+
 ## 4.6.0 (2026-03-24)
 
 
