@@ -9,8 +9,8 @@ import { AssistivePricingSettings, pluginSettingsSchema } from "../src/types/plu
 import workerFetch from "../src/worker";
 import { db } from "./__mocks__/db";
 import { server } from "./__mocks__/node";
-import issueCommented from "./__mocks__/requests/issue-comment-post.json";
-import usersGet from "./__mocks__/users-get.json";
+import issueCommented from "./__mocks__/requests/issue-comment-post.json" with { type: "json" };
+import usersGet from "./__mocks__/users-get.json" with { type: "json" };
 
 const { privateKey, publicKey } = crypto.generateKeyPairSync("rsa", {
   modulusLength: 2048,
@@ -24,7 +24,7 @@ const { privateKey, publicKey } = crypto.generateKeyPairSync("rsa", {
   },
 });
 
-const url = "/";
+const url = "http://localhost";
 
 beforeAll(() => server.listen());
 afterEach(() => server.resetHandlers());

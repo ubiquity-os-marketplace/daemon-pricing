@@ -1,6 +1,6 @@
 import { ConfigurationHandler } from "@ubiquity-os/plugin-sdk/configuration";
 import { CONFIG_FULL_PATH, CONFIG_ORG_REPO, DEV_CONFIG_FULL_PATH } from "@ubiquity-os/plugin-sdk/constants";
-import manifest from "../../manifest.json";
+import manifest from "../../manifest.json" with { type: "json" };
 import { isDeepEqual } from "../shared/deep-equal";
 import { Context } from "../types/context";
 import { isPushEvent } from "../types/typeguards";

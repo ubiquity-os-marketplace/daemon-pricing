@@ -4,7 +4,7 @@ import { resetConfig, setConfig } from "./config-store";
 import { db } from "./db";
 import issueTemplate from "./issue-template";
 import { STRINGS } from "./strings";
-import usersGet from "./users-get.json";
+import usersGet from "./users-get.json" with { type: "json" };
 
 const PLUGIN_KEY = "ubiquity-os-marketplace/daemon-pricing";
 
