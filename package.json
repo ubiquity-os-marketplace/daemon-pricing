@@ -6,6 +6,9 @@
   "author": "Ubiquity DAO",
   "license": "MIT",
   "type": "module",
+  "scraper": {
+    "description": "Issue scraper for time estimation fine-tuning dataset"
+  },
   "engines": {
     "node": ">=24.11.0"
   },
